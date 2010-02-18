@@ -1,0 +1,68 @@
+#$$LIC$$
+#
+# $Id: Makefile.in 996 2009-03-19 18:14:44Z csc $
+# 
+# Makefile
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+datarootdir = @datarootdir@
+libdir = @libdir@
+mandir = @mandir@
+includedir = @includedir@
+top_builddir = .
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_HEADER = $(INSTALL_DATA)
+CC = @CC@
+EXEEXT = @EXEEXT@
+OBJEXT = @OBJEXT@
+PACKAGE = @PACKAGE_NAME@
+VERSION = @PACKAGE_VERSION@
+install_sh = @install_sh@
+OPENSSL = @OPENSSL@
+
+DEFS = @DEFS@ 
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@ -L/usr/local/lib
+LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc
+CCOPT = -Wall -g
+INCLS = -I. -I/usr/local/include
+CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
+
+TARGETS = impd4e
+OBJS = bobhash.o hash.o hsieh.o main.o twmx.o
+DEPHDR = bobhash.h hash.h hsieh.h main.h templates.h twmx.h
+CLEANFILES = $(OBJS) $(TARGETS) 
+
+all: $(TARGETS)
+
+clean:
+	rm -f $(CLEANFILES)
+
+distclean:
+	rm -f $(CLEANFILES) $(DHPARAMS) Makefile
+
+install:
+	@[ -d ${libdir} ] || (mkdir -p ${libdir}; chmod 755 ${libdir})
+	$(INSTALL_DATA) libipfix.a ${libdir}/
+	$(INSTALL_DATA) $(LIBMISCDIR)/libmisc.a ${libdir}/
+	@[ -d ${includedir} ] || (mkdir -p ${includedir}; chmod 755 ${includedir})
+	$(INSTALL_HEADER) ipfix*.h ${includedir}/
+
+impd4e: $(OBJS)
+	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LIBS) $(LDFLAGS) $(OBJS)
+
+.c.o:
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<

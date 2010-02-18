@@ -3,3 +3,8 @@
 
 * documentation how to run impd4e together with FOKUS' packet ID matcher
 
+* implement "seed" parameter for use in hash functions
+
+* fix configure.ac so that it detects if and where libipfix is installed
+	(corrently /usr/local/include|lib is blindly assumed)
+

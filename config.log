@@ -27,6 +27,8 @@ uname -v = #1 SMP Mon Jan 26 00:13:11 UTC 2009
 /usr/bin/oslevel       = unknown
 /bin/universe          = unknown
 
+PATH: /home/chh/bin
+PATH: /home/chh/bin
 PATH: /usr/local/sbin
 PATH: /usr/local/bin
 PATH: /usr/sbin
@@ -376,8 +378,8 @@ configure:4726: $? = 0
 configure:4744: result: yes
 configure:4751: checking for _doprnt
 configure:4807: gcc -o conftest -g -O2   conftest.c  >&5
-/tmp/ccwnbl1M.o: In function `main':
-/home/crawley/devel/impd4e/conftest.c:74: undefined reference to `_doprnt'
+/tmp/cco1dVT5.o: In function `main':
+/home/chh/workspaceC/impd4e/conftest.c:74: undefined reference to `_doprnt'
 collect2: ld returned 1 exit status
 configure:4813: $? = 1
 configure: failed program was:

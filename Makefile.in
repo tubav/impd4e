@@ -62,7 +62,7 @@ install:
 	$(INSTALL_HEADER) ipfix*.h ${includedir}/
 
 impd4e: $(OBJS)
-	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LIBS) $(LDFLAGS) $(OBJS)
+	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
 
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<

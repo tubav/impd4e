@@ -40,6 +40,9 @@
 
 // globals
 
+#define LINE_LENGTH 80
+
+
 char errbuf[PCAP_ERRBUF_SIZE];
 options_t options;
 pcap_dev_t *pcap_devices;
@@ -353,7 +356,7 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 char *htoa( uint32_t ipaddr ) {
 	static char addrstr[16]; /* ugh */
 	uint8_t *p = (uint8_t*)&ipaddr;
-	sprintf( addrstr, "%d.%d.%d.%d", p[3], p[2], p[1], p[0]);
+	sprintf( addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 	return addrstr;
 }
 
@@ -362,7 +365,6 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 
 	int i;
-	struct bpf_program fp;
 	int fd;
         struct ifreq ifr;
         fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -385,15 +387,38 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 		// }
 
 		 /* I want IP address attached to device */ 
-		 strncpy(ifr.ifr_name, options->if_names[i], IFNAMSIZ-1);
-		 ioctl(fd, SIOCGIFADDR, &ifr);
-		
-		pcap_devices[i].IPv4address = ntohl(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr);
+//		strncpy(ifr.ifr_name, options->if_names[i], IFNAMSIZ-1);
+//		ioctl(fd, SIOCGIFADDR, &ifr);
+//
+//		pcap_devices[i].IPv4address = ntohl(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr);
+//
+//		 /* display result */
+//
+//		mlogf(ALWAYS, "Device %s has IP %s \n", options->if_names[i], htoa(pcap_devices[i].IPv4address));
 
-		 /* display result */
 
-		mlogf(ALWAYS, "Device %s has IP %s \n", options->if_names[i], htoa(pcap_devices[i].IPv4address));
+		// dirty IP read hack - but socket problem with embedded interfaces
+
+		FILE *fp;
+		char *script = "./getIPAddress.sh ";
+		char *cmdLine;
+		cmdLine = (char *) malloc((strlen(script) + strlen(options->if_names[i]) + 1)  *sizeof(char));
+		strcpy(cmdLine, script);
+		strcat(cmdLine, options->if_names[i]);
+		fp = popen(cmdLine, "r");
+
+		char IPAddress[LINE_LENGTH];
+		fgets(IPAddress, LINE_LENGTH , fp);
+		in_addr_t inp;
+		if(inet_aton(IPAddress, &inp) <0) {
+			mlogf(ALWAYS, "read wrong IP format of Interface %s \n", options->if_names[i]);
+			exit(1);
+		}
+		pcap_devices[i].IPv4address = inp;
+		mlogf(INFO, "Device %s has IP %s \n", options->if_names[i], htoa(pcap_devices[i].IPv4address));
+		pclose(fp);
 		
+
 		pcap_devices[i].link_type = pcap_datalink(pcap_devices[i].pcap_handle);
 		switch (pcap_devices[i].link_type) {
 		case DLT_EN10MB:

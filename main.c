@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <arpa/inet.h>
 
 
 #include "templates.h"
@@ -348,6 +349,15 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 	}
 }
 
+
+char *htoa( uint32_t ipaddr ) {
+	static char addrstr[16]; /* ugh */
+	uint8_t *p = (uint8_t*)&ipaddr;
+	sprintf( addrstr, "%d.%d.%d.%d", p[3], p[2], p[1], p[0]);
+	return addrstr;
+}
+
+
 void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 
@@ -378,10 +388,11 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 		 strncpy(ifr.ifr_name, options->if_names[i], IFNAMSIZ-1);
 		 ioctl(fd, SIOCGIFADDR, &ifr);
 		
-		pcap_devices[i].IPv4address = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr;
+		pcap_devices[i].IPv4address = ntohl(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr);
 
 		 /* display result */
-		mlogf(ALWAYS, "Device %s has IP %s\n", options->if_names[i], inet_ntoa(pcap_devices[i].IPv4address));
+
+		mlogf(ALWAYS, "Device %s has IP %s \n", options->if_names[i], htoa(pcap_devices[i].IPv4address));
 		
 		pcap_devices[i].link_type = pcap_datalink(pcap_devices[i].pcap_handle);
 		switch (pcap_devices[i].link_type) {

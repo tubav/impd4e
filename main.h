@@ -44,13 +44,13 @@ typedef struct options
 	uint32_t export_packet_count;
 	uint32_t export_interval;
 	double sampling_ratio;
-	int hashAsPacketID
+	int hashAsPacketID;
 } options_t;
 
 typedef struct pcap_dev {
 	pcap_t *pcap_handle;
 	options_t *options;
-	bpf_u_int32 IPv4address;
+	uint32_t IPv4address;
 	bpf_u_int32 mask;
 	int link_type;
 	ipfix_t *ipfixhandle;

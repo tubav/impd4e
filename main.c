@@ -24,6 +24,10 @@
 #include <errno.h>
 #include <signal.h>
 #include <netinet/in.h>
+#include <net/if.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
 
 
 #include "templates.h"
@@ -337,8 +341,9 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 				options->sel_range_min = UINT32_MAX - options->sel_range_max;
 				options->sel_range_max = UINT32_MAX;
 			}
+			break;
 		default:
-			printf("unknown parameter: %d", c);
+			printf("unknown parameter: %d \n", c);
 		}
 	}
 }
@@ -348,6 +353,12 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 	int i;
 	struct bpf_program fp;
+	int fd;
+        struct ifreq ifr;
+        fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+        /* I want to get an IPv4 IP address */
+        ifr.ifr_addr.sa_family = AF_INET;	
 
 	for (i = 0; i < (options->number_interfaces); i++) {
 		pcap_devices[i].pcap_handle = pcap_open_live(options->if_names[i],
@@ -356,12 +367,22 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 			printf("%s \n", errbuf);
 			continue;
 		}
-		if (pcap_lookupnet(options->if_names[i],
-				&(pcap_devices[i].IPv4address), &(pcap_devices[i].mask), errbuf)
-				< 0) {
-			printf("could not determine netmask and Ip-Adress of device %s \n",
-					options->if_names[i]);
-		}
+		// if (pcap_lookupnet(options->if_names[i],
+		//		&(pcap_devices[i].IPv4address), &(pcap_devices[i].mask), errbuf)
+		//		< 0) {
+		//	printf("could not determine netmask and Ip-Adress of device %s \n",
+		//			options->if_names[i]);
+		// }
+
+		 /* I want IP address attached to device */ 
+		 strncpy(ifr.ifr_name, options->if_names[i], IFNAMSIZ-1);
+		 ioctl(fd, SIOCGIFADDR, &ifr);
+		
+		pcap_devices[i].IPv4address = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr;
+
+		 /* display result */
+		mlogf(ALWAYS, "Device %s has IP %s\n", options->if_names[i], inet_ntoa(pcap_devices[i].IPv4address));
+		
 		pcap_devices[i].link_type = pcap_datalink(pcap_devices[i].pcap_handle);
 		switch (pcap_devices[i].link_type) {
 		case DLT_EN10MB:
@@ -407,6 +428,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 		/* set initial export time to 'now' */
 		gettimeofday( &pcap_devices[i].last_export_time, NULL );
 	}
+	close(fd);
 }
 
 void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
@@ -423,7 +445,6 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 
 		/* use observationDomainID if explicitely given via cmd line, else use interface IPv4address as oid */
 		uint32_t odid = (options->observationDomainID != 0) ?options->observationDomainID : pcap_devices[i].IPv4address;
-
 		if (ipfix_open(&(pcap_devices[i].ipfixhandle),
 				odid, IPFIX_VERSION) < 0) {
 			mlogf(ALWAYS, "ipfix_open() failed: %s\n", strerror(errno));

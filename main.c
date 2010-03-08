@@ -243,6 +243,11 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 	char *endptr;
 	errno = 0;
 	double sampling_ratio;
+	// options->basedir =  strdup(argv[0]);
+	char *pos = strrchr( options->basedir, '/' );
+	pos[1] = 0;
+
+
 
 	options->number_interfaces = 0;
 
@@ -349,7 +354,9 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 		default:
 			printf("unknown parameter: %d \n", c);
 		}
+
 	}
+
 }
 
 

@@ -244,8 +244,8 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 	errno = 0;
 	double sampling_ratio;
 	// options->basedir =  strdup(argv[0]);
-	char *pos = strrchr( options->basedir, '/' );
-	pos[1] = 0;
+	//	char *pos = strrchr( options->basedir, '/' );
+	//	pos[1] = 0;
 
 
 

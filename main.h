@@ -26,7 +26,7 @@ typedef uint32_t (*hashFunction)(uint8_t*,uint16_t);
 typedef uint16_t (*selectionFunction) (const uint8_t *, uint16_t , uint8_t *, uint16_t, int16_t *, uint8_t*);
 
 typedef struct options
-{
+{	char basedir[100];
 	uint8_t number_interfaces;
 	char *if_names[MAX_INTERFACES];
 	uint32_t templateID;
@@ -50,7 +50,7 @@ typedef struct options
 typedef struct pcap_dev {
 	pcap_t *pcap_handle;
 	options_t *options;
-	uint32_t IPv4address;
+	bpf_u_int32 IPv4address;
 	bpf_u_int32 mask;
 	int link_type;
 	ipfix_t *ipfixhandle;

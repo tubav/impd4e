@@ -541,8 +541,6 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 	uint8_t ttl;
 	uint64_t timestamp;
 	findHeaders(packet, header->caplen, pcap_device->offset, layers, &ttl);
-	printf("layers NET: %d %d %d: \n" , layers[L_NET], layers[L_TRANS], layers[L_PAYLOAD]);
-	printf("offset NET: %d %d %d: \n" , pcap_device->offset[L_NET], pcap_device->offset[L_TRANS], pcap_device->offset[L_PAYLOAD]);
 	copiedbytes = pcap_device->options->selection_function(packet,
 			header->caplen, pcap_device->outbuffer,
 			pcap_device->outbufferLength, pcap_device->offset, layers);

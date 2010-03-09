@@ -144,12 +144,12 @@ void catch_alarm(int sig_num)
 void signal_setup() {
 	struct itimerval tv;
 	if (signal(SIGINT, catch_sigint) == SIG_ERR) {
-		perror ("signal:");
+		perror ("signal: \n");
 	}
 
 	/* setup the signal handler for alarm timer */
 	if (signal(SIGALRM, catch_alarm) == SIG_ERR) {
-		perror ("signal:");
+		perror ("signal: \n");
 	}
 
 	tv.it_value.tv_sec = options.export_interval;
@@ -157,7 +157,7 @@ void signal_setup() {
 	tv.it_interval = tv.it_value;
 
 	if (setitimer (ITIMER_REAL, &tv, NULL) != 0) {
-		perror ("setitimer:");
+		perror ("setitimer: \n");
 	}
 }
 

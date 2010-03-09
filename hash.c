@@ -290,7 +290,7 @@ uint32_t calcHashValue_TWMXRSHash(uint8_t *dataBuffer, uint16_t dataBufferLength
 
 void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl)
     {
-    unsigned short offs = 0;
+    unsigned short offs = headerOffset[L_NET];
     int net_type = 0;
     int proto = 0;
     // printf("IPv4 Packet \n", headerOffset[L_NET]);

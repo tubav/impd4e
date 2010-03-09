@@ -25,11 +25,11 @@
 #include <signal.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
+//#include <sys/types.h>
+//#include <sys/socket.h>
+//#include <sys/ioctl.h>
 #include <arpa/inet.h>
-
+#include <netinet/in.h>
 
 #include "templates.h"
 #include "main.h"
@@ -365,7 +365,7 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 char *htoa( uint32_t ipaddr ) {
 	static char addrstr[16]; /* ugh */
 	uint8_t *p = (uint8_t*)&ipaddr;
-	sprintf( addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+	sprintf( addrstr, "%d.%d.%d.%d", p[3], p[2], p[1], p[0]);
 	return addrstr;
 }
 
@@ -423,7 +423,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 			mlogf(ALWAYS, "read wrong IP format of Interface %s \n", options->if_names[i]);
 			exit(1);
 		}
-		pcap_devices[i].IPv4address = inp;
+		pcap_devices[i].IPv4address = ntohl( (uint32_t) inp);
 		mlogf(INFO, "Device %s has IP %s \n", options->if_names[i], htoa(pcap_devices[i].IPv4address));
 		pclose(fp);
 		
@@ -541,6 +541,8 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 	uint8_t ttl;
 	uint64_t timestamp;
 	findHeaders(packet, header->caplen, pcap_device->offset, layers, &ttl);
+	printf("layers NET: %d %d %d: \n" , layers[L_NET], layers[L_TRANS], layers[L_PAYLOAD]);
+	printf("offset NET: %d %d %d: \n" , pcap_device->offset[L_NET], pcap_device->offset[L_TRANS], pcap_device->offset[L_PAYLOAD]);
 	copiedbytes = pcap_device->options->selection_function(packet,
 			header->caplen, pcap_device->outbuffer,
 			pcap_device->outbufferLength, pcap_device->offset, layers);

@@ -24,12 +24,13 @@
 
 
 #include <arpa/inet.h>
-
+#include "mlog.h"
 
 #include "hash.h"
 #include "bobhash.h"
 #include "hsieh.h"
 #include "twmx.h"
+
 
  	
 
@@ -124,6 +125,7 @@ uint16_t copyFields_Only_Net( const uint8_t *packet, uint16_t packetLength,
 		 memcpy(outBuffer+8,packet+headerOffset[L_NET]+9,1);
 		 memcpy(outBuffer+9,packet+headerOffset[L_NET]+12,8);
 		 length=17;
+
 	}
 	if (layers[L_NET] == N_IP6)  { // case IPv6
 	 	memcpy(outBuffer,packet+headerOffset[L_NET],7);
@@ -141,10 +143,11 @@ uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
 			)
 {   	uint16_t copiedbytes=0;
 	int piece_length = 0;
+
 	copiedbytes = copyFields_Only_Net(packet,packetLength,outBuffer,outBufferLength, headerOffset,layers);
 
-	// check if there is a transport layer included in the packet
 
+	// check if there is a transport layer included in the packet
 	if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
 		if ( (layers[L_TRANS] == T_TCP) || (layers[L_TRANS] == T_ICMP) || (layers[L_TRANS] == T_ICMP6) ) {
 		    piece_length = min(20,packetLength-(headerOffset[L_TRANS]));
@@ -158,6 +161,7 @@ uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
 		}
 	}
 	else {copiedbytes = 0; }
+
 	return copiedbytes;
 }
 
@@ -305,7 +309,7 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
 		net_type = 0x0800;
 
 	} else {
-		printf("***IP Layer unclear***\n");
+		mlogf(1,"***NO IPV4/IPv6 packet ***\n");
 		net_type = 0; // neither v4 nor v6, should not happen for raw IP link type
 	}
 

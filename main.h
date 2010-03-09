@@ -45,6 +45,7 @@ typedef struct options
 	uint32_t export_interval;
 	double sampling_ratio;
 	int hashAsPacketID;
+	char *file;
 } options_t;
 
 typedef struct pcap_dev {

@@ -130,7 +130,8 @@ void catch_sigint(int sig_num)
 }
 
 void catch_alarm(int sig_num)
-{
+{	
+
 	alarmmm = 1;
 	if (options.number_interfaces==1) {
 		flush_interfaces();
@@ -152,8 +153,12 @@ void signal_setup() {
 		perror ("signal: \n");
 	}
 
-	tv.it_value.tv_sec = options.export_interval;
-	tv.it_value.tv_usec = 0;
+	/* an internal interval of optarg/2 results in an export at least every optarg seconds (per listened interface) ; exports will happen more often in case 
+ 	 *  of high packet rates.
+         */
+
+	tv.it_value.tv_sec = options.export_interval/2;
+	tv.it_value.tv_usec = (options.export_interval%2)*500;
 	tv.it_interval = tv.it_value;
 
 	if (setitimer (ITIMER_REAL, &tv, NULL) != 0) {
@@ -274,11 +279,7 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 			options->if_names[options->number_interfaces++] = strdup(optarg);
 			break;
 		case 'I':
-			options->export_interval = atoi(optarg)/2;
-			/* an internal interval of optarg/2 results in an export at least every optarg
- 			 * seconds (per listened interface) ; exports will happen more often in case 
- 			 * of high packet rates.
- 			 */
+			options->export_interval = atoi(optarg);
 			break;
 		case 'o':
 			options->observationDomainID = atoi(optarg);
@@ -353,6 +354,7 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 			break;
 		default:
 			printf("unknown parameter: %d \n", c);
+			break;
 		}
 
 	}
@@ -622,6 +624,7 @@ void run_pcap_loop(pcap_dev_t *pcap_devices, options_t *options) {
 		return;
 
 	if (options->number_interfaces == 1) {
+		signal_setup();
 		if (pcap_loop(pcap_devices[0].pcap_handle, -1, handle_packet,
 				(u_char*) &pcap_devices[0]) < 0) {
 			mlogf(ALWAYS, "pcap_loop error: %s\n", pcap_geterr(
@@ -641,6 +644,7 @@ void run_pcap_loop(pcap_dev_t *pcap_devices, options_t *options) {
 		                             mlogf(ALWAYS,"pcap_setnonblock: %s: %s", options->if_names[i], errbuf);
 		           }
 		}
+		signal_setup();
 		while(cnt != 0 && status >= 0) {
 			for(i=0; i<options->number_interfaces; i++) {
 				FD_SET(pcap_fileno(pcap_devices[i].pcap_handle), &fds);
@@ -701,6 +705,7 @@ int main(int argc, char *argv[]) {
 
 	// allocate memory for pcap handles
 
+
 	if (options.number_interfaces != 0) {
 		pcap_devices = calloc((int) options.number_interfaces,
 				sizeof(pcap_dev_t));
@@ -715,18 +720,19 @@ int main(int argc, char *argv[]) {
 
 		/* setup the signal handler for Ctrl-C */
 
-		/* setup signal timer */
 
-		signal_setup();
+
 
 		// open pcap interfaces with filter
 
 
 		open_pcap(pcap_devices, &options);
 
+
 		// setup ipfix_exporter for each device
 
 		open_ipfix_export(pcap_devices, &options);
+
 
 		// run pcap_loop until program termination
 

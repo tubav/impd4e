@@ -531,24 +531,32 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
         printf("ipfix added collector\n");
 		switch (options->templateID) {
 		case MINT_ID:
+            printf("ipfix pre mint_id\n");
 			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
 					&(pcap_devices[i].ipfixtemplate), export_fields_min, 3) < 0) {
+                printf("ipfix pre middle mint_id\n");
 				mlogf(ALWAYS, "ipfix_make_template_min() failed: %s\n",
 						strerror(errno));
+                printf("ipfix post middle mint_id\n");
 				exit(1);
 			}
+            printf("ipfix post mint_id\n");
 			break;
 		case TS_TTL_PROTO_ID:
+            printf("ipfix pre ts_ttl_proto_id\n");
 			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
 					&(pcap_devices[i].ipfixtemplate),
 					export_fields_ts_ttl_proto, 6) < 0) {
+                printf("ipfix pre middle ts_ttl_proto_id\n");
 				mlogf(ALWAYS,
 						"ipfix_make_template_ts_ttl_proto_id() failed: %s\n",
 						strerror(errno));
+                printf("ipfix post ts_ttl_proto_id\n");
 				exit(1);
 			}
-
+            printf("ipfix post ts_ttl_proto_id\n");
 		default:
+            printf("ipfix default break\n");
 			break;
 		}
         printf("ipfix after switch\n");

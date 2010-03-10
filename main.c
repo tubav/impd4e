@@ -127,8 +127,12 @@ void catch_sigint(int sig_num) {
 void catch_alarm(int sig_num) {
 
 	alarmmm = 1;
+	printf("caught alarm \n");
 	if (options.number_interfaces == 1) {
+
 		flush_interfaces();
+		printf("interfaces flushed \n");
+
 	} else {
 		/* flush_interfaces in case of multiple interfaces is handled directly run_pcap_loop */
 	}
@@ -136,6 +140,7 @@ void catch_alarm(int sig_num) {
 
 }
 void signal_setup() {
+	printf("signal_setup start \n");
 	struct itimerval tv;
 	if (signal(SIGINT, catch_sigint) == SIG_ERR) {
 		perror("signal: \n");
@@ -157,6 +162,8 @@ void signal_setup() {
 	if (setitimer(ITIMER_REAL, &tv, NULL) != 0) {
 		perror("setitimer: \n");
 	}
+	printf("signal_setup_done \n");
+
 }
 
 void set_defaults(options_t *options) {
@@ -731,12 +738,12 @@ int main(int argc, char *argv[]) {
 	// set defaults options
 
 	set_defaults(&options);
-
+	printf("set_default_okay \n");
 	// parse commandline
 
 	parse_cmdline(&options, argc, argv);
 	// allocate memory for pcap handles
-
+	printf("parse_cmdLine_okay \n");
 
 	if (options.number_interfaces != 0) {
 		pcap_devices = calloc((int) options.number_interfaces,
@@ -757,11 +764,12 @@ int main(int argc, char *argv[]) {
 
 
 		open_pcap(pcap_devices, &options);
-
+		printf("open_pcap_okay \n");
 		// setup ipfix_exporter for each device
 
 		open_ipfix_export(pcap_devices, &options);
 		// run pcap_loop until program termination
+		printf("open_ipfix _okay \n");
 
 		run_pcap_loop(pcap_devices, &options);
 

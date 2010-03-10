@@ -528,7 +528,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 							errno));
 
 		}
-        printf("ipfix added collector\n")
+        printf("ipfix added collector\n");
 		switch (options->templateID) {
 		case MINT_ID:
 			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
@@ -551,7 +551,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 		default:
 			break;
 		}
-        printf("ipfix after switch\n")
+        printf("ipfix after switch\n");
 	}
 
 }

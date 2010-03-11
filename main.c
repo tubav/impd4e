@@ -45,6 +45,7 @@ char errbuf[PCAP_ERRBUF_SIZE];
 options_t options;
 pcap_dev_t *pcap_devices;
 int alarmmm = 0;
+int isFlushingFlag = 0; /* true during time in which main is invoking ipfix flush */
 
 void print_help() {
 	printf(
@@ -130,8 +131,10 @@ void catch_alarm(int sig_num) {
 	printf("caught alarm \n");
 	if (options.number_interfaces == 1) {
 
-		flush_interfaces();
-		printf("interfaces flushed \n");
+		if ( isFlushingFlag == 0 ) {  /* skip flush if main is currently doing it */
+			flush_interfaces();
+			printf("interfaces flushed \n");
+		}
 
 	} else {
 		/* flush_interfaces in case of multiple interfaces is handled directly run_pcap_loop */
@@ -151,7 +154,7 @@ void signal_setup() {
 		perror("signal: \n");
 	}
 
-	/* an internal interval of optarg/2 results in an export at least every optarg seconds (per listened interface) ; exports will happen more often in case 
+	/* an internal interval of options.export_interval / 2 results in an export at least every optarg seconds (per listened interface) ; exports will happen more often in case
 	 *  of high packet rates.
 	 */
 
@@ -642,7 +645,9 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 		pcap_device->export_packet_count++;
 		if (pcap_device->export_packet_count
 				>= pcap_device->options->export_packet_count) {
+			isFlushingFlag = 1;
 			ipfix_export_flush(pcap_device->ipfixhandle);
+			isFlushingFlag = 0;
 			pcap_device->export_packet_count = 0;
 			pcap_device->last_export_time = header->ts;
 		}

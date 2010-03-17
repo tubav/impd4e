@@ -603,13 +603,13 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 
 		switch (pcap_device->options->templateID) {
 		case MINT_ID: {
-			timestamp = (unsigned long long) header->ts.tv_sec * 1000000ULL
-					+ header->ts.tv_usec;
+			timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
+					+ (uint64_t) header->ts.tv_usec;
             
             printf("timestamp: %d\n", timestamp);
-            printf("sec: %d\n", (unsigned long long) header->ts.tv_sec);
-            printf("usec: %d\n", (unsigned long long) header->ts.tv_usec);
-            printf("sizeof ull: %d\n", sizeof(unsigned long long))
+            printf("sec: %d\n", (uint64_t) header->ts.tv_sec);
+            printf("usec: %d\n", (uint64_t) header->ts.tv_usec);
+            printf("sizeof uint64_t: %d\n", sizeof(uint64_t));
 
 			void *fields[] = { &timestamp, &hash_result, &ttl };
 			uint16_t lengths[] = { 8, 4, 1 };

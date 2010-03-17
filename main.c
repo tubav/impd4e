@@ -606,9 +606,9 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 			timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
 					+ (uint64_t) header->ts.tv_usec;
             
-            printf("timestamp: %d\n", timestamp);
-            printf("sec: %d\n", (uint64_t) header->ts.tv_sec);
-            printf("usec: %d\n", (uint64_t) header->ts.tv_usec);
+            printf("timestamp: %llu\n", timestamp);
+            printf("sec: %llu\n", (uint64_t) header->ts.tv_sec);
+            printf("usec: %llu\n", (uint64_t) header->ts.tv_usec);
             printf("sizeof uint64_t: %d\n", sizeof(uint64_t));
 
 			void *fields[] = { &timestamp, &hash_result, &ttl };

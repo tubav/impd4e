@@ -428,7 +428,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 		pcap_devices[0].pcap_handle = pcap_open_offline(options->file, errbuf);
 		if (pcap_devices[0].pcap_handle == NULL) {
-			printf("%s \n", errbuf);
+			fprintf(stderr, "%s \n", errbuf);
 		}
 		determineLinkType(&pcap_devices[0]);
 		setFilter(&pcap_devices[0]);
@@ -451,8 +451,8 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 			pcap_devices[i].pcap_handle = pcap_open_live(options->if_names[i],
 					options->snapLength, 1, 1000, errbuf);
 			if (pcap_devices[i].pcap_handle == NULL) {
-				printf("%s \n", errbuf);
-				continue;
+				fprintf(stderr, "%s \n", errbuf);
+				exit(1);
 			}
 			// if (pcap_lookupnet(options->if_names[i],
 			//		&(pcap_devices[i].IPv4address), &(pcap_devices[i].mask), errbuf)

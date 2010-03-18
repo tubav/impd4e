@@ -368,9 +368,10 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 }
 
 char *htoa(uint32_t ipaddr) {
-	static char addrstr[16]; /* ugh */
+	static char addrstr[16];
+	ipaddr = htonl(ipaddr);
 	uint8_t *p = (uint8_t*) &ipaddr;
-	sprintf(addrstr, "%d.%d.%d.%d", p[3], p[2], p[1], p[0]);
+	sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 	return addrstr;
 }
 
@@ -438,6 +439,10 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 		int fd;
 		struct ifreq ifr;
 		fd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (fd == -1) {
+			perror( "cannot create socket: " );
+			exit(1);
+		}
 
 		/* I want to get an IPv4 IP address */
 		ifr.ifr_addr.sa_family = AF_INET;

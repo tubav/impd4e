@@ -406,6 +406,8 @@ void determineLinkType(pcap_dev_t *pcap_device) {
 void setFilter(pcap_dev_t *pcap_device) {
 	/* apply filter */
 	struct bpf_program fp;
+
+
 	if (options.bpf) {
 		if (pcap_compile(pcap_device->pcap_handle, &fp, options.bpf, 0, 0)
 				== -1) {
@@ -417,6 +419,8 @@ void setFilter(pcap_dev_t *pcap_device) {
 					pcap_geterr(pcap_device->pcap_handle));
 		}
 	}
+
+
 }
 
 void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
@@ -595,7 +599,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 			&& (pcap_device->options->sel_range_max > hash_result)) {
 
 		int pktid = 0;
-		if (options.hashAsPacketID == 1) {
+		if (options.hashAsPacketID == 1) {  // in case we want to use the hashID as packet ID
 			pktid = hash_result;
 		} else {
 			pktid = options.pktid_function(pcap_device->outbuffer, copiedbytes);
@@ -751,7 +755,6 @@ int main(int argc, char *argv[]) {
 	// set defaults options
 
 	set_defaults(&options);
-	printf("set_default_okay \n");
 	// parse commandline
 
 	parse_cmdline(&options, argc, argv);
@@ -777,12 +780,10 @@ int main(int argc, char *argv[]) {
 
 
 		open_pcap(pcap_devices, &options);
-		printf("open_pcap_okay \n");
 		// setup ipfix_exporter for each device
 
 		open_ipfix_export(pcap_devices, &options);
 		// run pcap_loop until program termination
-		printf("open_ipfix _okay \n");
 
 		run_pcap_loop(pcap_devices, &options);
 

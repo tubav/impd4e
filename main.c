@@ -128,12 +128,12 @@ void catch_sigint(int sig_num) {
 void catch_alarm(int sig_num) {
 
 	alarmmm = 1;
-	printf("caught alarm \n");
+	// printf("caught alarm \n");
 	if (options.number_interfaces == 1) {
 
 		if ( isFlushingFlag == 0 ) {  /* skip flush if main is currently doing it */
 			flush_interfaces();
-			printf("interfaces flushed \n");
+			// printf("interfaces flushed \n");
 		}
 
 	} else {
@@ -143,7 +143,7 @@ void catch_alarm(int sig_num) {
 
 }
 void signal_setup() {
-	printf("signal_setup start \n");
+	// printf("signal_setup start \n");
 	struct itimerval tv;
 	if (signal(SIGINT, catch_sigint) == SIG_ERR) {
 		perror("signal: \n");
@@ -165,7 +165,7 @@ void signal_setup() {
 	if (setitimer(ITIMER_REAL, &tv, NULL) != 0) {
 		perror("setitimer: \n");
 	}
-	printf("signal_setup_done \n");
+	// printf("signal_setup_done \n");
 
 }
 
@@ -368,9 +368,10 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 }
 
 char *htoa(uint32_t ipaddr) {
-	static char addrstr[16]; /* ugh */
+	static char addrstr[16];
+	ipaddr = htonl(ipaddr);
 	uint8_t *p = (uint8_t*) &ipaddr;
-	sprintf(addrstr, "%d.%d.%d.%d", p[3], p[2], p[1], p[0]);
+	sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 	return addrstr;
 }
 
@@ -431,7 +432,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 		pcap_devices[0].pcap_handle = pcap_open_offline(options->file, errbuf);
 		if (pcap_devices[0].pcap_handle == NULL) {
-			printf("%s \n", errbuf);
+			fprintf(stderr, "%s \n", errbuf);
 		}
 		determineLinkType(&pcap_devices[0]);
 		setFilter(&pcap_devices[0]);
@@ -442,6 +443,10 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 		int fd;
 		struct ifreq ifr;
 		fd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (fd == -1) {
+			perror( "cannot create socket: " );
+			exit(1);
+		}
 
 		/* I want to get an IPv4 IP address */
 		ifr.ifr_addr.sa_family = AF_INET;
@@ -450,8 +455,8 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 			pcap_devices[i].pcap_handle = pcap_open_live(options->if_names[i],
 					options->snapLength, 1, 1000, errbuf);
 			if (pcap_devices[i].pcap_handle == NULL) {
-				printf("%s \n", errbuf);
-				continue;
+				fprintf(stderr, "%s \n", errbuf);
+				exit(1);
 			}
 			// if (pcap_lookupnet(options->if_names[i],
 			//		&(pcap_devices[i].IPv4address), &(pcap_devices[i].mask), errbuf)
@@ -512,9 +517,9 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 		mlogf(ALWAYS, "cannot init ipfix module: %s\n", strerror(errno));
 
 	}
-    printf("in open_ipfix\n");
+    // printf("in open_ipfix\n");
 	for (i = 0; i < (options->number_interfaces); i++) {
-        printf("in loop: %i\n", i);
+        // printf("in loop: %i\n", i);
 		pcap_devices[i].export_packet_count = 0;
 
 		/* use observationDomainID if explicitely given via cmd line, else use interface IPv4address as oid */
@@ -526,7 +531,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 			mlogf(ALWAYS, "ipfix_open() failed: %s\n", strerror(errno));
 
 		}
-        printf("ipfix open\n");
+        // printf("ipfix open\n");
 		if (ipfix_add_collector(pcap_devices[i].ipfixhandle,
 				options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
 				< 0) {
@@ -535,38 +540,38 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 							errno));
 
 		}
-        printf("ipfix added collector\n");
+        // printf("ipfix added collector\n");
 		switch (options->templateID) {
 		case MINT_ID:
-            printf("ipfix pre mint_id\n");
+            // printf("ipfix pre mint_id\n");
 			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
 					&(pcap_devices[i].ipfixtemplate), export_fields_min, 3) < 0) {
-                printf("ipfix pre middle mint_id\n");
+                // printf("ipfix pre middle mint_id\n");
 				mlogf(ALWAYS, "ipfix_make_template_min() failed: %s\n",
 						strerror(errno));
-                printf("ipfix post middle mint_id\n");
+                // printf("ipfix post middle mint_id\n");
 				exit(1);
 			}
-            printf("ipfix post mint_id\n");
+            // printf("ipfix post mint_id\n");
 			break;
 		case TS_TTL_PROTO_ID:
-            printf("ipfix pre ts_ttl_proto_id\n");
+            // printf("ipfix pre ts_ttl_proto_id\n");
 			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
 					&(pcap_devices[i].ipfixtemplate),
 					export_fields_ts_ttl_proto, 6) < 0) {
-                printf("ipfix pre middle ts_ttl_proto_id\n");
+                // printf("ipfix pre middle ts_ttl_proto_id\n");
 				mlogf(ALWAYS,
 						"ipfix_make_template_ts_ttl_proto_id() failed: %s\n",
 						strerror(errno));
-                printf("ipfix post ts_ttl_proto_id\n");
+                // printf("ipfix post ts_ttl_proto_id\n");
 				exit(1);
 			}
-            printf("ipfix post ts_ttl_proto_id\n");
+            // printf("ipfix post ts_ttl_proto_id\n");
 		default:
-            printf("ipfix default break\n");
+            // printf("ipfix default break\n");
 			break;
 		}
-        printf("ipfix after switch\n");
+        // printf("ipfix after switch\n");
 	}
 
 }
@@ -607,8 +612,13 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 
 		switch (pcap_device->options->templateID) {
 		case MINT_ID: {
-			timestamp = (unsigned long long) header->ts.tv_sec * 1000000ULL
-					+ header->ts.tv_usec;
+			timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
+					+ (uint64_t) header->ts.tv_usec;
+            
+            // printf("timestamp: %llu\n", timestamp);
+            // printf("sec: %llu\n", (uint64_t) header->ts.tv_sec);
+            // printf("usec: %llu\n", (uint64_t) header->ts.tv_usec);
+            // printf("sizeof uint64_t: %d\n", sizeof(uint64_t));
 
 			void *fields[] = { &timestamp, &hash_result, &ttl };
 			uint16_t lengths[] = { 8, 4, 1 };
@@ -759,7 +769,7 @@ int main(int argc, char *argv[]) {
 
 	parse_cmdline(&options, argc, argv);
 	// allocate memory for pcap handles
-	printf("parse_cmdLine_okay \n");
+	// printf("parse_cmdLine_okay \n");
 
 	if (options.number_interfaces != 0) {
 		pcap_devices = calloc((int) options.number_interfaces,

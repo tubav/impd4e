@@ -19,6 +19,7 @@
 
 #include <pcap.h>
 #include <ipfix.h>
+#include <stdbool.h>
 
 #define MAX_INTERFACES 10
 
@@ -44,6 +45,8 @@ typedef struct options
 	uint32_t export_packet_count;
 	uint32_t export_interval;
 	double sampling_ratio;
+	bool samplingResultExport;
+	bool resourceConsumptionExport;
 	int hashAsPacketID;
 	char *file;
 } options_t;
@@ -56,10 +59,12 @@ typedef struct pcap_dev {
 	int link_type;
 	ipfix_t *ipfixhandle;
 	ipfix_template_t *ipfixtemplate;
+	ipfix_template_t *sampling_export_template;
 	int16_t offset[4];
 	uint8_t *outbuffer;
 	uint16_t outbufferLength;
 	uint32_t export_packet_count;
+	uint64_t totalpacketcount;
 	struct timeval last_export_time;
 } pcap_dev_t;
 

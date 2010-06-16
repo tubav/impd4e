@@ -19,6 +19,7 @@
 
 #include "ipfix.h"
 #include "ipfix_def.h"
+#include "ipfix_def_fokus.h"
 
 /*
  * for an introduction to the IPFIX protocol see:
@@ -55,6 +56,18 @@ export_fields_t export_fields_ts_ttl_proto[] = {
  				{ 0, IPFIX_FT_TOTALLENGTHIPV4, 2 },
                 { 0, IPFIX_FT_PROTOCOLIDENTIFIER, 1},
                 { 0, IPFIX_FT_IPVERSION, 1}
+};
+
+export_fields_t export_sampling_parameters[] = {
+				{ 0, IPFIX_FT_SAMPLINGSIZE, 4 },
+				{ 0, IPFIX_FT_PACKETTOTALCOUNT, 8}
+};
+
+export_fields_t export_resource_load[] = {
+		{0, IPFIX_FT_PT_CPU_IDLE, 2},
+		{0, IPFIX_FT_PT_CPU_PROCESS, 2},
+		{0, IPFIX_FT_PT_RAM_PROCESS, 4},
+		{0, IPFIX_FT_PT_RAM_UNUSED, 4}
 };
 
 #endif

@@ -89,6 +89,10 @@ void print_help() {
 				" \n"
 				"-C <CollectorIP> \n"
 				" \n"
+				"-n export sampling Paramters n and N - samplesize and total packet count \n"
+				" \n"
+				" -S export resource consumption (idle CPU, cpu used by impd4e, free RAM, used RAM by impd4e \n "
+				" \n"
 				"-v verbose-level - can be used multiple times to increase output");
 }
 

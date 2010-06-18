@@ -64,10 +64,10 @@ export_fields_t export_sampling_parameters[] = {
 };
 
 export_fields_t export_resource_load[] = {
-		{0, IPFIX_FT_PT_CPU_IDLE, 2},
-		{0, IPFIX_FT_PT_CPU_PROCESS, 2},
-		{0, IPFIX_FT_PT_RAM_PROCESS, 4},
-		{0, IPFIX_FT_PT_RAM_UNUSED, 4}
+		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_IDLE, 2},
+		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_PROCESS, 2},
+		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_PROCESS, 4},
+		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_UNUSED, 4}
 };
 
 #endif

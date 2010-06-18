@@ -51,6 +51,8 @@ typedef struct options
 	char *file;
 } options_t;
 
+
+
 typedef struct pcap_dev {
 	pcap_t *pcap_handle;
 	options_t *options;

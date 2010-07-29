@@ -63,11 +63,22 @@ export_fields_t export_sampling_parameters[] = {
 				{ 0, IPFIX_FT_PACKETTOTALCOUNT, 8}
 };
 
-export_fields_t export_resource_load[] = {
+/* Overall system statistics (Linux)
+ man 2 sysinfo */
+
+/* export_fields_t export_sysinfo[] = {
 		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_IDLE, 2},
 		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_PROCESS, 2},
 		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_PROCESS, 4},
 		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_UNUSED, 4}
 };
+*/
+/* Process times (POSIX)
+man 2 times
+
+*/
+
+
+
 
 #endif

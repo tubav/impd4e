@@ -52,48 +52,40 @@ int alarmmm = 0;
 int isFlushingFlag = 0; /* true during time in which main is invoking ipfix flush */
 
 void print_help() {
+	printf( "impd4e - a libpcap based measuring probe which uses hash-based packet\n"
+			"         selection and exports packetIDs via IPFIX to a collector.\n\n"
+			"USAGE: impd4e -i interface [options] \n"
+				"\n");
 	printf(
-			"impd4e - a probe based on lib_pcap which applies hash-based selection and exports packetIDs via IPFIX to a collector"
-				"\n"
-				""
-				"Available Parameters i:I:o:r:t:f:p:m:M:hs:F:c:P:C:v");
-	printf(
-			" \n \n"
-				"-i <interface>  Interface(s) to listen on (can be used multiple times)\n"
-				" \n"
-				"-I <export interval> in seconds - (packetIDs are exported at least once during this interval)\n"
-				" \n"
-				"-o <observation domain id> - identification of the interface in the IPFXI Header\n"
-				" \n"
-				"-r <sampling ratio> in %% (double)\n"
-				" \n"
-				"-t <template> either \"min\" or \"lp\"\n"
-				" \n"
-				"-f <bpf> Berkley Packet Filter expression (e.g. tcp udp icmp)"
-				" \n"
-				"-m <minimum selection range> integer - do not use in conjunction with -r \n"
-				" \n"
-				"-M <maximum selection range> integer - do not use in conjunction with -r \n"
-				" \n"
-				"-h print this help \n"
-				" \n"
-				"-s <selection function> which parts of the header used for hashing either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\" \n"
-				" \n"
-				"-F <hash_function> hash function to use \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
-				" \n"
-				"-c <export_packet_count> size of export buffer after which packets are flushed (per device)\n"
-				" \n"
-				"-p <hash_function> use different hash_function for packetID generation \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n  "
-				" \n"
-				"-P <CollectorPort> \n"
-				" \n"
-				"-C <CollectorIP> \n"
-				" \n"
-				"-n export sampling Paramters n and N - samplesize and total packet count \n"
-				" \n"
-				" -S export resource consumption (idle CPU, cpu used by impd4e, free RAM, used RAM by impd4e \n "
-				" \n"
-				"-v verbose-level - can be used multiple times to increase output");
+			"options: \n"
+			"   -C  <collector IP> \n"
+			"   -c  <export packet count>      size of export buffer after which packets\n"
+			"                                  are flushed (per device)\n"
+			"   -f  <bpf>                      Berkley Packet Filter expression (e.g. \n"
+			"                                  tcp udp icmp)\n"
+			"   -F  <hash_function>            hash function to use \"BOB\", \"OAAT\", \n"
+			"                                  \"TWMX\", \"HSIEH\"\n"
+			"   -h                             print this help \n"
+			"   -I  <export interval>          in seconds - (packetIDs are exported at \n"
+			"                                  least once during this interval)\n"
+			"   -i  <interface>                Interface(s) to listen on (can be used \n"
+			"                                  multiple times)\n"
+			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
+			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
+			"   -n                             export sampling Paramters n and N - \n"
+			"                                  samplesize and total packet count \n"
+			"   -o  <observation domain id>    identification of the interface in\n"
+			"                                  the IPFXI Header\n"
+			"   -P  <collector port> \n"
+			"   -p  <hash function>            use different hash_function for packetID\n"
+			"                                  generation \"BOB\", \"OAAT\", \"TWMX\",\n"
+			"                                  \"HSIEH\" \n"
+			"   -r  <sampling ratio>           in %% (double)\n"
+			"   -s  <selection function>       which parts of the header used for hashing\n"
+			"                                  either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\" \n"
+			"   -t  <template>                 either \"min\" or \"lp\"\n"
+			"   -v  verbose-level              can be used multiple times to increase output \n\n");
+
 }
 
 long timevaldiff(struct timeval *starttime, struct timeval *finishtime) {
@@ -102,115 +94,19 @@ long timevaldiff(struct timeval *starttime, struct timeval *finishtime) {
 	msec += (finishtime->tv_usec - starttime->tv_usec) / 1000;
 	return msec;
 }
+/**
+ * Export system information. See "man 2 sysinfo".
+ */
+void export_sysinfo() {
 
-void export_resource_consumption() {
-	uint64_t cc_user, cc_nice, cc_system, cc_hardirq, cc_softirq;
-	uint64_t cc_idle, cc_iowait, cc_steal, cc_uptime;
-	uint64_t delta_cc_idle, delta_cc_uptime;
-	uint16_t cpu_promille_idle, cpu_promille_process;
-	uint32_t total_process_cpu_time, delta_cpu_process_time,
-			process_total_memory;
-	uint32_t mem_free;
-	proc_t P;
-
-	static const char *cpu_info = "/proc/stat";
-	static const char *process_cpu_info = "/proc/self/stat";
-	static const char *mem_info = "/proc/meminfo";
-
-	FILE *fp;
-
-	if ((fp = fopen(cpu_info, "r")) == NULL) {
-		mlogf(CRITICAL, "fopen() failed to gain /proc/stat access \n");
-		return;
-	}
-	char line[80];
-	if (fgets(line, 80, fp) != NULL) {
-		if (!strncmp(line, "cpu ", 4)) {
-			cc_hardirq = cc_softirq = cc_steal = 0;
-			/* CPU counters became unsigned long long with kernel 2.6.5 */
-			sscanf(line + 5, "%llu %llu %llu %llu %llu %llu %llu %llu",
-					&cc_user, &cc_nice, &cc_system, &cc_idle, &cc_iowait,
-					&cc_hardirq, &cc_softirq, &cc_steal);
-			cc_uptime = cc_user + cc_nice + cc_system + cc_idle + cc_iowait
-					+ cc_hardirq + cc_softirq + cc_steal;
-		}
-	}
-
-	fclose(fp);
-
-	// printf("%llu %llu %llu %llu %llu %llu %llu %llu \n", cc_user, cc_nice, cc_system, cc_idle, cc_iowait, cc_hardirq, cc_softirq, cc_steal );
-
-	FILE *fp2;
-	if ((fp2 = fopen(process_cpu_info, "r")) == NULL) {
-		mlogf(CRITICAL, "fopen() failed to gain /proc/self/stat access \n");
-		return;
-	}
-	char *tmp;
-	char *line2;
-	line2 = (char *) malloc(800);
-	tmp = (char *) malloc(800);
-	if (fgets(line2, 800, fp2) != NULL) {
-		line2 = strchr(line2, '(') + 1;
-		tmp = strrchr(line2, ')');
-		line2 = tmp + 2;
-		//		 printf("%s", line2);
-		sscanf(
-				line2,
-				"%c %d %d %d %d %d %lu %lu %lu %lu %lu %Lu %Lu %Lu %Lu %ld %ld %d %ld %Lu %lu %ld ", /* utime stime cutime cstime */
-				&P.state, &P.ppid, &P.pgrp, &P.session, &P.tty, &P.tpgid,
-				&P.flags, &P.min_flt, &P.cmin_flt, &P.maj_flt, &P.cmaj_flt,
-				&P.utime, &P.stime, &P.cutime, &P.cstime, &P.priority, &P.nice,
-				&P.nlwp, &P.alarm, &P.start_time, &P.vsize, &P.rss);
-		process_total_memory = P.vsize + P.rss;
-		total_process_cpu_time = P.stime + P.utime + P.cstime + P.cutime;
-		delta_cpu_process_time = total_process_cpu_time - old_cpu_process_time;
-		old_cpu_process_time = total_process_cpu_time;
-	}
-
-	delta_cc_uptime = cc_uptime - old_cc_uptime;
-	delta_cc_idle = cc_idle - old_cc_idle;
-
-	/* numbers to export */
-
-	cpu_promille_idle = (delta_cc_idle * 1000) / delta_cc_uptime;
-	cpu_promille_process = (delta_cpu_process_time * 1000) / delta_cc_uptime;
-
-	old_cc_uptime = cc_uptime;
-	old_cc_idle = cc_idle;
-	fclose(fp2);
-
-	FILE *fp3;
-	if ((fp3 = fopen(mem_info, "r")) == NULL) {
-		mlogf(CRITICAL, "fopen() failed to gain /proc/meminfo access \n");
-		return;
-	}
-
-	;
-	while (fgets(line, sizeof(line), fp3) != NULL) {
-		if (!strncmp(line, "MemFree: ", 8)) {
-			sscanf(line + 8, "%u", &mem_free);
-			break;
-		}
-	}
-
-	mlogf(
-			INFO,
-			"cpu_promille %d cpu_process_promille %d mem_free %u process_memory %u \n",
-			cpu_promille_idle, cpu_promille_process, mem_free,
-			process_total_memory);
-
-	void *fields[] = { &cpu_promille_idle, &cpu_promille_process, &(mem_free),
-			&(process_total_memory) };
-	uint16_t lengths[] = { 2, 2, 4, 4 };
-
-	/* We will use the IPFIX handle of the first device to export resource consumption */
-
-	if (ipfix_export_array(pcap_devices[0].ipfixhandle, resource_template, 4,
-			fields, lengths) < 0) {
-		fprintf(stderr, "ipfix_export() failed: %s\n", strerror(errno));
-		exit(1);
-	}
 }
+/**
+ * Export process times. See "man 2 times".
+ */
+void export_times() {
+
+}
+
 
 void export_array_sampling_parameters(pcap_dev_t *pcap_device) {
 
@@ -241,10 +137,9 @@ void flush_interfaces() {
 				export_array_sampling_parameters(&pcap_devices[j]);
 			}
 
-			// we only export resource consumption (CPU and RAM) in case first devices exports information
-
-			if ((options.resourceConsumptionExport == true) && (j == 0)) {
-				export_resource_consumption();
+			// we only export sysinfo in case first devices exports information
+			if ( options.export_sysinfo  && (j == 0)) {
+				export_sysinfo();
 			}
 
 			ipfix_export_flush(pcap_devices[j].ipfixhandle);
@@ -328,7 +223,7 @@ void set_defaults(options_t *options) {
 	options->hashAsPacketID = 1;
 	options->file = NULL;
 	options->samplingResultExport = false;
-	options->resourceConsumptionExport = false;
+	options->export_sysinfo = false;
 }
 
 hashFunction parseFunction(char *arg_string, options_t *options) {
@@ -505,7 +400,7 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 			options->samplingResultExport = true;
 			break;
 		case 'S':
-			options->resourceConsumptionExport = true;
+			options->export_sysinfo = true;
 			break;
 		default:
 			printf("unknown parameter: %d \n", c);
@@ -745,7 +640,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 		 * we de not need for each pcap_device a seperate resource consumption exporter
 		 * we will use the exporter of the first device
 		 * */
-
+/*
 		if ((options->resourceConsumptionExport == true) && (i == 0)) {
 
 			if (ipfix_make_template(pcap_devices[0].ipfixhandle,
@@ -757,7 +652,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 			}
 
 		}
-
+*/
 	}
 
 }
@@ -850,11 +745,13 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header,
 			if (options.samplingResultExport == true) {
 				export_array_sampling_parameters(pcap_device);
 			}
+			/*
 			if ((options.resourceConsumptionExport == true) && (pcap_device
 					== &pcap_devices[0])) {
 				printf("export triggered by packet count \n");
 				export_resource_consumption(pcap_device);
 			}
+			*/
 			ipfix_export_flush(pcap_device->ipfixhandle);
 			isFlushingFlag = 0;
 			pcap_device->export_packet_count = 0;
@@ -949,9 +846,7 @@ void run_pcap_loop(pcap_dev_t *pcap_devices, options_t *options) {
 
 int main(int argc, char *argv[]) {
 	int i;
-
 	// set defaults options
-
 	set_defaults(&options);
 	mlogf(INFO, "set_defaults() okay \n");
 	// parse commandline
@@ -991,11 +886,10 @@ int main(int argc, char *argv[]) {
 		free(pcap_devices);
 
 	} else {
-		mlogf(ALWAYS,
-				"Please specify an interface with -i option e.g. -i eth0 \n");
+		print_help();
+		exit(-1);
 	}
-
-	return 0;
+	exit(0);
 
 }
 

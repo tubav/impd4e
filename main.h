@@ -46,7 +46,8 @@ typedef struct options
 	uint32_t export_interval;
 	double sampling_ratio;
 	bool samplingResultExport;
-	bool resourceConsumptionExport;
+	bool export_sysinfo;
+	bool export_times;
 	int hashAsPacketID;
 	char *file;
 } options_t;

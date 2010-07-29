@@ -1,0 +1,8 @@
+config.h
+Makefile
+*.log
+*.status
+.cproject
+.project
+*.o
+Debug/*

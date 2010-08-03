@@ -1,3 +1,4 @@
+.settings/*
 config.h
 Makefile
 *.log

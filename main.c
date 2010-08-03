@@ -30,7 +30,6 @@
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <proc.h>
 
 #include "templates.h"
 #include "main.h"
@@ -38,6 +37,9 @@
 #include "mlog.h"
 #include "ipfix.h"
 #include "ipfix_fields_fokus.h"
+
+// testing custom logger
+#include "logger.h"
 
 // globals
 
@@ -285,7 +287,7 @@ void parseTemplate(char *arg_string, options_t *options) {
 void parse_cmdline(options_t *options, int argc, char **argv) {
 
 	int c;
-	char par[] = "i:I:o:r:t:f:m:M:hs:F:c:P:C:v:R:nS";
+	char par[] = "vi:I:o:r:t:f:m:M:hs:F:c:P:C:R:nS";
 	char *endptr;
 	errno = 0;
 	double sampling_ratio;
@@ -846,13 +848,28 @@ void run_pcap_loop(pcap_dev_t *pcap_devices, options_t *options) {
 
 int main(int argc, char *argv[]) {
 	int i;
+	// initializing custom logger
+	logger_init(LOGGER_LEVEL_DEBUG);
+	LOGGER_info("== impd4e ==");
+
+
+
 	// set defaults options
 	set_defaults(&options);
+
+
+
 	mlogf(INFO, "set_defaults() okay \n");
 	// parse commandline
 
 	parse_cmdline(&options, argc, argv);
 	mlogf(INFO, "parse_cmdline() okay \n");
+
+///	exit(0);
+
+
+
+	// --
 
 	// allocate memory for pcap handles
 	// printf("parse_cmdLine_okay \n");

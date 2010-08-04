@@ -25,7 +25,10 @@
 
 typedef uint32_t (*hashFunction)(uint8_t*,uint16_t);
 typedef uint16_t (*selectionFunction) (const uint8_t *, uint16_t , uint8_t *, uint16_t, int16_t *, uint8_t*);
-
+/**
+ * program / device options
+ *
+ */
 typedef struct options
 {	char basedir[100];
 	uint8_t number_interfaces;
@@ -53,7 +56,9 @@ typedef struct options
 } options_t;
 
 
-
+/**
+ * Capture devices
+ */
 typedef struct pcap_dev {
 	pcap_t *pcap_handle;
 	options_t *options;

@@ -22,6 +22,7 @@
 #include <stdbool.h>
 
 #define MAX_INTERFACES 10
+#define PCAP_DISPATCH_PACKET_COUNT 10 /*!< max number of packets to be processed on each dispatch */
 
 typedef uint32_t (*hashFunction)(uint8_t*,uint16_t);
 typedef uint16_t (*selectionFunction) (const uint8_t *, uint16_t , uint8_t *, uint16_t, int16_t *, uint8_t*);
@@ -61,13 +62,15 @@ typedef struct options
  */
 typedef struct pcap_dev {
 	pcap_t *pcap_handle;
+	char * ifname;
 	options_t *options;
 	bpf_u_int32 IPv4address;
 	bpf_u_int32 mask;
 	int link_type;
 	ipfix_t *ipfixhandle;
-	ipfix_template_t *ipfixtemplate;
-	ipfix_template_t *sampling_export_template;
+	ipfix_template_t *ipfixtemplate_min;
+	ipfix_template_t *ipfixtemplate_ttl;
+	ipfix_template_t *ipfixtemplate_sampling;
 	int16_t offset[4];
 	uint8_t *outbuffer;
 	uint16_t outbufferLength;

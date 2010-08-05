@@ -46,9 +46,10 @@
 #include "logger.h"
 #include <ev.h> // event loop
 
-// ----------------------------------------------------------------------------
-// Globals
-// ----------------------------------------------------------------------------
+
+/*----------------------------------------------------------------------------
+  Globals
+----------------------------------------------------------------------------- */
 
 /**
  * Event and Signal handling via libev
@@ -67,7 +68,19 @@ options_t options;
 pcap_dev_t *pcap_devices;
 ipfix_template_t *resource_template;
 
+
+
 int isFlushingFlag = 0; /* true during time in which main is invoking ipfix flush */
+
+/*----------------------------------------------------------------------------
+  Prototypes
+----------------------------------------------------------------------------- */
+static void export_flush();
+static void export_timer_cb (EV_P_ ev_timer *w, int revents);
+static void packet_watcher_cb(EV_P_ ev_io *w, int revents);
+void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
+		const u_char * packet);
+
 
 void print_help() {
 	printf( "impd4e - a libpcap based measuring probe which uses hash-based packet\n"
@@ -79,7 +92,7 @@ void print_help() {
 			"   -C  <collector IP> \n"
 			"   -c  <export packet count>      size of export buffer after which packets\n"
 			"                                  are flushed (per device)\n"
-			"   -f  <bpf>                      Berkley Packet Filter expression (e.g. \n"
+			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. \n"
 			"                                  tcp udp icmp)\n"
 			"   -F  <hash_function>            hash function to use \"BOB\", \"OAAT\", \n"
 			"                                  \"TWMX\", \"HSIEH\"\n"
@@ -90,8 +103,8 @@ void print_help() {
 			"                                  multiple times)\n"
 			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
-			"   -n                             export sampling Paramters n and N - \n"
-			"                                  samplesize and total packet count \n"
+			"   -n                             export sampling Parameters n and N - \n"
+			"                                  sample size and total packet count \n"
 			"   -o  <observation domain id>    identification of the interface in\n"
 			"                                  the IPFXI Header\n"
 			"   -P  <collector port> \n"
@@ -113,56 +126,31 @@ long timevaldiff(struct timeval *starttime, struct timeval *finishtime) {
 	return msec;
 }
 
-void export_array_sampling_parameters(pcap_dev_t *pcap_device) {
-
-	void *fields[] = { &(pcap_device->export_packet_count),
-			&(pcap_device->totalpacketcount) };
-	uint16_t lengths[] = { 4, 8 };
-	if (ipfix_export_array(pcap_device->ipfixhandle,
-			pcap_device->sampling_export_template, 2, fields, lengths) < 0) {
-		fprintf(stderr, "ipfix_export() failed: %s\n", strerror(errno));
-		exit(1);
-	}
-
-}
-
-void flush_interfaces() {
-	int j;
-	struct timeval now;
-
-	gettimeofday(&now, NULL);
-
-	mlogf(INFO, "select interrupted by interrupt == alarm \n");
-
-	for (j = 0; j < options.number_interfaces; j++) {
-		if (timevaldiff(&(pcap_devices[j].last_export_time), &now)
-				> options.export_interval * 1000) {
-			if (options.samplingResultExport == true) {
-				export_array_sampling_parameters(&pcap_devices[j]);
-			}
-
-			ipfix_export_flush(pcap_devices[j].ipfixhandle);
-			pcap_devices[j].totalpacketcount = 0;
-			pcap_devices[j].export_packet_count = 0;
-			pcap_devices[j].last_export_time = now;
-		}
-	}
-}
-
-/* the signal handler for SIGINT == Ctrl-C --> shutdown program */
-//void sigint_cb(EV_P_ ev_io *w, int revents) {
-static void sigint_cb (EV_P_ ev_signal *w, int revents){
+static void impd4e_shutdown(){
 	int i;
-	LOGGER_info("Shutting down");
+	LOGGER_info("Shutting down..");
 	for (i = 0; i < options.number_interfaces; i++) {
 		ipfix_export_flush(pcap_devices[i].ipfixhandle);
 		ipfix_close(pcap_devices[i].ipfixhandle);
 	}
 	ipfix_cleanup();
-	exit(0);
+	free(pcap_devices);
+
 }
 
-void set_defaults(options_t *options) {
+/* the signal handler for SIGINT == Ctrl-C --> shutdown program */
+
+/**
+ * Call back for SIGINT (Ctrl-C). It breaks all loops
+ * and leads to shutdown.
+ */
+static void sigint_cb (EV_P_ ev_signal *w, int revents){
+	LOGGER_info("SIGINT received");
+	ev_unloop (events.loop, EVUNLOOP_ALL);
+
+}
+
+void options_set_defaults(options_t *options) {
 	options->number_interfaces = 0;
 	options->bpf = NULL;
 	options->templateID = MINT_ID;
@@ -198,7 +186,7 @@ hashFunction parseFunction(char *arg_string, options_t *options) {
 		if (strncasecmp(arg_string, hashfunctions[k].hstring, strlen(
 				hashfunctions[k].hstring)) == 0) {
 			j = k;
-			mlogf(INFO, "using %s as hashFunction \n", hashfunctions[k].hstring);
+			LOGGER_info("using %s as hashFunction \n", hashfunctions[k].hstring);
 
 		}
 	}
@@ -246,10 +234,6 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 	char *endptr;
 	errno = 0;
 	double sampling_ratio;
-	// options->basedir =  strdup(argv[0]);
-	//	char *pos = strrchr( options->basedir, '/' );
-	//	pos[1] = 0;
-
 
 	options->number_interfaces = 0;
 
@@ -382,22 +366,22 @@ void determineLinkType(pcap_dev_t *pcap_device) {
 	switch (pcap_device->link_type) {
 	case DLT_EN10MB:
 		pcap_device->offset[L_NET] = 14;
-		mlogf(INFO, "dltype: DLT_EN10M \n");
+		LOGGER_info( "dltype: DLT_EN10M");
 		break;
 	case DLT_ATM_RFC1483:
 		pcap_device->offset[L_NET] = 8;
-		mlogf(INFO, "dltype: DLT_ATM_RFC1483\n");
+		LOGGER_info( "dltype: DLT_ATM_RFC1483");
 		break;
 	case DLT_LINUX_SLL:
 		pcap_device->offset[L_NET] = 16;
-		mlogf(INFO, "dltype: DLT_LINUX_SLL\n");
+		LOGGER_info( "dltype: DLT_LINUX_SLL");
 		break;
 	case DLT_RAW:
 		pcap_device->offset[L_NET] = 0;
-		mlogf(INFO, "dltype: DLT_RAW\n");
+		LOGGER_info( "dltype: DLT_RAW");
 		break;
 	default:
-		mlogf(ALWAYS, "Link Type (%d) not supported - default to DLT_RAW \n",
+		mlogf(ALWAYS, "Link Type (%d) not supported - default to DLT_RAW",
 				pcap_device->link_type);
 		pcap_device->offset[L_NET] = 0;
 		break;
@@ -422,7 +406,9 @@ void setFilter(pcap_dev_t *pcap_device) {
 	}
 
 }
-
+/**
+ * Open packet capture devices
+ */
 void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 	if (options->file != NULL) {
@@ -453,6 +439,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 		for (i = 0; i < (options->number_interfaces); i++) {
 			pcap_devices[i].pcap_handle = pcap_open_live(options->if_names[i],
 					options->snapLength, 1, 1000, errbuf);
+			pcap_devices[i].ifname=options->if_names[i];
 			if (pcap_devices[i].pcap_handle == NULL) {
 				fprintf(stderr, "%s \n", errbuf);
 				exit(1);
@@ -473,7 +460,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 					((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr);
 
 			/* display result */
-			mlogf(ALWAYS, "Device %s has IP %s \n", options->if_names[i], htoa(
+			LOGGER_info("Device %s has IP %s", options->if_names[i], htoa(
 					pcap_devices[i].IPv4address));
 
 			// dirty IP read hack - but socket problem with embedded interfaces
@@ -496,7 +483,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 			//				exit(1);
 			//			}
 			//			pcap_devices[i].IPv4address = ntohl((uint32_t) inp.s_addr);
-			//			mlogf(INFO, "Device %s has IP %s \n", options->if_names[i], htoa(
+			//			LOGGER_info( "Device %s has IP %s \n", options->if_names[i], htoa(
 			//					pcap_devices[i].IPv4address));
 			//			pclose(fp);
 
@@ -548,73 +535,43 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 
 		}
 
-		// printf("ipfix added collector\n");
-		switch (options->templateID) {
-		case MINT_ID:
-			// printf("ipfix pre mint_id\n");
-			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
-					&(pcap_devices[i].ipfixtemplate), export_fields_min, 3) < 0) {
-				// printf("ipfix pre middle mint_id\n");
-				mlogf(ALWAYS, "ipfix_make_template_min() failed: %s\n",
-						strerror(errno));
-				// printf("ipfix post middle mint_id\n");
-				exit(1);
-			}
-			// printf("ipfix post mint_id\n");
-			break;
-		case TS_TTL_PROTO_ID:
-			// printf("ipfix pre ts_ttl_proto_id\n");
-			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
-					&(pcap_devices[i].ipfixtemplate),
-					export_fields_ts_ttl_proto, 6) < 0) {
-				// printf("ipfix pre middle ts_ttl_proto_id\n");
-				mlogf(ALWAYS,
-						"ipfix_make_template_ts_ttl_proto_id() failed: %s\n",
-						strerror(errno));
-				// printf("ipfix post ts_ttl_proto_id\n");
-				exit(1);
-			}
-			// printf("ipfix post ts_ttl_proto_id\n");
-		default:
-			// printf("ipfix default break\n");
-			break;
-		}
-		// printf("ipfix after switch\n");
-
-		if (options->samplingResultExport == true) {
-			if (ipfix_make_template(pcap_devices[i].ipfixhandle,
-					&(pcap_devices[i].sampling_export_template),
-					export_sampling_parameters, 2) < 0) {
-				mlogf(
-						ALWAYS,
-						"ipfix_make_template_export_sampling_parameters() failed: %s\n",
-						strerror(errno));
-			}
-
+		// printf("ipfix pre mint_id\n");
+		if (ipfix_make_template(pcap_devices[i].ipfixhandle,
+				&(pcap_devices[i].ipfixtemplate_min), export_fields_min, 3) < 0) {
+			// printf("ipfix pre middle mint_id\n");
+			mlogf(ALWAYS, "ipfix_make_template_min() failed: %s\n",
+					strerror(errno));
+			// printf("ipfix post middle mint_id\n");
+			exit(1);
 		}
 
-		/*
-		 * we de not need for each pcap_device a seperate resource consumption exporter
-		 * we will use the exporter of the first device
-		 * */
-		/*
-		if ((options->resourceConsumptionExport == true) && (i == 0)) {
+//		export_flush();
 
-			if (ipfix_make_template(pcap_devices[0].ipfixhandle,
-					&resource_template, export_resource_load, 4) < 0) {
-				mlogf(
-						ALWAYS,
-						"ipfix_make_template_export_resource_loads() failed: %s\n",
-						strerror(errno));
-			}
+		//		if (ipfix_make_template(pcap_devices[i].ipfixhandle,
+//				&(pcap_devices[i].ipfixtemplate),
+//				export_fields_ts_ttl_proto, 6) < 0) {
+//			// printf("ipfix pre middle ts_ttl_proto_id\n");
+//			mlogf(ALWAYS,
+//					"ipfix_make_template_ts_ttl_proto_id() failed: %s\n",
+//					strerror(errno));
+//			// printf("ipfix post ts_ttl_proto_id\n");
+//			exit(1);
+//		}
+//		if (ipfix_make_template(pcap_devices[i].ipfixhandle,
+//				&(pcap_devices[i].sampling_export_template),
+//				export_fields_sampling, 2) < 0) {
+//			mlogf(
+//					ALWAYS,
+//					"ipfix_make_template_export_sampling_parameters() failed: %s\n",
+//					strerror(errno));
+//		}
 
-		}
-		 */
+
 	}
 
 }
 
-void packet_cb(u_char *user_args, const struct pcap_pkthdr *header,
+void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 		const u_char * packet) {
 	pcap_dev_t *pcap_device = (pcap_dev_t*) user_args;
 	//	int16_t headerOffset[4];
@@ -624,7 +581,7 @@ void packet_cb(u_char *user_args, const struct pcap_pkthdr *header,
 	uint8_t ttl;
 	uint64_t timestamp;
 
-	LOGGER_debug("handle packet");
+	LOGGER_trace("handle packet");
 
 	pcap_device->totalpacketcount++;
 
@@ -659,7 +616,7 @@ void packet_cb(u_char *user_args, const struct pcap_pkthdr *header,
 			uint16_t lengths[] = { 8, 4, 1 };
 
 			if (ipfix_export_array(pcap_device->ipfixhandle,
-					pcap_device->ipfixtemplate, 3, fields, lengths) < 0) {
+					pcap_device->ipfixtemplate_min, 3, fields, lengths) < 0) {
 				fprintf(stderr, "ipfix_export() failed: %s\n", strerror(errno));
 				exit(1);
 			}
@@ -689,7 +646,7 @@ void packet_cb(u_char *user_args, const struct pcap_pkthdr *header,
 			uint16_t lengths[6] = { 8, 4, 1, 2, 1, 1 };
 
 			if (ipfix_export_array(pcap_device->ipfixhandle,
-					pcap_device->ipfixtemplate, 6, fields, lengths) < 0) {
+					pcap_device->ipfixtemplate_ttl, 6, fields, lengths) < 0) {
 				fprintf(stderr, "ipfix_export() failed: %s\n", strerror(errno));
 				exit(1);
 			}
@@ -704,9 +661,7 @@ void packet_cb(u_char *user_args, const struct pcap_pkthdr *header,
 				>= pcap_device->options->export_packet_count) {
 			isFlushingFlag = 1;
 
-			if (options.samplingResultExport == true) {
-				export_array_sampling_parameters(pcap_device);
-			}
+
 			/*
 			if ((options.resourceConsumptionExport == true) && (pcap_device
 					== &pcap_devices[0])) {
@@ -725,25 +680,39 @@ void packet_cb(u_char *user_args, const struct pcap_pkthdr *header,
 
 }
 
-static void export_timer_cb (EV_P_ ev_timer *w, int revents){
-	LOGGER_debug("export timer tick");
-	flush_interfaces();
-
+static void export_flush(){
+	int i;
+	LOGGER_trace("export_flush");
+	for (i = 0; i < options.number_interfaces; i++) {
+		if( ipfix_export_flush(pcap_devices[i].ipfixhandle) < 0 ){
+			LOGGER_error("Could not export IPFIX, device: %d", i);
+		}
+	}
 }
+
+static void export_timer_cb (EV_P_ ev_timer *w, int revents){
+	LOGGER_trace("export timer tick");
+	export_flush();
+}
+
+
+
+/**
+ * Called whenever a new packet is available
+ */
 static void packet_watcher_cb(EV_P_ ev_io *w, int revents){
-	LOGGER_debug("packet");
+	LOGGER_trace("packet");
 	// retrieve respective device a new packet was seen
 	pcap_dev_t *pcap_dev_ptr = (pcap_dev_t *) w->data;
 
-	// TODO handle cnt
-	// TODO handle errors
 	// dispatch packet callback
-	pcap_dispatch(pcap_dev_ptr->pcap_handle, 1 , packet_cb,
-			(u_char*) pcap_dev_ptr);
-
-	//	LOGGER_error( "Error DeviceNo %d %s: pcap_loop: %s\n", errdev,
-	//			options.if_names[errdev], pcap_geterr(
-	//					pcap_devices[errdev].pcap_handle));
+	if( pcap_dispatch(pcap_dev_ptr->pcap_handle,
+			PCAP_DISPATCH_PACKET_COUNT ,
+			packet_pcap_cb,
+			(u_char*) pcap_dev_ptr)< 0 ){
+			LOGGER_error( "Error DeviceNo  %s: %s\n",pcap_dev_ptr->ifname,
+					pcap_geterr( pcap_dev_ptr->pcap_handle)  );
+	}
 
 }
 
@@ -773,7 +742,7 @@ static void event_setup_pcapdev(){
 }
 
 
-static int event_loop(){
+static void event_loop(){
 	//	struct ev_loop *loop = ev_default_loop (EVLOOP_ONESHOT);
 	events.loop = ev_default_loop (0);
 	if(!events.loop){
@@ -794,14 +763,8 @@ static int event_loop(){
 	// packet watcher
 	event_setup_pcapdev();
 
-
 	// Loop: to exit you unloop
 	ev_loop(events.loop,0);
-
-
-	LOGGER_debug("finished loop");
-
-	exit(0);
 }
 
 int main(int argc, char *argv[]) {
@@ -811,17 +774,15 @@ int main(int argc, char *argv[]) {
 	LOGGER_info("== impd4e ==");
 
 	// set defaults options
-	set_defaults(&options);
-	mlogf(INFO, "set_defaults() okay \n");
+	options_set_defaults(&options);
 	// parse commandline
-
 	parse_cmdline(&options, argc, argv);
-	mlogf(INFO, "parse_cmdline() okay \n");
+
+	logger_setlevel(options.verbosity);
 
 	// --
 
 	// allocate memory for pcap handles
-	// printf("parse_cmdLine_okay \n");
 
 	if (options.number_interfaces != 0) {
 		pcap_devices = calloc((int) options.number_interfaces,
@@ -832,28 +793,20 @@ int main(int argc, char *argv[]) {
 					sizeof(uint8_t));
 		}
 
-		/* setup the signal handler for Ctrl-C */
-
 		// open pcap interfaces with filter
-
-
 		open_pcap(pcap_devices, &options);
-		mlogf(INFO, "open_pcap() okay \n");
 
 		// setup ipfix_exporter for each device
-
 		open_ipfix_export(pcap_devices, &options);
-		LOGGER_debug("open_ipfix_export() okay");
 
-		// run pcap_loop until program termination
-		// run_pcap_loop(pcap_devices, &options);
 
 		// -- EVENT LOOP  --
 		event_loop();
+		// ----------------
 
-		// free memory
-		free(pcap_devices);
 
+		impd4e_shutdown();
+		LOGGER_info("bye.");
 	} else {
 		print_help();
 		exit(-1);

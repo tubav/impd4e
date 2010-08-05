@@ -58,7 +58,7 @@ export_fields_t export_fields_ts_ttl_proto[] = {
                 { 0, IPFIX_FT_IPVERSION, 1}
 };
 
-export_fields_t export_sampling_parameters[] = {
+export_fields_t export_fields_sampling[] = {
 				{ 0, IPFIX_FT_SAMPLINGSIZE, 4 },
 				{ 0, IPFIX_FT_PACKETTOTALCOUNT, 8}
 };

@@ -61,6 +61,10 @@
  * Initialize logger. Levels lower than level will be bypassed.
  */
 void logger_init( int level );
+/**
+ * Set logger level
+ */
+void logger_setlevel( int level );
 void logger  ( int level, const char *file, int line, const char *function,
               char fmt[], ... ) __attribute__((format (printf, 5, 6)));
 

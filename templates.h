@@ -17,6 +17,12 @@
 #ifndef TEMPLATES_H_
 #define TEMPLATES_H_
 
+/* help macros */
+#define IPFIX_MAKE_TEMPLATE(handle,template,fields) ipfix_make_template(handle, \
+		&(template), fields, sizeof(fields) / sizeof(export_fields_t) )
+
+
+
 #include "ipfix.h"
 #include "ipfix_def.h"
 #include "ipfix_def_fokus.h"
@@ -60,7 +66,7 @@ export_fields_t export_fields_ts_ttl_proto[] = {
 
 export_fields_t export_fields_sampling[] = {
 				{ 0, IPFIX_FT_SAMPLINGSIZE, 4 },
-				{ 0, IPFIX_FT_PACKETTOTALCOUNT, 8}
+				{ 0, IPFIX_FT_PACKETDELTACOUNT, 8}
 };
 
 /* Overall system statistics (Linux)

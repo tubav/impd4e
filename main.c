@@ -35,6 +35,11 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <sys/time.h>
+#include <sys/resource.h>
+
+
+
 #include "templates.h"
 #include "main.h"
 #include "hash.h"
@@ -57,31 +62,39 @@
 struct {
 	struct ev_loop *loop;
 	ev_signal sigint_watcher;
+	ev_signal sigalrm_watcher;
 	ev_timer export_timer;
+	ev_timer export_timer_sampling;
+	ev_timer export_timer_rusage;
 	ev_io *packet_watchers;
 } events;
 
-
-char errbuf[PCAP_ERRBUF_SIZE];
-uint64_t old_cc_idle, old_cc_uptime, old_cpu_process_time;
 options_t options;
+static char pcap_errbuf[PCAP_ERRBUF_SIZE];
 pcap_dev_t *pcap_devices;
-ipfix_template_t *resource_template;
-
-
-
-int isFlushingFlag = 0; /* true during time in which main is invoking ipfix flush */
 
 /*----------------------------------------------------------------------------
   Prototypes
 ----------------------------------------------------------------------------- */
+/* -- signals --*/
+static void sigint_cb (EV_P_ ev_signal *w, int revents);
+static void sigalrm_cb (EV_P_ ev_signal *w, int revents);
+
+/* -- capture --*/
+static void packet_watcher_cb(EV_P_ ev_io *w, int revents);
+static void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
+		const u_char * packet);
+/* -- export -- */
 static void export_flush();
 static void export_timer_cb (EV_P_ ev_timer *w, int revents);
-static void packet_watcher_cb(EV_P_ ev_io *w, int revents);
-void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
-		const u_char * packet);
+static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents);
+static void export_timer_rusage_cb (EV_P_ ev_timer *w, int revents);
+static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t deltaCount );
+static void export_data_node_info(pcap_dev_t *dev);
 
-
+/**
+ * Print out command usage
+ */
 void print_help() {
 	printf( "impd4e - a libpcap based measuring probe which uses hash-based packet\n"
 			"         selection and exports packetIDs via IPFIX to a collector.\n\n"
@@ -118,14 +131,9 @@ void print_help() {
 			"   -v  verbose-level              can be used multiple times to increase output \n\n");
 
 }
-
-long timevaldiff(struct timeval *starttime, struct timeval *finishtime) {
-	long msec;
-	msec = (finishtime->tv_sec - starttime->tv_sec) * 1000;
-	msec += (finishtime->tv_usec - starttime->tv_usec) / 1000;
-	return msec;
-}
-
+/**
+ * Shutdown impd4e
+ */
 static void impd4e_shutdown(){
 	int i;
 	LOGGER_info("Shutting down..");
@@ -145,12 +153,21 @@ static void impd4e_shutdown(){
  * and leads to shutdown.
  */
 static void sigint_cb (EV_P_ ev_signal *w, int revents){
-	LOGGER_info("SIGINT received");
+	LOGGER_info("Signal INT received");
 	ev_unloop (events.loop, EVUNLOOP_ALL);
+}
+/**
+ * SIGALRM call back, currently not used.
+ */
+static void sigalrm_cb (EV_P_ ev_signal *w, int revents){
+	LOGGER_info("Signal ALRM received");
 
 }
 
-void options_set_defaults(options_t *options) {
+/**
+ * Set default options
+ */
+static void options_set_defaults(options_t *options) {
 	options->number_interfaces = 0;
 	options->bpf = NULL;
 	options->templateID = MINT_ID;
@@ -170,7 +187,9 @@ void options_set_defaults(options_t *options) {
 	options->samplingResultExport = false;
 	options->export_sysinfo = false;
 }
-
+/**
+ * Parse command line hash function
+ */
 hashFunction parseFunction(char *arg_string, options_t *options) {
 	int k;
 	int j = 0;
@@ -192,7 +211,9 @@ hashFunction parseFunction(char *arg_string, options_t *options) {
 	}
 	return hashfunctions[j].function;
 }
-
+/**
+ * Parse command line selection function
+ */
 void parseSelFunction(char *arg_string, options_t *options) {
 	int k;
 	struct selfunction {
@@ -210,7 +231,9 @@ void parseSelFunction(char *arg_string, options_t *options) {
 		}
 	}
 }
-
+/**
+ * Parse command line template
+ */
 void parseTemplate(char *arg_string, options_t *options) {
 	int k;
 	struct templateDef {
@@ -226,7 +249,9 @@ void parseTemplate(char *arg_string, options_t *options) {
 		}
 	}
 }
-
+/**
+ * Process command line arguments
+ */
 void parse_cmdline(options_t *options, int argc, char **argv) {
 
 	int c;
@@ -351,7 +376,9 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 	}
 
 }
-
+/**
+ * Helper for printing out IPv4 address
+ */
 char *htoa(uint32_t ipaddr) {
 	static char addrstr[16];
 	ipaddr = htonl(ipaddr);
@@ -415,9 +442,9 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 		/* in case of file input */
 
-		pcap_devices[0].pcap_handle = pcap_open_offline(options->file, errbuf);
+		pcap_devices[0].pcap_handle = pcap_open_offline(options->file, pcap_errbuf);
 		if (pcap_devices[0].pcap_handle == NULL) {
-			fprintf(stderr, "%s \n", errbuf);
+			fprintf(stderr, "%s \n", pcap_errbuf);
 		}
 		determineLinkType(&pcap_devices[0]);
 		setFilter(&pcap_devices[0]);
@@ -438,10 +465,10 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 
 		for (i = 0; i < (options->number_interfaces); i++) {
 			pcap_devices[i].pcap_handle = pcap_open_live(options->if_names[i],
-					options->snapLength, 1, 1000, errbuf);
+					options->snapLength, 1, 1000, pcap_errbuf);
 			pcap_devices[i].ifname=options->if_names[i];
 			if (pcap_devices[i].pcap_handle == NULL) {
-				fprintf(stderr, "%s \n", errbuf);
+				fprintf(stderr, "%s \n", pcap_errbuf);
 				exit(1);
 			}
 			// if (pcap_lookupnet(options->if_names[i],
@@ -451,7 +478,7 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 			//			options->if_names[i]);
 			// }
 
-			/* I want IP address attached to device */
+			/* get IP address attached to device */
 
 			strncpy(ifr.ifr_name, options->if_names[i], IFNAMSIZ - 1);
 			ioctl(fd, SIOCGIFADDR, &ifr);
@@ -463,115 +490,19 @@ void open_pcap(pcap_dev_t *pcap_devices, options_t *options) {
 			LOGGER_info("Device %s has IP %s", options->if_names[i], htoa(
 					pcap_devices[i].IPv4address));
 
-			// dirty IP read hack - but socket problem with embedded interfaces
-
-			//			FILE *fp;
-			//			char *script = "getIPAddress.sh ";
-			//			char *cmdLine;
-			//			cmdLine = (char *) malloc((strlen(script) + strlen(
-			//					options->if_names[i]) + 1) * sizeof(char));
-			//			strcpy(cmdLine, script);
-			//			strcat(cmdLine, options->if_names[i]);
-			//			fp = popen(cmdLine, "r");
-			//
-			//			char IPAddress[LINE_LENGTH];
-			//			fgets(IPAddress, LINE_LENGTH, fp);
-			//			struct in_addr inp;
-			//			if (inet_aton(IPAddress, &inp) < 0) {
-			//				mlogf(ALWAYS, "read wrong IP format of Interface %s \n",
-			//						options->if_names[i]);
-			//				exit(1);
-			//			}
-			//			pcap_devices[i].IPv4address = ntohl((uint32_t) inp.s_addr);
-			//			LOGGER_info( "Device %s has IP %s \n", options->if_names[i], htoa(
-			//					pcap_devices[i].IPv4address));
-			//			pclose(fp);
-
 			determineLinkType(&pcap_devices[i]);
 			setFilter(&pcap_devices[i]);
 
-			/* set initial export time to 'now' */
-			gettimeofday(&pcap_devices[i].last_export_time, NULL);
 		}
 		close(fd);
 	}
 }
 
-void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
-	int i;
-
-	if (ipfix_init() < 0) {
-		mlogf(ALWAYS, "cannot init ipfix module: %s\n", strerror(errno));
-
-	}
-
-	if (ipfix_add_vendor_information_elements(ipfix_ft_fokus) < 0) {
-		fprintf(stderr, "cannot add FOKUS IEs: %s\n", strerror(errno));
-		exit(1);
-	}
-
-	// printf("in open_ipfix\n");
-	for (i = 0; i < (options->number_interfaces); i++) {
-		// printf("in loop: %i\n", i);
-
-		pcap_devices[i].export_packet_count = 0;
-
-		/* use observationDomainID if explicitely given via cmd line, else use interface IPv4address as oid */
-		uint32_t
-		odid =
-				(options->observationDomainID != 0) ? options->observationDomainID
-						: pcap_devices[i].IPv4address;
-		if (ipfix_open(&(pcap_devices[i].ipfixhandle), odid, IPFIX_VERSION) < 0) {
-			mlogf(ALWAYS, "ipfix_open() failed: %s\n", strerror(errno));
-
-		}
-		// printf("ipfix open\n");
-		if (ipfix_add_collector(pcap_devices[i].ipfixhandle,
-				options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
-				< 0) {
-			mlogf(ALWAYS, "ipfix_add_collector(%s,%d) failed: %s\n",
-					options->collectorIP, options->collectorPort, strerror(
-							errno));
-
-		}
-
-		// printf("ipfix pre mint_id\n");
-		if (ipfix_make_template(pcap_devices[i].ipfixhandle,
-				&(pcap_devices[i].ipfixtemplate_min), export_fields_min, 3) < 0) {
-			// printf("ipfix pre middle mint_id\n");
-			mlogf(ALWAYS, "ipfix_make_template_min() failed: %s\n",
-					strerror(errno));
-			// printf("ipfix post middle mint_id\n");
-			exit(1);
-		}
-
-//		export_flush();
-
-		//		if (ipfix_make_template(pcap_devices[i].ipfixhandle,
-//				&(pcap_devices[i].ipfixtemplate),
-//				export_fields_ts_ttl_proto, 6) < 0) {
-//			// printf("ipfix pre middle ts_ttl_proto_id\n");
-//			mlogf(ALWAYS,
-//					"ipfix_make_template_ts_ttl_proto_id() failed: %s\n",
-//					strerror(errno));
-//			// printf("ipfix post ts_ttl_proto_id\n");
-//			exit(1);
-//		}
-//		if (ipfix_make_template(pcap_devices[i].ipfixhandle,
-//				&(pcap_devices[i].sampling_export_template),
-//				export_fields_sampling, 2) < 0) {
-//			mlogf(
-//					ALWAYS,
-//					"ipfix_make_template_export_sampling_parameters() failed: %s\n",
-//					strerror(errno));
-//		}
-
-
-	}
-
-}
-
-void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
+/**
+ * Handle packets comming from libpcap and perform hash based selection.
+ *
+ */
+static void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 		const u_char * packet) {
 	pcap_dev_t *pcap_device = (pcap_dev_t*) user_args;
 	//	int16_t headerOffset[4];
@@ -583,7 +514,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 
 	LOGGER_trace("handle packet");
 
-	pcap_device->totalpacketcount++;
+	pcap_device->sampling_delta_count++;
 
 	findHeaders(packet, header->caplen, pcap_device->offset, layers, &ttl);
 
@@ -596,11 +527,13 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 
 	hash_result = pcap_device->options->hash_function(pcap_device->outbuffer,
 			copiedbytes);
+
+
 	// is packet selected?
 
 	if ((pcap_device->options->sel_range_min < hash_result)
 			&& (pcap_device->options->sel_range_max > hash_result)) {
-
+		pcap_device->sampling_size++;
 		int pktid = 0;
 		if (options.hashAsPacketID == 1) { // in case we want to use the hashID as packet ID
 			pktid = hash_result;
@@ -646,7 +579,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 			uint16_t lengths[6] = { 8, 4, 1, 2, 1, 1 };
 
 			if (ipfix_export_array(pcap_device->ipfixhandle,
-					pcap_device->ipfixtemplate_ttl, 6, fields, lengths) < 0) {
+					pcap_device->ipfixtemplate_ts_ttl, 6, fields, lengths) < 0) {
 				fprintf(stderr, "ipfix_export() failed: %s\n", strerror(errno));
 				exit(1);
 			}
@@ -656,49 +589,17 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 			break;
 		}
 
-		pcap_device->export_packet_count++;
-		if (pcap_device->export_packet_count
-				>= pcap_device->options->export_packet_count) {
-			isFlushingFlag = 1;
-
-
-			/*
-			if ((options.resourceConsumptionExport == true) && (pcap_device
-					== &pcap_devices[0])) {
-				printf("export triggered by packet count \n");
-				export_resource_consumption(pcap_device);
-			}
-			 */
-			ipfix_export_flush(pcap_device->ipfixhandle);
-			isFlushingFlag = 0;
-			pcap_device->export_packet_count = 0;
-			pcap_device->totalpacketcount = 0;
-			pcap_device->last_export_time = header->ts;
-		}
-
-	}
-
-}
-
-static void export_flush(){
-	int i;
-	LOGGER_trace("export_flush");
-	for (i = 0; i < options.number_interfaces; i++) {
-		if( ipfix_export_flush(pcap_devices[i].ipfixhandle) < 0 ){
-			LOGGER_error("Could not export IPFIX, device: %d", i);
+		if (++pcap_device->export_packet_count >= pcap_device->options->export_packet_count) {
+			pcap_device->export_packet_count=0;
+			export_flush();
 		}
 	}
 }
-
-static void export_timer_cb (EV_P_ ev_timer *w, int revents){
-	LOGGER_trace("export timer tick");
-	export_flush();
-}
-
 
 
 /**
- * Called whenever a new packet is available
+ * Called whenever a new packet is available. Note that packet_pcap_cb is
+ * responsible for reading the packet.
  */
 static void packet_watcher_cb(EV_P_ ev_io *w, int revents){
 	LOGGER_trace("packet");
@@ -726,9 +627,10 @@ static void event_setup_pcapdev(){
 		// TODO review
 		pcap_dev_ptr->options = &options;
 
-		if (pcap_setnonblock((*pcap_dev_ptr).pcap_handle, 1, errbuf) < 0) {
+
+		if (pcap_setnonblock((*pcap_dev_ptr).pcap_handle, 1, pcap_errbuf) < 0) {
 			LOGGER_error( "pcap_setnonblock: %s: %s", options.if_names[i],
-					errbuf);
+					pcap_errbuf);
 		}
 		// storing a reference of packet device to
 		// be passed via watcher on a packet event
@@ -741,7 +643,9 @@ static void event_setup_pcapdev(){
 	}
 }
 
-
+/**
+ * Setups and starts main event loop.
+ */
 static void event_loop(){
 	//	struct ev_loop *loop = ev_default_loop (EVLOOP_ONESHOT);
 	events.loop = ev_default_loop (0);
@@ -750,23 +654,177 @@ static void event_loop(){
 		exit(EXIT_FAILURE);
 	}
 	LOGGER_info("event_loop()");
-	/*--- Setting up loop ---*/
-	// sigint
+	/*=== Setting up event loop ==*/
+	/* signals */
 	ev_signal_init (&events.sigint_watcher, sigint_cb, SIGINT);
 	ev_signal_start (events.loop, &events.sigint_watcher);
+	ev_signal_init (&events.sigalrm_watcher, sigalrm_cb, SIGALRM);
+	ev_signal_start (events.loop, &events.sigalrm_watcher );
 
-	// export timer
+
+	/* export timers */
 	ev_init (&events.export_timer, export_timer_cb );
-	events.export_timer.repeat  = 3.0;
+	events.export_timer.repeat  = 3.0; // TODO get from cmdline
 	ev_timer_again (events.loop, &events.export_timer);
 
-	// packet watcher
+	ev_init (&events.export_timer_sampling, export_timer_sampling_cb );
+	events.export_timer_sampling.repeat  = 10.0; // TODO get from cmdline
+	ev_timer_again (events.loop, &events.export_timer_sampling);
+
+	ev_init (&events.export_timer_rusage, export_timer_rusage_cb );
+	events.export_timer_rusage.repeat  = 1.0; // TODO get from cmdline
+	ev_timer_again (events.loop, &events.export_timer_rusage);
+
+
+	/*  packet watchers */
 	event_setup_pcapdev();
 
-	// Loop: to exit you unloop
+	/* Enter main event  loop; unloop to exit */
 	ev_loop(events.loop,0);
 }
 
+/*-----------------------------------------------------------------------------
+  Export
+ -----------------------------------------------------------------------------*/
+static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t deltaCount ){
+	static uint16_t lengths[] = { 4, 8 };
+	void *fields[] = { &size, &deltaCount };
+	LOGGER_trace("sampling: (%d, %lu)",size,(long unsigned)deltaCount);
+		if (ipfix_export_array(dev->ipfixhandle,
+				dev->ipfixtemplate_sampling, 2, fields, lengths) < 0) {
+			LOGGER_error("ipfix export failed: %s", strerror(errno));
+		} else {
+			dev->sampling_size=0;
+			dev->export_packet_count=0;
+		}
+}
+static void export_data_node_info(pcap_dev_t *dev ){
+	struct rusage usage;
+	if( getrusage(RUSAGE_SELF, &usage ) < 0 ){
+		LOGGER_error("ipfix export failed: %s", strerror(errno));
+		return;
+	}
+	LOGGER_debug("\n"
+	"ru_utime:    %ld \n"
+	"ru_stime:    %ld \n"
+	"ru_maxrss:   %ld \n"
+	"ru_ixrss:    %ld \n"
+	"ru_idrss:    %ld \n"
+	"ru_isrss:    %ld \n"
+	"ru_minflt:   %ld \n"
+	"ru_majflt:   %ld \n"
+	"ru_nswap:    %ld \n"
+	"ru_inblock:  %ld \n"
+	"ru_oublock:  %ld \n"
+	"ru_msgsnd:   %ld \n"
+	"ru_msgrcv:   %ld \n"
+	"ru_nsignals  %ld \n"
+	"ru_nvcsw:    %ld \n"
+	"ru_nivcsw:   %ld \n"
+	,usage.ru_utime.tv_usec
+	,usage.ru_stime.tv_usec
+	,usage.ru_maxrss
+	,usage.ru_ixrss
+	,usage.ru_idrss
+	,usage.ru_isrss
+	,usage.ru_minflt
+	,usage.ru_majflt
+	,usage.ru_nswap
+	,usage.ru_inblock
+	,usage.ru_oublock
+	,usage.ru_msgsnd
+	,usage.ru_msgrcv
+	,usage.ru_nsignals
+	,usage.ru_nvcsw
+	,usage.ru_nivcsw );
+
+}
+static void export_flush(){
+	int i;
+	LOGGER_trace("export_flush");
+	for (i = 0; i < options.number_interfaces; i++) {
+		if( ipfix_export_flush(pcap_devices[i].ipfixhandle) < 0 ){
+			LOGGER_error("Could not export IPFIX, device: %d", i);
+		}
+	}
+}
+
+static void export_timer_cb (EV_P_ ev_timer *w, int revents){
+	LOGGER_trace("export timer tick");
+	export_flush();
+}
+static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents){
+	int i;
+	LOGGER_trace("export timer sampling call back");
+	for (i = 0; i < options.number_interfaces ; i++) {
+		pcap_dev_t *dev = &pcap_devices[i];
+		export_data_sampling(dev, dev->sampling_size, dev->sampling_delta_count );
+	}
+	export_flush();
+}
+static void export_timer_rusage_cb (EV_P_ ev_timer *w, int revents){
+	/* using ipfix handle from first interface */
+	export_data_node_info(&pcap_devices[0] );
+	export_flush();
+}
+
+void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
+	int i;
+
+	if (ipfix_init() < 0) {
+		mlogf(ALWAYS, "cannot init ipfix module: %s\n", strerror(errno));
+
+	}
+
+	if (ipfix_add_vendor_information_elements(ipfix_ft_fokus) < 0) {
+		fprintf(stderr, "cannot add FOKUS IEs: %s\n", strerror(errno));
+		exit(1);
+	}
+
+	// printf("in open_ipfix\n");
+	for (i = 0; i < (options->number_interfaces); i++) {
+		// printf("in loop: %i\n", i);
+
+		pcap_devices[i].export_packet_count = 0;
+
+		/* use observationDomainID if explicitely given via cmd line, else use interface IPv4address as oid */
+		uint32_t
+		odid =
+				(options->observationDomainID != 0) ? options->observationDomainID
+						: pcap_devices[i].IPv4address;
+		if (ipfix_open(&(pcap_devices[i].ipfixhandle), odid, IPFIX_VERSION) < 0) {
+			mlogf(ALWAYS, "ipfix_open() failed: %s\n", strerror(errno));
+
+		}
+		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_min,
+				export_fields_min)< 0 ){
+			LOGGER_error("template initialization failed: %s",strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_ts_ttl,
+				export_fields_ts_ttl_proto)< 0 ){
+			LOGGER_error("template initialization failed: %s",strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_sampling,
+				export_fields_sampling)< 0 ){
+			LOGGER_error("template initialization failed: %s",strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
+		if (ipfix_add_collector(pcap_devices[i].ipfixhandle,
+				options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
+				< 0) {
+			LOGGER_error("ipfix_add_collector(%s,%d) failed: %s\n",
+					options->collectorIP, options->collectorPort, strerror(
+							errno));
+		}
+	}
+}
+
+/*-----------------------------------------------------------------------------
+  MAIN
+ -----------------------------------------------------------------------------*/
 int main(int argc, char *argv[]) {
 	int i;
 	// initializing custom logger
@@ -791,6 +849,9 @@ int main(int argc, char *argv[]) {
 		for (i = 0; i < options.number_interfaces; i++) {
 			pcap_devices[i].outbuffer = calloc(options.snapLength,
 					sizeof(uint8_t));
+			pcap_devices[i].sampling_delta_count=0;
+			pcap_devices[i].sampling_size=0;
+
 		}
 
 		// open pcap interfaces with filter
@@ -799,12 +860,10 @@ int main(int argc, char *argv[]) {
 		// setup ipfix_exporter for each device
 		open_ipfix_export(pcap_devices, &options);
 
-
-		// -- EVENT LOOP  --
+		/* ---- main event loop  ---- */
 		event_loop();
-		// ----------------
 
-
+		/* -- normal shutdown --  */
 		impd4e_shutdown();
 		LOGGER_info("bye.");
 	} else {

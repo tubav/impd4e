@@ -69,14 +69,14 @@ typedef struct pcap_dev {
 	int link_type;
 	ipfix_t *ipfixhandle;
 	ipfix_template_t *ipfixtemplate_min;
-	ipfix_template_t *ipfixtemplate_ttl;
+	ipfix_template_t *ipfixtemplate_ts_ttl;
 	ipfix_template_t *ipfixtemplate_sampling;
 	int16_t offset[4];
 	uint8_t *outbuffer;
 	uint16_t outbufferLength;
 	uint32_t export_packet_count;
-	uint64_t totalpacketcount;
-	struct timeval last_export_time;
+	uint32_t sampling_size;
+	uint64_t sampling_delta_count;
 } pcap_dev_t;
 
 // hash functions for parsing

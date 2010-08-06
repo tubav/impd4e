@@ -35,8 +35,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-#include <sys/time.h>
-#include <sys/resource.h>
+#include <sys/sysinfo.h>
 
 
 
@@ -611,8 +610,8 @@ static void packet_watcher_cb(EV_P_ ev_io *w, int revents){
 			PCAP_DISPATCH_PACKET_COUNT ,
 			packet_pcap_cb,
 			(u_char*) pcap_dev_ptr)< 0 ){
-			LOGGER_error( "Error DeviceNo  %s: %s\n",pcap_dev_ptr->ifname,
-					pcap_geterr( pcap_dev_ptr->pcap_handle)  );
+		LOGGER_error( "Error DeviceNo  %s: %s\n",pcap_dev_ptr->ifname,
+				pcap_geterr( pcap_dev_ptr->pcap_handle)  );
 	}
 
 }
@@ -690,53 +689,41 @@ static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t delt
 	static uint16_t lengths[] = { 4, 8 };
 	void *fields[] = { &size, &deltaCount };
 	LOGGER_trace("sampling: (%d, %lu)",size,(long unsigned)deltaCount);
-		if (ipfix_export_array(dev->ipfixhandle,
-				dev->ipfixtemplate_sampling, 2, fields, lengths) < 0) {
-			LOGGER_error("ipfix export failed: %s", strerror(errno));
-		} else {
-			dev->sampling_size=0;
-			dev->export_packet_count=0;
-		}
+	if (ipfix_export_array(dev->ipfixhandle,
+			dev->ipfixtemplate_sampling, 2, fields, lengths) < 0) {
+		LOGGER_error("ipfix export failed: %s", strerror(errno));
+	} else {
+		dev->sampling_size=0;
+		dev->export_packet_count=0;
+	}
 }
 static void export_data_node_info(pcap_dev_t *dev ){
-	struct rusage usage;
-	if( getrusage(RUSAGE_SELF, &usage ) < 0 ){
-		LOGGER_error("ipfix export failed: %s", strerror(errno));
+	struct sysinfo info;
+
+	if( sysinfo( &info ) < 0 ){
+		LOGGER_error("node info export failed: %s", strerror(errno));
 		return;
 	}
 	LOGGER_debug("\n"
-	"ru_utime:    %ld \n"
-	"ru_stime:    %ld \n"
-	"ru_maxrss:   %ld \n"
-	"ru_ixrss:    %ld \n"
-	"ru_idrss:    %ld \n"
-	"ru_isrss:    %ld \n"
-	"ru_minflt:   %ld \n"
-	"ru_majflt:   %ld \n"
-	"ru_nswap:    %ld \n"
-	"ru_inblock:  %ld \n"
-	"ru_oublock:  %ld \n"
-	"ru_msgsnd:   %ld \n"
-	"ru_msgrcv:   %ld \n"
-	"ru_nsignals  %ld \n"
-	"ru_nvcsw:    %ld \n"
-	"ru_nivcsw:   %ld \n"
-	,usage.ru_utime.tv_usec
-	,usage.ru_stime.tv_usec
-	,usage.ru_maxrss
-	,usage.ru_ixrss
-	,usage.ru_idrss
-	,usage.ru_isrss
-	,usage.ru_minflt
-	,usage.ru_majflt
-	,usage.ru_nswap
-	,usage.ru_inblock
-	,usage.ru_oublock
-	,usage.ru_msgsnd
-	,usage.ru_msgrcv
-	,usage.ru_nsignals
-	,usage.ru_nvcsw
-	,usage.ru_nivcsw );
+			"uptime:      %ld\n"
+			"load:        %lu\n"
+			"totalram:    %lu\n"
+			"freeram:     %lu\n"
+			"sharedram:   %lu\n"
+			"bufferram:   %lu\n"
+			"totalswap:   %lu\n"
+			"freeswap:    %lu\n"
+			"procs:       %d \n",
+			info.uptime,
+			info.loads[1],
+			info.totalram,
+			info.freeram,
+			info.sharedram,
+			info.bufferram,
+			info.totalswap,
+			info.freeswap,
+			info.procs);
+
 
 }
 static void export_flush(){

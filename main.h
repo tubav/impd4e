@@ -71,6 +71,7 @@ typedef struct pcap_dev {
 	ipfix_template_t *ipfixtemplate_min;
 	ipfix_template_t *ipfixtemplate_ts_ttl;
 	ipfix_template_t *ipfixtemplate_sampling;
+	ipfix_template_t *ipfixtemplate_stats;
 	int16_t offset[4];
 	uint8_t *outbuffer;
 	uint16_t outbufferLength;

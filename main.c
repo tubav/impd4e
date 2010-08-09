@@ -35,7 +35,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-#include <sys/sysinfo.h>
+#include <sys/sysinfo.h> /* TODO review: sysinfo is Linux only */
+#include <sys/times.h>
 
 
 
@@ -64,7 +65,7 @@ struct {
 	ev_signal sigalrm_watcher;
 	ev_timer export_timer;
 	ev_timer export_timer_sampling;
-	ev_timer export_timer_rusage;
+	ev_timer export_timer_stats;
 	ev_io *packet_watchers;
 } events;
 
@@ -87,9 +88,9 @@ static void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 static void export_flush();
 static void export_timer_cb (EV_P_ ev_timer *w, int revents);
 static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents);
-static void export_timer_rusage_cb (EV_P_ ev_timer *w, int revents);
+static void export_timer_stats_cb (EV_P_ ev_timer *w, int revents);
 static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t deltaCount );
-static void export_data_node_info(pcap_dev_t *dev);
+static void export_data_stats(pcap_dev_t *dev);
 
 /**
  * Print out command usage
@@ -546,7 +547,6 @@ static void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 					+ (uint64_t) header->ts.tv_usec;
 			void *fields[] = { &timestamp, &hash_result, &ttl };
 			uint16_t lengths[] = { 8, 4, 1 };
-
 			if (ipfix_export_array(pcap_device->ipfixhandle,
 					pcap_device->ipfixtemplate_min, 3, fields, lengths) < 0) {
 				fprintf(stderr, "ipfix_export() failed: %s\n", strerror(errno));
@@ -605,7 +605,7 @@ static void packet_watcher_cb(EV_P_ ev_io *w, int revents){
 	// retrieve respective device a new packet was seen
 	pcap_dev_t *pcap_dev_ptr = (pcap_dev_t *) w->data;
 
-	// dispatch packet callback
+	// dispatch packet
 	if( pcap_dispatch(pcap_dev_ptr->pcap_handle,
 			PCAP_DISPATCH_PACKET_COUNT ,
 			packet_pcap_cb,
@@ -615,7 +615,10 @@ static void packet_watcher_cb(EV_P_ ev_io *w, int revents){
 	}
 
 }
-
+/**
+ * Here we setup a pcap device in non block mode and configure libev to read
+ * a packet as soon it is available.
+ */
 static void event_setup_pcapdev(){
 	int i;
 	pcap_dev_t * pcap_dev_ptr;
@@ -631,8 +634,9 @@ static void event_setup_pcapdev(){
 			LOGGER_error( "pcap_setnonblock: %s: %s", options.if_names[i],
 					pcap_errbuf);
 		}
-		// storing a reference of packet device to
-		// be passed via watcher on a packet event
+		/* storing a reference of packet device to
+		  be passed via watcher on a packet event so
+		  we know which device to read the packet from */
 		events.packet_watchers[i].data = (pcap_dev_t *) pcap_dev_ptr;
 		ev_io_init( &events.packet_watchers[i],
 				packet_watcher_cb,
@@ -667,18 +671,22 @@ static void event_loop(){
 	ev_timer_again (events.loop, &events.export_timer);
 
 	ev_init (&events.export_timer_sampling, export_timer_sampling_cb );
-	events.export_timer_sampling.repeat  = 10.0; // TODO get from cmdline
+	events.export_timer_sampling.repeat  = 2.0; // TODO get from cmdline
 	ev_timer_again (events.loop, &events.export_timer_sampling);
 
-	ev_init (&events.export_timer_rusage, export_timer_rusage_cb );
-	events.export_timer_rusage.repeat  = 1.0; // TODO get from cmdline
-	ev_timer_again (events.loop, &events.export_timer_rusage);
+	ev_init (&events.export_timer_stats, export_timer_stats_cb );
+	events.export_timer_stats.repeat  = 1.0; // TODO get from cmdline
+	ev_timer_again (events.loop, &events.export_timer_stats);
 
 
 	/*  packet watchers */
 	event_setup_pcapdev();
 
-	/* Enter main event  loop; unloop to exit */
+	/* Enter main event loop; call unloop to exit.
+	 *
+	 * Everything is going to be handled within this call
+	 * accordingly to callbacks defined above.
+	 * */
 	ev_loop(events.loop,0);
 }
 
@@ -697,13 +705,32 @@ static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t delt
 		dev->export_packet_count=0;
 	}
 }
-static void export_data_node_info(pcap_dev_t *dev ){
+static void export_data_stats(pcap_dev_t *dev ){
 	struct sysinfo info;
+	struct pcap_stat stat;
+	struct tms times_buf;
+	return;
+	/* Get pcap statistics in case of live capture */
+	if (options.file == NULL){
+		if(pcap_stats(dev->pcap_handle, &stat )<0 ){
+			LOGGER_error( "Error DeviceNo  %s: %s\n",dev->ifname,
+						pcap_geterr( dev->pcap_handle)  );
+		}
 
+		LOGGER_debug("\n drop: %d\nrec: %d",stat.ps_drop,stat.ps_recv);
+
+	}
+	if(times(&times_buf )< 0 ){
+		LOGGER_error("node info export failed: %s", strerror(errno));
+		return;
+	}
+
+	LOGGER_debug("\n  utime: %lu  stime: %lu  ",times_buf.tms_utime, times_buf.tms_stime);
 	if( sysinfo( &info ) < 0 ){
 		LOGGER_error("node info export failed: %s", strerror(errno));
 		return;
 	}
+
 	LOGGER_debug("\n"
 			"uptime:      %ld\n"
 			"load:        %lu\n"
@@ -726,6 +753,10 @@ static void export_data_node_info(pcap_dev_t *dev ){
 
 
 }
+/**
+ * This causes libipfix to send cached messages to
+ * the registered collectors.
+ */
 static void export_flush(){
 	int i;
 	LOGGER_trace("export_flush");
@@ -735,11 +766,17 @@ static void export_flush(){
 		}
 	}
 }
-
+/**
+ * Periodically called each export time interval.
+ *
+ */
 static void export_timer_cb (EV_P_ ev_timer *w, int revents){
 	LOGGER_trace("export timer tick");
 	export_flush();
 }
+/**
+ * Peridically called each export/sampling time interval
+ */
 static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents){
 	int i;
 	LOGGER_trace("export timer sampling call back");
@@ -749,9 +786,9 @@ static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents){
 	}
 	export_flush();
 }
-static void export_timer_rusage_cb (EV_P_ ev_timer *w, int revents){
+static void export_timer_stats_cb (EV_P_ ev_timer *w, int revents){
 	/* using ipfix handle from first interface */
-	export_data_node_info(&pcap_devices[0] );
+	export_data_stats(&pcap_devices[0] );
 	export_flush();
 }
 
@@ -785,17 +822,22 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 		}
 		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_min,
 				export_fields_min)< 0 ){
-			LOGGER_error("template initialization failed: %s",strerror(errno));
+			LOGGER_fatal("template initialization failed: %s",strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_ts_ttl,
 				export_fields_ts_ttl_proto)< 0 ){
-			LOGGER_error("template initialization failed: %s",strerror(errno));
+			LOGGER_fatal("template initialization failed: %s",strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_sampling,
 				export_fields_sampling)< 0 ){
-			LOGGER_error("template initialization failed: %s",strerror(errno));
+			LOGGER_fatal("template initialization failed: %s",strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_stats,
+				export_fields_stats)< 0 ){
+			LOGGER_fatal("template initialization failed: %s",strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
@@ -816,7 +858,7 @@ int main(int argc, char *argv[]) {
 	int i;
 	// initializing custom logger
 	logger_init(LOGGER_LEVEL_DEBUG);
-	LOGGER_info("== impd4e ==");
+	LOGGER_debug("== impd4e ==");
 
 	// set defaults options
 	options_set_defaults(&options);

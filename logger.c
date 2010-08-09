@@ -3,6 +3,8 @@
  * following the log level convention used by slf4j.
  *
  * THIS LOGGER IS NOT THREAD SAFE!
+ * TODO add support to log to file
+ * TODO disable traces via macro
  *
  * logger.c
  *

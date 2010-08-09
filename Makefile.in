@@ -36,14 +36,14 @@ OPENSSL = @OPENSSL@
 DEFS = @DEFS@ 
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@ -L/usr/local/lib
-LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc
+LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc -lev
 CCOPT = -Wall -g
 INCLS = -I. -I/usr/local/include
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 TARGETS = impd4e
-OBJS = bobhash.o hash.o hsieh.o main.o twmx.o
-DEPHDR = bobhash.h hash.h hsieh.h main.h templates.h twmx.h
+OBJS = bobhash.o hash.o hsieh.o main.o twmx.o logger.o
+DEPHDR = bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h
 CLEANFILES = $(OBJS) $(TARGETS) 
 
 all: $(TARGETS)

@@ -11,6 +11,9 @@ the IPFIX protocol.
 This package makes use of the Fraunhofer FOKUS "libipfix" library which
 must be installed prior to compilation of impd4e.
 
+This package also requires libev, which can be downloaded from
+http://software.schmorp.de/pkg/libev.html
+
 The impd4e tool exports the following fields via IPFIX depending on the
 use of the -t parameter. See templates.h for details.
 

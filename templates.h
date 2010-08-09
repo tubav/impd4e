@@ -69,6 +69,11 @@ export_fields_t export_fields_sampling[] = {
 				{ 0, IPFIX_FT_PACKETDELTACOUNT, 8}
 };
 
+export_fields_t export_fields_stats[] = {
+		{0, IPFIX_FT_DROPPEDPACKETTOTALCOUNT, 8 }, /* dropped packets */
+		{0, IPFIX_FT_PACKETTOTALCOUNT, 8 }         /* received packets */
+};
+
 /* Overall system statistics (Linux)
  man 2 sysinfo */
 

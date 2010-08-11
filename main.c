@@ -116,8 +116,8 @@ void print_help() {
 			"                                  multiple times)\n"
 			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
-			"   -n                             export sampling Parameters n and N - \n"
-			"                                  sample size and total packet count \n"
+			"   -n                             export sampling Parameters sampling size (n) \n"
+			"                                  and total packet count (N) \n"
 			"   -o  <observation domain id>    identification of the interface in\n"
 			"                                  the IPFXI Header\n"
 			"   -P  <collector port> \n"
@@ -184,8 +184,8 @@ static void options_set_defaults(options_t *options) {
 	options->export_interval = 3; /* seconds */
 	options->hashAsPacketID = 1;
 	options->file = NULL;
-	options->samplingResultExport = false;
-	options->export_sysinfo = false;
+//	options->samplingResultExport = false;
+//	options->export_sysinfo = false;
 }
 /**
  * Parse command line hash function
@@ -363,10 +363,11 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 			options->number_interfaces++;
 			break;
 		case 'n':
-			options->samplingResultExport = true;
+			// TODO parse enable export sampling
 			break;
 		case 'S':
-			options->export_sysinfo = true;
+			// TODO
+//			options->export_sysinfo = true;
 			break;
 		default:
 			printf("unknown parameter: %d \n", c);

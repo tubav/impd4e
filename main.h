@@ -48,10 +48,8 @@ typedef struct options
 	uint8_t verbosity;
 	uint32_t export_packet_count;
 	uint32_t export_interval;
-	double sampling_ratio;
-	bool samplingResultExport;
-	bool export_sysinfo;
-	bool export_times;
+//	bool enable_export_sampling;
+//	bool export_export_
 	int hashAsPacketID;
 	char *file;
 } options_t;

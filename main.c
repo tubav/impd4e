@@ -46,6 +46,7 @@
 #include "mlog.h"
 #include "ipfix.h"
 #include "ipfix_fields_fokus.h"
+#include "stats.h"
 
 // Custom logger
 #include "logger.h"
@@ -89,7 +90,7 @@ static void export_flush();
 static void export_timer_cb (EV_P_ ev_timer *w, int revents);
 static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents);
 static void export_timer_stats_cb (EV_P_ ev_timer *w, int revents);
-static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t deltaCount );
+static void export_data_sampling(pcap_dev_t *dev, uint64_t observationTimeMilliseconds, u_int32_t size, u_int64_t deltaCount );
 static void export_data_stats(pcap_dev_t *dev);
 
 /**
@@ -184,8 +185,8 @@ static void options_set_defaults(options_t *options) {
 	options->export_interval = 3; /* seconds */
 	options->hashAsPacketID = 1;
 	options->file = NULL;
-//	options->samplingResultExport = false;
-//	options->export_sysinfo = false;
+	//	options->samplingResultExport = false;
+	//	options->export_sysinfo = false;
 }
 /**
  * Parse command line hash function
@@ -367,7 +368,7 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 			break;
 		case 'S':
 			// TODO
-//			options->export_sysinfo = true;
+			//			options->export_sysinfo = true;
 			break;
 		default:
 			printf("unknown parameter: %d \n", c);
@@ -694,12 +695,12 @@ static void event_loop(){
 /*-----------------------------------------------------------------------------
   Export
  -----------------------------------------------------------------------------*/
-static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t deltaCount ){
-	static uint16_t lengths[] = { 4, 8 };
-	void *fields[] = { &size, &deltaCount };
+static void export_data_sampling(pcap_dev_t *dev, uint64_t observationTimeMilliseconds, u_int32_t size, u_int64_t deltaCount ){
+	static uint16_t lengths[] = {8, 4, 8 };
+	void *fields[] = {&observationTimeMilliseconds, &size, &deltaCount };
 	LOGGER_trace("sampling: (%d, %lu)",size,(long unsigned)deltaCount);
 	if (ipfix_export_array(dev->ipfixhandle,
-			dev->ipfixtemplate_sampling, 2, fields, lengths) < 0) {
+			dev->ipfixtemplate_sampling, 3, fields, lengths) < 0) {
 		LOGGER_error("ipfix export failed: %s", strerror(errno));
 	} else {
 		dev->sampling_size=0;
@@ -707,51 +708,38 @@ static void export_data_sampling(pcap_dev_t *dev, u_int32_t size, u_int64_t delt
 	}
 }
 static void export_data_stats(pcap_dev_t *dev ){
-	struct sysinfo info;
-	struct pcap_stat stat;
-	struct tms times_buf;
-	return;
+	static uint16_t lengths[] = {8,4,8,4,4,8,8,4,4};
+	struct probe_stat probeStat;
+	struct pcap_stat pcapStat;
+
+	void *fields[] = {
+			&probeStat.observationTimeMilliseconds,
+			&probeStat.systemCpuIdle,
+			&probeStat.systemMemFree,
+			&probeStat.processCpuUser,
+			&probeStat.processCpuSys,
+			&probeStat.processMemVzs,
+			&probeStat.processMemRss,
+			&pcapStat.ps_recv, &pcapStat.ps_drop };
+
 	/* Get pcap statistics in case of live capture */
 	if (options.file == NULL){
-		if(pcap_stats(dev->pcap_handle, &stat )<0 ){
+		if(pcap_stats(dev->pcap_handle, &pcapStat )<0 ){
 			LOGGER_error( "Error DeviceNo  %s: %s\n",dev->ifname,
-						pcap_geterr( dev->pcap_handle)  );
+					pcap_geterr( dev->pcap_handle)  );
 		}
-
-		LOGGER_debug("\n drop: %d\nrec: %d",stat.ps_drop,stat.ps_recv);
-
+	} else {
+		pcapStat.ps_drop = 0;
+		pcapStat.ps_recv = 0;
 	}
-	if(times(&times_buf )< 0 ){
-		LOGGER_error("node info export failed: %s", strerror(errno));
+	probeStat.observationTimeMilliseconds=(uint64_t)ev_now(events.loop)*1000;
+	get_probe_stats(&probeStat);
+
+	if (ipfix_export_array(dev->ipfixhandle,
+			dev->ipfixtemplate_stats, 9, fields, lengths) < 0) {
+		LOGGER_error("ipfix export failed: %s", strerror(errno));
 		return;
 	}
-
-	LOGGER_debug("\n  utime: %lu  stime: %lu  ",times_buf.tms_utime, times_buf.tms_stime);
-	if( sysinfo( &info ) < 0 ){
-		LOGGER_error("node info export failed: %s", strerror(errno));
-		return;
-	}
-
-	LOGGER_debug("\n"
-			"uptime:      %ld\n"
-			"load:        %lu\n"
-			"totalram:    %lu\n"
-			"freeram:     %lu\n"
-			"sharedram:   %lu\n"
-			"bufferram:   %lu\n"
-			"totalswap:   %lu\n"
-			"freeswap:    %lu\n"
-			"procs:       %d \n",
-			info.uptime,
-			info.loads[1],
-			info.totalram,
-			info.freeram,
-			info.sharedram,
-			info.bufferram,
-			info.totalswap,
-			info.freeswap,
-			info.procs);
-
 
 }
 /**
@@ -780,10 +768,12 @@ static void export_timer_cb (EV_P_ ev_timer *w, int revents){
  */
 static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents){
 	int i;
+	uint64_t observationTimeMilliseconds;
 	LOGGER_trace("export timer sampling call back");
+	observationTimeMilliseconds = (uint64_t)ev_now(events.loop) * 1000;
 	for (i = 0; i < options.number_interfaces ; i++) {
 		pcap_dev_t *dev = &pcap_devices[i];
-		export_data_sampling(dev, dev->sampling_size, dev->sampling_delta_count );
+		export_data_sampling(dev, observationTimeMilliseconds, dev->sampling_size, dev->sampling_delta_count );
 	}
 	export_flush();
 }
@@ -800,7 +790,6 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 		mlogf(ALWAYS, "cannot init ipfix module: %s\n", strerror(errno));
 
 	}
-
 	if (ipfix_add_vendor_information_elements(ipfix_ft_fokus) < 0) {
 		fprintf(stderr, "cannot add FOKUS IEs: %s\n", strerror(errno));
 		exit(1);

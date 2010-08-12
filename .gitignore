@@ -1,4 +1,6 @@
 .settings/*
+.cproject
+.project
 config.h
 Makefile
 *.log

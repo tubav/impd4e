@@ -769,6 +769,9 @@ static void export_timer_cb (EV_P_ ev_timer *w, int revents){
 static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents){
 	int i;
 	uint64_t observationTimeMilliseconds;
+	// FIXME
+	return;
+
 	LOGGER_trace("export timer sampling call back");
 	observationTimeMilliseconds = (uint64_t)ev_now(events.loop) * 1000;
 	for (i = 0; i < options.number_interfaces ; i++) {
@@ -847,8 +850,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 int main(int argc, char *argv[]) {
 	int i;
 	// initializing custom logger
-	logger_init(LOGGER_LEVEL_DEBUG);
-	LOGGER_debug("== impd4e ==");
+	logger_init(LOGGER_LEVEL_WARN);
 
 	// set defaults options
 	options_set_defaults(&options);

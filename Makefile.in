@@ -55,11 +55,9 @@ distclean:
 	rm -f $(CLEANFILES) $(DHPARAMS) Makefile
 
 install:
-	@[ -d ${libdir} ] || (mkdir -p ${libdir}; chmod 755 ${libdir})
-	$(INSTALL_DATA) libipfix.a ${libdir}/
-	$(INSTALL_DATA) $(LIBMISCDIR)/libmisc.a ${libdir}/
-	@[ -d ${includedir} ] || (mkdir -p ${includedir}; chmod 755 ${includedir})
-	$(INSTALL_HEADER) ipfix*.h ${includedir}/
+	@[ -d ${bindir} ] || (mkdir -p ${bindir}; chmod 755 ${bindir})
+	$(INSTALL_DATA) impd4e ${bindir}/
+	chmod 755 ${bindir}/impd4e
 
 impd4e: $(OBJS)
 	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)

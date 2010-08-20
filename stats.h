@@ -9,31 +9,27 @@ struct probe_stat {
 	 */
 	u_int64_t observationTimeMilliseconds;
 	/**
-	 * System idle CPU, see "man mpstat" for more information.
+	 * System idle CPU
 	 */
 	float systemCpuIdle;
 	/**
-	 * System free memory in kilobytes, see "man pidstat" for more information.
+	 * System free memory in kilobytes
 	 */
 	u_int64_t systemMemFree;
 	/**
-	 * percentage of CPU used in user level (application), see "man pidstat" for
-	 * more information"
+	 * percentage of CPU used in user level (application)
 	 */
 	float processCpuUser;
 	/**
-	 * percentage of CPU used in system level (kernel), see "man pidstat" for
-	 * more information"
+	 * percentage of CPU used in system level (kernel)
 	 */
 	float processCpuSys;
 	/**
-	 * the process virtual memory used in kilobytes, see "man pidstat" for more
-	 * information"
+	 * the process virtual memory used in bytes
 	 */
 	u_int64_t processMemVzs;
 	/**
-	 * the process resident set size in kilobytes, see "man pidstat" for more
-	 * information"
+	 * the process resident set size in bytes
 	 */
 	u_int64_t processMemRss;
 

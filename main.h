@@ -47,7 +47,9 @@ typedef struct options
 	uint16_t snapLength;
 	uint8_t verbosity;
 	uint32_t export_packet_count;
-	uint32_t export_interval;
+	double export_pktid_interval;
+	double export_sampling_interval;
+	double export_stats_interval;
 //	bool enable_export_sampling;
 //	bool export_export_
 	int hashAsPacketID;

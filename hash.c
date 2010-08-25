@@ -385,6 +385,7 @@ int findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOf
     else {
    		return 1;
     }
+    return 1;
 }
 //
 // /** is the packet inside the hash selection range? */

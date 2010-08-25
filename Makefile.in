@@ -42,8 +42,8 @@ INCLS = -I. -I/usr/local/include
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 TARGETS = impd4e
-OBJS = bobhash.o hash.o hsieh.o main.o twmx.o logger.o stats.o
-DEPHDR = bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h
+OBJS = bobhash.o hash.o hsieh.o main.o twmx.o logger.o stats.o netcon.o
+DEPHDR = bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h netcon.h
 CLEANFILES = $(OBJS) $(TARGETS) 
 
 all: $(TARGETS)

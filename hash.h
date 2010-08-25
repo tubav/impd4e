@@ -25,7 +25,7 @@
 
 
 
-void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl);  // find layers in pcap paket
+int findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl);  // find layers in pcap paket
 
 
 typedef enum {

@@ -292,7 +292,7 @@ uint32_t calcHashValue_TWMXRSHash(uint8_t *dataBuffer, uint16_t dataBufferLength
 }	
 
 
-void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl)
+int findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl)
     {
     unsigned short offs = headerOffset[L_NET];
     int net_type = 0;
@@ -311,6 +311,7 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
 	} else {
 		mlogf(1,"***NO IPV4/IPv6 packet ***\n");
 		net_type = 0; // neither v4 nor v6, should not happen for raw IP link type
+		return -1;
 	}
 
 
@@ -343,13 +344,13 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
     default:
         offs = 0;
         layers[L_NET] = N_UNKNOWN;
-        return;
+        return 1;
     }
 
     if (offs<packetLength) {
         headerOffset[L_TRANS] = offs;
     } else {
-    	return;
+    	return 1;
     }
 
     layers[L_TRANS] = proto;
@@ -376,13 +377,13 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
     default:
         offs = 0;
     //    layers[L_TRANS] = T_UNKNOWN;
-        return;
+        return 1;
     }
     if (offs<packetLength) {
         headerOffset[L_PAYLOAD] = offs;
     }
     else {
-   		return;
+   		return 1;
     }
 }
 //

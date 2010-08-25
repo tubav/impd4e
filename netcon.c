@@ -229,6 +229,8 @@ int netcon_init( struct ev_loop *loop, char *host, int port ){
 	netcon.loop = loop;
 	netcon.conn = NULL;
 
+	LOGGER_info("netcom sync only");
+	return 0;
 	/* -- checking if we can use host port for binding address  */
 	/*getaddrinfo needs port as string  (or service name)*/
 	snprintf(service,SERVICE_NAME_LENGTH,"%d",port);

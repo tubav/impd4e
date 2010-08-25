@@ -50,8 +50,12 @@
 
 // Custom logger
 #include "logger.h"
+#include "netcon.h"
 #include <ev.h> // event loop
-
+/* ---------------------------------------------------------------------------
+ * Constants
+ * --------------------------------------------------------------------------*/
+#define RESYNC_PERIOD 1.5 /* seconds */
 
 /*----------------------------------------------------------------------------
   Globals
@@ -64,15 +68,28 @@ struct {
 	struct ev_loop *loop;
 	ev_signal sigint_watcher;
 	ev_signal sigalrm_watcher;
+	ev_signal sigpipe_watcher;
 	ev_timer export_timer_pkid;
 	ev_timer export_timer_sampling;
 	ev_timer export_timer_stats;
+	ev_timer resync_timer;
 	ev_io *packet_watchers;
 } events;
 
 options_t options;
 static char pcap_errbuf[PCAP_ERRBUF_SIZE];
 pcap_dev_t *pcap_devices;
+
+/* sync extension, depends on ipfix_collector_t defined in libipfix */
+typedef struct collector_node_sync {
+	struct collector_node_sync *next;
+	int                   usecount;
+	char            *chost;       /* collector hostname */
+	int             cport;        /* collector port */
+	ipfix_proto_t   protocol;     /* used protocol (e.g. tcp) */
+	int             fd;           /* open socket */
+} ipfix_collector_sync_t;
+
 
 /*----------------------------------------------------------------------------
   Prototypes
@@ -90,8 +107,21 @@ static void export_flush();
 static void export_timer_pktid_cb (EV_P_ ev_timer *w, int revents);
 static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents);
 static void export_timer_stats_cb (EV_P_ ev_timer *w, int revents);
-static void export_data_sampling(pcap_dev_t *dev, uint64_t observationTimeMilliseconds, u_int32_t size, u_int64_t deltaCount );
+static void export_data_sampling(pcap_dev_t *dev,
+		uint64_t observationTimeMilliseconds,
+		u_int32_t size,
+		u_int64_t deltaCount );
 static void export_data_stats(pcap_dev_t *dev);
+static void export_data_sync(pcap_dev_t *dev,
+		int64_t observationTimeMilliseconds,
+		u_int32_t messageId,
+		u_int32_t messageValue,
+		char * message );
+
+/* -- netcon / resync  -- */
+void init_libipfix(pcap_dev_t *pcap_devices, options_t *options);
+static void ipfix_reconnect();
+static void resync_timer_cb (EV_P_ ev_timer *w, int revents);
 
 /**
  * Print out command usage
@@ -159,6 +189,18 @@ void print_help() {
 			"   -v  verbose-level              can be used multiple times to increase output \n\n");
 
 }
+
+static void ipfix_reconnect(){
+	int i;
+	LOGGER_info("trying to reconnect ");
+	for (i = 0; i < options.number_interfaces; i++) {
+		ipfix_export_flush(pcap_devices[i].ipfixhandle);
+		ipfix_close(pcap_devices[i].ipfixhandle);
+	}
+	ipfix_cleanup();
+	init_libipfix(pcap_devices, &options);
+
+}
 /**
  * Shutdown impd4e
  */
@@ -183,6 +225,10 @@ static void impd4e_shutdown(){
 static void sigint_cb (EV_P_ ev_signal *w, int revents){
 	LOGGER_info("Signal INT received");
 	ev_unloop (events.loop, EVUNLOOP_ALL);
+}
+static void sigpipe_cb (EV_P_ ev_signal *w, int revents){
+	LOGGER_info("Ignoring SIGPIPE, libipfix should indefinitely try to reconnect to collector.");
+
 }
 /**
  * SIGALRM call back, currently not used.
@@ -280,6 +326,27 @@ void parseTemplate(char *arg_string, options_t *options) {
 			options->templateID = templates[k].templateID;
 		}
 	}
+}
+/**
+ * Set sampling ratio, returns -1 in case of failure.
+ */
+int sampling_set_ratio( options_t *options, double sampling_ratio ){
+	LOGGER_debug("sampling ratio: %lf",sampling_ratio);
+	/*
+	 * for the sampling ratio we do not like values at the edge, therefore we use values beginning at the 10% slice.
+	 */
+	options->sel_range_min = 0x19999999;
+	options->sel_range_max = (double) UINT32_MAX / 100 * sampling_ratio;
+
+	if (UINT32_MAX - options->sel_range_max > options->sel_range_min) {
+		options->sel_range_min = 0x19999999;
+		options->sel_range_max += options->sel_range_min;
+	} else {
+		/* more than 90% therefore use also values from first 10% slice */
+		options->sel_range_min = UINT32_MAX - options->sel_range_max;
+		options->sel_range_max = UINT32_MAX;
+	}
+	return 0;
 }
 /**
  * Process command line arguments
@@ -380,23 +447,7 @@ void parse_cmdline(options_t *options, int argc, char **argv) {
 			break;
 		case 'r':
 			sscanf(optarg, "%lf", &sampling_ratio);
-
-			/*
-			 * for the sampling ratio we do not like values at the edge, therefore we use values beginning at the 10% slice.
-			 */
-
-			options->sel_range_min = 0x19999999;
-			options->sel_range_max = (double) UINT32_MAX / 100 * sampling_ratio;
-
-			if (UINT32_MAX - options->sel_range_max > options->sel_range_min) {
-				options->sel_range_min = 0x19999999;
-				options->sel_range_max += options->sel_range_min;
-			} else {
-				/* more than 90% therefore use also values from first 10% slice */
-
-				options->sel_range_min = UINT32_MAX - options->sel_range_max;
-				options->sel_range_max = UINT32_MAX;
-			}
+			sampling_set_ratio(options,sampling_ratio);
 			break;
 		case 'R':
 			options->file = strdup(optarg);
@@ -692,6 +743,60 @@ static void event_setup_pcapdev(struct ev_loop *loop ){
 		ev_io_start(loop, &events.packet_watchers[i]);
 	}
 }
+/**
+ * returns: 1 consumed, 0 otherwise
+ */
+static int netcom_cmd_set_ratio(char *msg ){
+	double sampling_ratio;
+	unsigned long messageId=0; // session id
+	int i,matches;
+	matches = sscanf(msg,"mid: %lu -r %lf ",&messageId, &sampling_ratio);
+	if( matches == 2 ){
+		LOGGER_debug("id: %lu",messageId);
+		/* currently sampling ratio is equal for all devices */
+		for (i = 0; i < options.number_interfaces; i++) {
+			if(sampling_set_ratio(pcap_devices[i].options,sampling_ratio)==-1){
+				LOGGER_error("error setting sampling ration: %f",sampling_ratio);
+			} else {
+				char response[255];
+				snprintf(response,255,"INFO: new sampling ratio: %.3f",sampling_ratio);
+				LOGGER_debug("==> %s",response);
+				export_data_sync(&pcap_devices[i],
+						ev_now(events.loop)*1000,
+						messageId,
+						0,
+						response);
+			}
+		}
+		return NETCON_CMD_MATCHED;
+	}
+//	if( messageId > 0 ){
+//		char response[255];
+//		snprintf(response,255,"ERROR: invalid command: %s",msg);
+//		LOGGER_debug("==> %s",response);
+//		/* FIXME review: interface devices and options are still confuse*/
+//		for (i = 0; i < options.number_interfaces; i++) {
+//			export_data_sync(&pcap_devices[i],
+//					ev_now(events.loop)*1000,
+//					messageId,
+//					0,
+//					response);
+//		}
+//	}
+	return NETCON_CMD_UNKNOWN;
+}
+/**
+ * Setup network console
+ */
+static void event_setup_netcon(struct ev_loop *loop){
+	char *host = "localhost";
+	int port = 5000;
+
+	if( netcon_init(loop, host,port) <0 ){
+		LOGGER_error("could not initialize netcon: host: %s, port: %d ", host, port );
+	}
+	netcon_register(netcom_cmd_set_ratio);
+}
 
 /**
  * Setups and starts main event loop.
@@ -711,6 +816,13 @@ static void event_loop(){
 	ev_signal_init (&events.sigalrm_watcher, sigalrm_cb, SIGALRM);
 	ev_signal_start (loop, &events.sigalrm_watcher );
 
+	ev_signal_init (&events.sigpipe_watcher, sigpipe_cb, SIGPIPE);
+	ev_signal_start (loop, &events.sigpipe_watcher );
+
+	/* resync  */
+	ev_init( &events.resync_timer, resync_timer_cb);
+	events.resync_timer.repeat = RESYNC_PERIOD;
+	ev_timer_again(loop,&events.resync_timer);
 
 	/* export timers */
 	ev_init (&events.export_timer_pkid, export_timer_pktid_cb );
@@ -731,6 +843,9 @@ static void event_loop(){
 
 	/*  packet watchers */
 	event_setup_pcapdev(loop);
+	/* setup network console 
+	 */
+	event_setup_netcon(loop);
 
 	/* Enter main event loop; call unloop to exit.
 	 *
@@ -755,6 +870,26 @@ static void export_data_sampling(pcap_dev_t *dev, uint64_t observationTimeMillis
 		dev->sampling_size=0;
 		dev->sampling_delta_count=0;
 	}
+}
+static void export_data_sync(pcap_dev_t *dev,
+		int64_t observationTimeMilliseconds,
+		u_int32_t messageId,
+		u_int32_t messageValue,
+		char * message ){
+	static uint16_t lengths[] = {8, 4,4, 0 };
+	lengths[3]=strlen(message);
+	void *fields[] = {&observationTimeMilliseconds, &messageId, &messageValue, message };
+	LOGGER_debug("export data sync");
+	if (ipfix_export_array(dev->ipfixhandle,
+			dev->ipfixtemplate_sync, 4, fields, lengths) < 0) {
+		LOGGER_error("ipfix export failed: %s", strerror(errno));
+		return;
+	}
+	if( ipfix_export_flush(dev->ipfixhandle) < 0 ){
+		LOGGER_error("Could not export IPFIX (flush) ");
+	}
+
+
 }
 static void export_data_stats(pcap_dev_t *dev ){
 	static uint16_t lengths[] = {8,4,8,4,4,8,8,4,4};
@@ -791,6 +926,8 @@ static void export_data_stats(pcap_dev_t *dev ){
 	}
 
 }
+
+
 /**
  * This causes libipfix to send cached messages to
  * the registered collectors.
@@ -801,6 +938,8 @@ static void export_flush(){
 	for (i = 0; i < options.number_interfaces; i++) {
 		if( ipfix_export_flush(pcap_devices[i].ipfixhandle) < 0 ){
 			LOGGER_error("Could not export IPFIX, device: %d", i);
+			//			ipfix_reconnect();
+			break;
 		}
 	}
 }
@@ -826,15 +965,28 @@ static void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents){
 	}
 	export_flush();
 }
+/**
+ * Periodically checks ipfix export fd and reconnects it
+ * to netcon
+ */
+static void resync_timer_cb (EV_P_ ev_timer *w, int revents){
+	int i;
+	ipfix_collector_sync_t *col;
+	for (i = 0; i < (options.number_interfaces); i++) {
+		col = (ipfix_collector_sync_t*) pcap_devices[i].ipfixhandle->collectors;
+		netcon_resync( col->fd );
+
+	}
+}
+
 static void export_timer_stats_cb (EV_P_ ev_timer *w, int revents){
 	/* using ipfix handle from first interface */
 	export_data_stats(&pcap_devices[0] );
 	export_flush();
 }
 
-void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
+void init_libipfix(pcap_dev_t *pcap_devices, options_t *options) {
 	int i;
-
 	if (ipfix_init() < 0) {
 		mlogf(ALWAYS, "cannot init ipfix module: %s\n", strerror(errno));
 
@@ -843,6 +995,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 		fprintf(stderr, "cannot add FOKUS IEs: %s\n", strerror(errno));
 		exit(1);
 	}
+	//	pcap_devices[i].ipfixhandle->collectors
 
 	// printf("in open_ipfix\n");
 	for (i = 0; i < (options->number_interfaces); i++) {
@@ -879,6 +1032,12 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 			LOGGER_fatal("template initialization failed: %s",strerror(errno));
 			exit(EXIT_FAILURE);
 		}
+		if( IPFIX_MAKE_TEMPLATE(pcap_devices[i].ipfixhandle, pcap_devices[i].ipfixtemplate_sync,
+				export_fields_sync)< 0 ){
+			LOGGER_fatal("template initialization failed: %s",strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
 
 		if (ipfix_add_collector(pcap_devices[i].ipfixhandle,
 				options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
@@ -887,6 +1046,7 @@ void open_ipfix_export(pcap_dev_t *pcap_devices, options_t *options) {
 					options->collectorIP, options->collectorPort, strerror(
 							errno));
 		}
+
 	}
 }
 
@@ -924,7 +1084,7 @@ int main(int argc, char *argv[]) {
 		open_pcap(pcap_devices, &options);
 
 		// setup ipfix_exporter for each device
-		open_ipfix_export(pcap_devices, &options);
+		init_libipfix(pcap_devices, &options);
 
 		/* ---- main event loop  ---- */
 		event_loop();

@@ -82,20 +82,12 @@ export_fields_t export_fields_stats[] = {
 		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PCAPSTAT_DROP,            4}  /* PFIX_CODING_UINT, "pcap_drop",  "number of packets dropped by pcap" }, */
 };
 
-/* Overall system statistics (Linux)
- man 2 sysinfo */
-
-/* export_fields_t export_sysinfo[] = {
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_IDLE, 2},
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_PROCESS, 2},
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_PROCESS, 4},
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_UNUSED, 4}
+export_fields_t export_fields_sync[] = {
+		{ 0,  IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_MESSAGE_ID, 4},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_MESSAGE_VALUE, 4},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_MESSAGE, 65535},
 };
-*/
-/* Process times (POSIX)
-man 2 times
-
-*/
 
 
 

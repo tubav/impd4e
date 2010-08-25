@@ -50,8 +50,6 @@ typedef struct options
 	double export_pktid_interval;
 	double export_sampling_interval;
 	double export_stats_interval;
-//	bool enable_export_sampling;
-//	bool export_export_
 	int hashAsPacketID;
 	char *file;
 } options_t;
@@ -72,6 +70,7 @@ typedef struct pcap_dev {
 	ipfix_template_t *ipfixtemplate_ts_ttl;
 	ipfix_template_t *ipfixtemplate_sampling;
 	ipfix_template_t *ipfixtemplate_stats;
+	ipfix_template_t *ipfixtemplate_sync;
 	int16_t offset[4];
 	uint8_t *outbuffer;
 	uint16_t outbufferLength;

@@ -52,6 +52,7 @@ typedef struct options
 	double export_stats_interval;
 	int hashAsPacketID;
 	char *file;
+	int use_oid_first_interface;
 } options_t;
 
 

@@ -377,9 +377,6 @@ void parse_cmdline(int argc, char **argv) {
 	//	char *pos = strrchr( options->basedir, '/' );
 	//	pos[1] = 0;
 
-
-	options.number_interfaces = 0;
-
 	while (-1 != (c = getopt(argc, argv, par))) {
 		//fprintf( stderr, "%c\n", c );
 		switch (c) {
@@ -531,6 +528,7 @@ void parse_cmdline(int argc, char **argv) {
 
 	// set default interface if non is specified
 	if ( 0 >= options.number_interfaces ) {
+		options.number_interfaces = 0; // just to be sure
 		if_devices[options.number_interfaces].device_type = TYPE_PCAP;
 		if_devices[options.number_interfaces].device_name = "any";
 		options.number_interfaces = 1;
@@ -1230,9 +1228,6 @@ void capture_loop(device_dev_t* if_devices, options_t *options)
 
 int main(int argc, char *argv[]) {
 	int i; // loop counter
-
-	// in case there is no argument
-	if (1 >= argc) print_help();
 
 	// set defaults options
 	set_defaults(&options);

@@ -67,11 +67,11 @@ typedef struct pcap_dev {
 	bpf_u_int32 mask;
 	int link_type;
 	ipfix_t *ipfixhandle;
-	ipfix_template_t *ipfixtemplate_min;
-	ipfix_template_t *ipfixtemplate_ts_ttl;
-	ipfix_template_t *ipfixtemplate_sampling;
-	ipfix_template_t *ipfixtemplate_stats;
-	ipfix_template_t *ipfixtemplate_sync;
+	ipfix_template_t *ipfixtmpl_min;
+	ipfix_template_t *ipfixtmpl_ts_ttl;
+	ipfix_template_t *ipfixtmpl_interface_stats;
+	ipfix_template_t *ipfixtmpl_probe_stats;
+	ipfix_template_t *ipfixtmpl_sync;
 	int16_t offset[4];
 	uint8_t *outbuffer;
 	uint16_t outbufferLength;

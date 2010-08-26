@@ -34,11 +34,21 @@
 
 
 /*
+ * when invoked with "-t ts" the following fields are exported
+ * in each IPFIX data record:
+ */
+
+export_fields_t export_fields_ts[] = {
+                { 0, IPFIX_FT_OBSERVATIONTIMEMICROSECONDS, 8 },
+                { 0, IPFIX_FT_DIGESTHASHVALUE, 4 },
+};
+
+/*
  * when invoked with "-t min" the following fields are exported
  * in each IPFIX data record:
  */
 
-export_fields_t export_fields_min[] = {
+export_fields_t export_fields_ts_ttl[] = {
                 { 0, IPFIX_FT_OBSERVATIONTIMEMICROSECONDS, 8 },
                 { 0, IPFIX_FT_DIGESTHASHVALUE, 4 },
                 { 0, IPFIX_FT_IPTTL, 1}
@@ -63,11 +73,11 @@ export_fields_t export_sampling_parameters[] = {
 				{ 0, IPFIX_FT_PACKETTOTALCOUNT, 8}
 };
 
-export_fields_t export_resource_load[] = {
-		{0, IPFIX_FT_PT_CPU_IDLE, 2},
-		{0, IPFIX_FT_PT_CPU_PROCESS, 2},
-		{0, IPFIX_FT_PT_RAM_PROCESS, 4},
-		{0, IPFIX_FT_PT_RAM_UNUSED, 4}
-};
+//export_fields_t export_resource_load[] = {
+//		{0, IPFIX_FT_PT_CPU_IDLE, 2},
+//		{0, IPFIX_FT_PT_CPU_PROCESS, 2},
+//		{0, IPFIX_FT_PT_RAM_PROCESS, 4},
+//		{0, IPFIX_FT_PT_RAM_UNUSED, 4}
+//};
 
 #endif

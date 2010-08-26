@@ -34,6 +34,9 @@ install_sh = @install_sh@
 OPENSSL = @OPENSSL@
 
 DEFS = -DHAVE_CONFIG_H 
+# define the max amount of interfaces that can be used in parallel (default=10)
+DEFS += -DMAX_INTERFACES=10 
+
 CPPFLAGS = 
 LDFLAGS =  -L/usr/local/lib
 LIBS =  -lpcap -lipfix -lmisc

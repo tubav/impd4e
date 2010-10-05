@@ -737,7 +737,8 @@ void open_device(device_dev_t* if_device, options_t *options) {
 		break;
 
 	case TYPE_SOCKET_INET:
-		open_socket_inet(if_device, options);
+		mlogf(ALWAYS, "open_socket_inet():not yet implemented!\n");
+		//open_socket_inet(if_device, options);
 		break;
 
 	case TYPE_SOCKET_UNIX:

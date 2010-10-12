@@ -56,6 +56,7 @@ typedef struct options
 } options_t;
 
 
+
 /**
  * Capture devices
  */
@@ -88,13 +89,6 @@ typedef struct pcap_dev {
 #define HASH_FUNCTION_TWMX "TWMX"
 #define HASH_FUNCTION_HSIEH "HSIEH"
 
-char* hashfunctionname[] = {
- "dummy",
- "BOB",
- "TWMX",
- "OAAT",
- "SBOX"
-};
 
 //hash input selection functions for parsing
 #define HASH_INPUT_REC8 "REC8"
@@ -133,6 +127,17 @@ typedef enum hash_input_selection {
 #define CRITICAL 1
 #define WARNING 2
 #define INFO 3
+
+// todo: just a workaround for now
+extern options_t   g_options;
+extern pcap_dev_t* pcap_devices;
+extern char pcap_errbuf[PCAP_ERRBUF_SIZE];
+
+
+void init_libipfix(pcap_dev_t *pcap_devices, options_t *options);
+void ipfix_reconnect();
+int sampling_set_ratio(options_t *options, double sampling_ratio);
+char *htoa(uint32_t ipaddr);
 
 
 

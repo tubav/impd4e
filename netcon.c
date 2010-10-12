@@ -16,8 +16,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+
 #include "logger.h"
 #include "netcon.h"
+
+#include "main.h"
+
+
 
 #define SERVICE_NAME_LENGTH 64 /* service  = port no */
 #define MAX_CLIENTS 5  /* max number of simultaneous clients */

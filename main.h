@@ -26,9 +26,9 @@
 
 // todo: just a workaround for now
 
-
-void  init_libipfix();
-void  ipfix_reconnect();
+void  libipfix_init();
+void  libipfix_open(device_dev_t *if_device, options_t *options);
+void  libipfix_reconnect();
 
 
 

@@ -169,22 +169,21 @@ void event_setup_pcapdev(struct ev_loop *loop) {
 	int i;
 	device_dev_t * pcap_dev_ptr;
 	for (i = 0; i < g_options.number_interfaces; i++) {
-		LOGGER_debug("Setting up interface: %s", g_options.if_names[i]);
+		LOGGER_debug("Setting up interface: %s", if_devices[i].device_name);
 
 		pcap_dev_ptr = &if_devices[i];
 		// TODO review
 
-		if (pcap_setnonblock(pcap_dev_ptr->device_handle.pcap, 1, pcap_errbuf) < 0) {
-			LOGGER_error( "pcap_setnonblock: %s: %s", g_options.if_names[i],
-					pcap_errbuf);
-		}
+		setNONBlocking( pcap_dev_ptr );
+
 		/* storing a reference of packet device to
 		 be passed via watcher on a packet event so
 		 we know which device to read the packet from */
 		// todo: review; where is the memory allocated
 		events.packet_watchers[i].data = (device_dev_t *) pcap_dev_ptr;
 		ev_io_init(&events.packet_watchers[i], packet_watcher_cb
-				, pcap_fileno(pcap_dev_ptr->device_handle.pcap), EV_READ);
+				, get_file_desc( pcap_dev_ptr )
+				, EV_READ);
 		ev_io_start(loop, &events.packet_watchers[i]);
 	}
 }
@@ -198,17 +197,41 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 	// retrieve respective device a new packet was seen
 	device_dev_t *pcap_dev_ptr = (device_dev_t *) w->data;
 
-	// dispatch packet
-	if( pcap_dispatch(pcap_dev_ptr->device_handle.pcap,
-					PCAP_DISPATCH_PACKET_COUNT ,
-					packet_pcap_cb,
-					(u_char*) pcap_dev_ptr)< 0 ) {
-		LOGGER_error( "Error DeviceNo  %s: %s\n",pcap_dev_ptr->device_name,
-				pcap_geterr( pcap_dev_ptr->device_handle.pcap) );
+	switch (pcap_dev_ptr->device_type) {
+	case TYPE_testtype:
+	case TYPE_PCAP_FILE:
+	case TYPE_PCAP:
+		// dispatch packet
+		if( 0 > pcap_dispatch(pcap_dev_ptr->device_handle.pcap
+							, PCAP_DISPATCH_PACKET_COUNT
+							, packet_pcap_cb
+							, (u_char*) pcap_dev_ptr) )
+		{
+			LOGGER_error( "Error DeviceNo  %s: %s\n"
+					, pcap_dev_ptr->device_name
+					, pcap_geterr( pcap_dev_ptr->device_handle.pcap) );
+		}
+
+		break;
+
+	case TYPE_SOCKET_INET:
+	case TYPE_SOCKET_UNIX:
+		if( 0 > socket_dispatch( if_devices[0].device_handle.socket
+							, PCAP_DISPATCH_PACKET_COUNT
+							, packet_pcap_cb
+							, (u_char*) pcap_dev_ptr) )
+		{
+			LOGGER_error( "Error DeviceNo  %s: %s\n"
+					, pcap_dev_ptr->device_name, "" );
+
+		}
+		break;
+
+	default:
+		break;
 	}
-
 }
-
+// formaly known as handle_packet()
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
 	device_dev_t* if_device = (device_dev_t*) user_args;
 	//	int16_t headerOffset[4];
@@ -285,7 +308,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 			uint16_t lengths[] = { 8, 4, 1 };
 
 			if (0 > ipfix_export_array(if_device->ipfixhandle,
-					if_device->ipfixtemplate, 3, fields, lengths)) {
+					if_device->ipfixtmpl_min, 3, fields, lengths)) {
 				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
 				exit(1);
 			}
@@ -297,7 +320,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 			uint16_t lengths[] = { 8, 4 };
 
 			if (0 > ipfix_export_array(if_device->ipfixhandle,
-					if_device->ipfixtemplate, 2, fields, lengths)) {
+					if_device->ipfixtmpl_ts, 2, fields, lengths)) {
 				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
 				exit(1);
 			}
@@ -320,7 +343,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 			uint16_t lengths[6] = { 8, 4, 1, 2, 1, 1 };
 
 			if (0 > ipfix_export_array(if_device->ipfixhandle,
-					if_device->ipfixtemplate, 6, fields, lengths)) {
+					if_device->ipfixtmpl_ts_ttl, 6, fields, lengths)) {
 				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
 				exit(1);
 			}

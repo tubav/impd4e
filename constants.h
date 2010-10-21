@@ -42,7 +42,6 @@ buffer_t;
 typedef struct options
 {	char     basedir[100];
 	uint8_t  number_interfaces;
-	char*    if_names[MAX_INTERFACES];
 	uint32_t templateID;
 	char     collectorIP[256];
 	int16_t  collectorPort;
@@ -64,7 +63,6 @@ typedef struct options
 	double export_sampling_interval;
 	double export_stats_interval;
 	int hashAsPacketID;
-	char *file;
 	int use_oid_first_interface;
 } options_t;
 
@@ -104,8 +102,9 @@ typedef struct device_dev {
 	bpf_u_int32       mask;
 	int               link_type;
 	ipfix_t*          ipfixhandle;
-	ipfix_template_t* ipfixtemplate;
+//	ipfix_template_t* ipfixtemplate;
 	ipfix_template_t *ipfixtmpl_min;
+	ipfix_template_t *ipfixtmpl_ts;
 	ipfix_template_t *ipfixtmpl_ts_ttl;
 	ipfix_template_t *ipfixtmpl_interface_stats;
 	ipfix_template_t *ipfixtmpl_probe_stats;
@@ -200,8 +199,10 @@ enum {
 //#define ALL      5
 
 extern options_t     g_options;
-extern device_dev_t* if_devices;
+extern device_dev_t  if_devices[];
 extern char pcap_errbuf[PCAP_ERRBUF_SIZE];
+extern char errbuf[PCAP_ERRBUF_SIZE];
+
 
 
 #endif /* CONSTANTS_H_ */

@@ -70,7 +70,7 @@ char pcap_errbuf[PCAP_ERRBUF_SIZE];
 char errbuf[PCAP_ERRBUF_SIZE];
 
 options_t     g_options;
-device_dev_t* if_devices;
+device_dev_t  if_devices[MAX_INTERFACES];
 
 char* hashfunctionname[] = {
  "dummy",
@@ -149,17 +149,7 @@ void print_help() {
 
 }
 
-void ipfix_reconnect() {
-	int i;
-	LOGGER_info("trying to reconnect ");
-	for (i = 0; i < g_options.number_interfaces; i++) {
-		ipfix_export_flush(if_devices[i].ipfixhandle);
-		ipfix_close(if_devices[i].ipfixhandle);
-	}
-	ipfix_cleanup();
-	init_libipfix(if_devices, &g_options);
 
-}
 /**
  * Shutdown impd4e
  */
@@ -171,7 +161,6 @@ void impd4e_shutdown() {
 		ipfix_close(if_devices[i].ipfixhandle);
 	}
 	ipfix_cleanup();
-	free(if_devices);
 }
 
 /**
@@ -196,7 +185,6 @@ void options_set_defaults(options_t *options) {
 	options->export_stats_interval = 30.0; /* seconds */
 
 	options->hashAsPacketID = 1;
-	options->file = NULL;
 	options->use_oid_first_interface = 0;
 
 	//	options->samplingResultExport = false;
@@ -277,14 +265,13 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-	char par[] = "vJ:K:i:I:o:r:t:f:m:M:hs:F:c:P:C:R:nSu";
+	char par[] = "hvnSuJ:K:i:I:o:r:t:f:m:M:s:F:c:P:C:";
 	char *endptr;
 	errno = 0;
-	double sampling_ratio;
 
 	options->number_interfaces = 0;
 
-	while ((c = getopt(argc, argv, par)) != -1) {
+	while (-1 != (c = getopt(argc, argv, par))) {
 		switch (c) {
 		case 'C':
 			/* collector port */
@@ -300,14 +287,51 @@ void parse_cmdline(int argc, char **argv) {
 			print_help();
 			exit(0);
 			break;
-		case 'i':
-			if (options->number_interfaces == MAX_INTERFACES) {
-				mlogf(ALWAYS, "specify at most %d interfaces with -i",
-						MAX_INTERFACES);
-				exit(1);
+		case 'i': {
+			uint8_t if_idx = options->number_interfaces; // shorter for better reading
+			if (MAX_INTERFACES == options->number_interfaces) {
+				mlogf(ALWAYS, "specify at most %d interfaces with -i\n", MAX_INTERFACES);
+				break;
 			}
-			options->if_names[options->number_interfaces++] = strdup(optarg);
+			if (':' != optarg[1]) {
+				mlogf(ALWAYS, "specify interface type with -i\n");
+				mlogf(ALWAYS, "use [i,f,p,s,u]: as prefix - see help\n");
+				mlogf(ALWAYS, "for compatibility reason, assume ethernet as 'i:' is given!\n");
+				if_devices[if_idx].device_type = TYPE_PCAP;
+				if_devices[if_idx].device_name = strdup(optarg);
+			}
+			else {
+				switch (optarg[0]) {
+				case 'i': // ethernet adapter
+					if_devices[if_idx].device_type = TYPE_PCAP;
+					break;
+				case 'p': // pcap-file
+					if_devices[if_idx].device_type = TYPE_PCAP_FILE;
+					break;
+				case 'f': // file
+					if_devices[if_idx].device_type = TYPE_FILE;
+					break;
+				case 's': // inet socket
+					if_devices[if_idx].device_type = TYPE_SOCKET_INET;
+					break;
+				case 'u': // unix domain socket
+					if_devices[if_idx].device_type = TYPE_SOCKET_UNIX;
+					break;
+				case 'x': // unknown option
+					if_devices[if_idx].device_type = TYPE_UNKNOWN;
+					break;
+				default:
+					mlogf(ALWAYS, "unknown interface type with -i\n");
+					mlogf(ALWAYS, "use [i,f,p,s,u]: as prefix - see help\n");
+					break;
+				}
+				// skip prefix
+				if_devices[if_idx].device_name=strdup(optarg+2);
+			}
+			// increment the number of interfaces
+			++options->number_interfaces;
 			break;
+		}
 		case 'I':
 			options->export_pktid_interval = atof(optarg);
 			break;
@@ -363,19 +387,17 @@ void parse_cmdline(int argc, char **argv) {
 			}
 			break;
 		case 'v':
-			mlog_set_vlevel(options->verbosity++);
+			mlog_set_vlevel(++options->verbosity);
 			break;
 		case 'l':
 			options->snapLength = atoi(optarg);
 			break;
-		case 'r':
+		case 'r': {
+			double sampling_ratio;
 			sscanf(optarg, "%lf", &sampling_ratio);
 			sampling_set_ratio(options, sampling_ratio);
 			break;
-		case 'R':
-			options->file = strdup(optarg);
-			options->number_interfaces++;
-			break;
+		}
 		case 'u':
 			options->use_oid_first_interface=1;
 			break;
@@ -393,52 +415,6 @@ void parse_cmdline(int argc, char **argv) {
 
 	}
 
-}
-
-
-void determineLinkType(device_dev_t* pcap_device) {
-
-	pcap_device->link_type = pcap_datalink(pcap_device->device_handle.pcap);
-	switch (pcap_device->link_type) {
-	case DLT_EN10MB:
-		pcap_device->offset[L_NET] = 14;
-		LOGGER_info("dltype: DLT_EN10M");
-		break;
-	case DLT_ATM_RFC1483:
-		pcap_device->offset[L_NET] = 8;
-		LOGGER_info("dltype: DLT_ATM_RFC1483");
-		break;
-	case DLT_LINUX_SLL:
-		pcap_device->offset[L_NET] = 16;
-		LOGGER_info("dltype: DLT_LINUX_SLL");
-		break;
-	case DLT_RAW:
-		pcap_device->offset[L_NET] = 0;
-		LOGGER_info("dltype: DLT_RAW");
-		break;
-	default:
-		mlogf(ALWAYS, "Link Type (%d) not supported - default to DLT_RAW \n",
-				pcap_device->link_type);
-		pcap_device->offset[L_NET] = 0;
-		break;
-	}
-}
-
-void setFilter(device_dev_t* pcap_device) {
-	/* apply filter */
-	struct bpf_program fp;
-
-	if (g_options.bpf) {
-		if (-1 == pcap_compile(pcap_device->device_handle.pcap, &fp,
-				g_options.bpf, 0, 0)) {
-			mlogf(ALWAYS, "Couldn't parse filter %s: %s\n", g_options.bpf,
-					pcap_geterr(pcap_device->device_handle.pcap));
-		}
-		if (-1 == pcap_setfilter(pcap_device->device_handle.pcap, &fp)) {
-			mlogf(ALWAYS, "Couldn't install filter %s: %s\n", g_options.bpf,
-					pcap_geterr(pcap_device->device_handle.pcap));
-		}
-	}
 }
 
 void open_pcap_file(device_dev_t* if_dev, options_t *options) {
@@ -576,7 +552,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 	return;
 }
 
-void init_libipfix() {
+void libipfix_init() {
 	if (ipfix_init() < 0) {
 		mlogf(ALWAYS, "cannot init ipfix module: %s\n", strerror(errno));
 
@@ -588,7 +564,7 @@ void init_libipfix() {
 }
 
 
-void open_libipfix(device_dev_t *if_device, options_t *options) {
+void libipfix_open(device_dev_t *if_device, options_t *options) {
 	// set initial export packe count
 	if_device->export_packet_count = 0;
 
@@ -615,14 +591,18 @@ void open_libipfix(device_dev_t *if_device, options_t *options) {
 						errno));
 	}
 
-
 	// create templates
 	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
 			if_device->ipfixtmpl_min, export_fields_min) < 0) {
 		LOGGER_fatal("template initialization failed: %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-
+	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
+			if_device->ipfixtmpl_ts,
+			export_fields_ts) < 0) {
+		LOGGER_fatal("template initialization failed: %s", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
 			if_device->ipfixtmpl_ts_ttl,
 			export_fields_ts_ttl_proto) < 0) {
@@ -647,418 +627,22 @@ void open_libipfix(device_dev_t *if_device, options_t *options) {
 	}
 }
 
-
-//void handlePacket( packet_data_t* packet, device_dev_t* device )
-//{
-//	int i = 0; // loop counter
-//
-//	// DEBUG output
-//	for( i = 0; i < packet->capture_length; ++i) {
-//		fprintf(stderr, "%02X ", packet->packet[i]);
-//	}
-//	fprintf(stderr, "\n");
-//
-//	// selection of viable fields of the packet - depend on the selection function choosen
-//	copiedbytes = options.selection_function(packet, export_data);
-//
-//	if (0 == copiedbytes) {
-//		mlogf(ALWAYS, "Warning: packet does not contain Selection (%d)\n",
-//				copiedbytes);
-//		// todo: ?alternative selection function
-//		// todo: ?for the whole configuration
-//		// todo: ????drop????
-//		//exit(1);
-//	}
-//
-//	// hash the chosen packet data
-//	hash_result = options.hash_function(export_data.buffer.ptr
-//									, export_data.buffer.length);
-//
-//	// hash result must be in the chosen selection range to count
-//	if ((options.sel_range_min < hash_result) && (options.sel_range_max
-//			> hash_result)) {
-//		if_device->export_packet_count++;
-//
-//		int pktid = 0;
-//		if (options.hashAsPacketID == 1) { // in case we want to use the hashID as packet ID
-//			pktid = hash_result;
-//		} else {
-//			pktid = options.pktid_function(if_device->outbuffer, copiedbytes);
-//		}
-//
-//
-//
-//	return;
-//}
-
-
-
-void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet)
-{
-	device_dev_t* if_device = (device_dev_t*) user_args;
-	//	int16_t headerOffset[4];
-	uint8_t layers[4] = { 0 };
-	uint32_t hash_result;
-	uint32_t copiedbytes;
-	uint8_t ttl;
-	uint64_t timestamp;
-
-	LOGGER_trace("handle packet");
-
-	if_device->sampling_delta_count++;
-	if_device->totalpacketcount++;
-
-	if( INFO <= mlog_vlevel ) {
-		int i = 0;
-		for (i = 0; i < header->caplen; ++i) {
-			mlogf(INFO, "%02x ", packet[i]);
-			//fprintf(stderr, "%c", packet[i]);
-		}
-		mlogf(INFO, "\n");
+void libipfix_reconnect() {
+	int i;
+	LOGGER_info("trying to reconnect ");
+	for (i = 0; i < g_options.number_interfaces; i++) {
+		ipfix_export_flush(if_devices[i].ipfixhandle);
+		ipfix_close(if_devices[i].ipfixhandle);
 	}
-
-	// selection of viable fields of the packet - depend on the selection function choosen
-	copiedbytes = g_options.selection_function(packet, header->caplen,
-			if_device->outbuffer, if_device->outbufferLength,
-			if_device->offset, layers);
-
-	ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
-			layers[L_NET]);
-
-	if (0 == copiedbytes) {
-
-		mlogf(WARNING, "Warning: packet does not contain Selection\n");
-		// todo: ?alternative selection function
-		// todo: ?for the whole configuration
-		// todo: ????drop????
-		return;
-	}
-	//	else {
-	//		mlogf( WARNING, "Warnig: packet contain Selection (%d)\n", copiedbytes);
-	//	}
-
-	// hash the chosen packet data
-	hash_result = g_options.hash_function(if_device->outbuffer, copiedbytes);
-	mlogf( INFO, "hash result: 0x%04X\n", hash_result );
-
-	// hash result must be in the chosen selection range to count
-	if ((g_options.sel_range_min < hash_result)
-			&& (g_options.sel_range_max > hash_result))
-	{
-		if_device->export_packet_count++;
-		if_device->sampling_size++;
-
-		// bypassing export if disabled by cmd line
-		if (g_options.export_pktid_interval <= 0) {
-			return;
-		}
-
-		int pktid = 0;
-		// in case we want to use the hashID as packet ID
-		if (g_options.hashAsPacketID == 1) {
-			pktid = hash_result;
-		} else {
-			pktid = g_options.pktid_function(if_device->outbuffer, copiedbytes);
-		}
-
-		timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
-				+ (uint64_t) header->ts.tv_usec;
-
-		switch (g_options.templateID) {
-		case MINT_ID: {
-			void* fields[] = { &timestamp, &hash_result, &ttl };
-			uint16_t lengths[] = { 8, 4, 1 };
-
-			if (0 > ipfix_export_array(if_device->ipfixhandle,
-					if_device->ipfixtemplate, 3, fields, lengths)) {
-				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
-				exit(1);
-			}
-			break;
-		}
-
-		case TS_ID: {
-			void* fields[] = { &timestamp, &hash_result };
-			uint16_t lengths[] = { 8, 4 };
-
-			if (0 > ipfix_export_array(if_device->ipfixhandle,
-					if_device->ipfixtemplate, 2, fields, lengths)) {
-				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
-				exit(1);
-			}
-			break;
-		}
-
-		case TS_TTL_PROTO_ID: {
-			uint16_t length;
-
-			if (layers[L_NET] == N_IP) {
-				length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 2])));
-			} else if (layers[L_NET] == N_IP6) {
-				length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 4])));
-			} else {
-				mlogf(ALWAYS, "cannot parse packet length \n");
-				length = 0;
-			}
-
-			void* fields[] = { &timestamp, &hash_result, &ttl, &length, &layers[L_TRANS], &layers[L_NET] };
-			uint16_t lengths[6] = { 8, 4, 1, 2, 1, 1 };
-
-			if (0 > ipfix_export_array(if_device->ipfixhandle,
-					if_device->ipfixtemplate, 6, fields, lengths)) {
-				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
-				exit(1);
-			}
-			break;
-		}
-
-		default:
-			break;
-		} // switch (options.templateID)
-
-		// flush ipfix storage if max packetcount is reached
-		if (if_device->export_packet_count >= g_options.export_packet_count) {
-			export_flush_device( if_device );
-		}
-
-	} // if((options.sel_range_min < hash_result) && (options.sel_range_max > hash_result))
-	else {
-		mlogf(INFO, "INFO: drop packet; hash not in selection range\n");
-	}
+	ipfix_cleanup();
+	libipfix_init(if_devices, &g_options);
 
 }
 
-int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args)
-{
-	int32_t  i;
-	int32_t  nPackets = 0;
-	uint8_t  buffer[BUFFER_SIZE];
 
-	struct pcap_pkthdr hdr;
-
-	for ( i = 0
-		; i < max_packets || 0 == max_packets || -1 == max_packets
-		; ++i)
-	{
-		// ensure buffer will fit
-		uint32_t caplen = BUFFER_SIZE;
-		if( BUFFER_SIZE > g_options.snapLength )
-		{
-			caplen = g_options.snapLength;
-		}
-		else
-		{
-			mlogf( WARNING, "socket_dispatch: snaplan exceed Buffer size (%d); "
-							"use Buffersize instead.\n", BUFFER_SIZE );
-		}
-
-		// recv is blocking; until connection is closed
-		switch(hdr.caplen = recv(socket, buffer, caplen, 0)) {
-		case 0: {
-			fprintf(stderr, "socket: recv(); connection shutdown\n");
-			return -1;
-		}
-
-		case -1: {
-			if (EAGAIN == errno || EWOULDBLOCK == errno) {
-				return nPackets;
-			} else {
-				perror("socket: recv()");
-				return -1;
-			}
-		}
-
-		default: {
-			// get timestamp
-			gettimeofday(&hdr.ts, NULL);
-
-			hdr.len = hdr.caplen;
-
-			// print received data
-			// be aware of the type casts need
-			packet_handler(user_args, &hdr, buffer);
-			++nPackets;
-		}
-		} // switch(recv())
-	}
-
-	return nPackets;
-}
-
-void setNONBlocking( device_dev_t* pDevice )
-{
-	switch (pDevice->device_type) {
-	case TYPE_PCAP_FILE:
-	case TYPE_PCAP:
-		if (pcap_setnonblock(pDevice->device_handle.pcap, 1,
-				errbuf) < 0) {
-			mlogf(ALWAYS, "pcap_setnonblock: %s: %s"
-						, pDevice->device_name, errbuf);
-		}
-		break;
-
-	case TYPE_SOCKET_INET:
-	case TYPE_SOCKET_UNIX: {
-		int flags = 0;
-		if ((flags = fcntl(pDevice->device_handle.socket, F_GETFL, 0)) < 0) {
-			// todo: handle error
-			mlogf(ALWAYS, "fcntl (F_GETFL) fails\n");
-		}
-
-		if (fcntl(pDevice->device_handle.socket, F_SETFL, flags | O_NONBLOCK) < 0) {
-			// todo: handle error
-			mlogf(ALWAYS, "fcntl (F_SETFL - _NONBLOCK) fails\n");
-		}
-
-		break;
-	}
-
-	default:
-		break;
-	}
-}
-
-void capture_loop(device_dev_t* if_devices, options_t *options)
-{
-	int i = 0;
-	int n = 0, err = 0, status = 0;
-	int max_packet_count = -1; // infinity
-	fd_set fds;
-	FD_ZERO(&fds);
-
-	// break if there are no interfaces to observe - should not happen here
-	// handled before
-	if (0 == options->number_interfaces) return;
-
-	// todo: for different interface types
-//	if (1 == options->number_interfaces) {
-//		switch (if_devices[0].device_type) {
-//		case TYPE_PCAP_FILE:
-//		case TYPE_PCAP:
-//			if (0 > pcap_loop(if_devices[0].device_handle.pcap, -1,
-//					handle_packet, (u_char*) &if_devices[0])) {
-//				mlogf(ALWAYS, "pcap_loop error: %s\n", pcap_geterr(
-//						if_devices[0].device_handle.pcap));
-//
-//			}
-//			break;
-//
-//		case TYPE_SOCKET_UNIX:
-//			if (0 > socket_dispatch(if_devices[0].device_handle.socket, -1,
-//					handle_packet, (u_char*) &if_devices[0])) {
-//				mlogf(ALWAYS, "socket_loop error: \n");
-//			}
-//			break;
-//
-//		default:
-//			break;
-//		} //switch
-//		return;
-//	}
-
-	// setup select handler if there are more than one devices to capture
-	// set devices in NONBlocking mode
-	if (1 < options->number_interfaces) {
-		// Thanks to Guy Thornley http://www.mail-archive.com/tcpdump-workers@sandelman.ottawa.on.ca/msg03366.html
-
-		// set all devices in non-blocking mode;
-		// 'pcap_loop' and 'pcap_next' will not work --> use pcap_dispatch instead
-		for (i = 0; i < options->number_interfaces; i++) {
-			setNONBlocking( &if_devices[i] );
-		}
-
-		// setup file descriptors for select
-		for (i = 0; i < options->number_interfaces; i++) {
-			switch (if_devices[0].device_type) {
-			case TYPE_testtype:
-			case TYPE_PCAP_FILE:
-			case TYPE_PCAP:
-				FD_SET(pcap_fileno(if_devices[i].device_handle.pcap), &fds);
-				break;
-
-			case TYPE_SOCKET_INET:
-			case TYPE_SOCKET_UNIX:
-				FD_SET(if_devices[i].device_handle.socket, &fds);
-				break;
-
-			default:
-				break;
-			}
-		}
-		// to fairly balance between devices
-		max_packet_count = 10;
-	}
-
-	// start processing
-	do {
-		//fprintf(stderr, "Loop 1\n");
-		// block processing until data are available at any devices
-		// or any error happens, or interrupts arrive
-		if (1 < options->number_interfaces)
-		{
-			err = select(FD_SETSIZE, &fds, NULL, NULL, NULL);
-			if (err < 0) {
-				if (errno == EINTR) {
-					mlogf(INFO, "select interrupted by interrupt\n");
-					continue;
-				}
-				else { /* err < 0 but not due to interrupt */
-					mlogf(ALWAYS, "select: %s", strerror(errno));
-					break;
-				}
-			}
-		}
-
-		/* Attempts to fairly balance between all devices with outstanding packets */
-		do {
-			//fprintf(stderr, "Loop 2\n");
-			for (i = 0, n = 0
-				; i < options->number_interfaces && 0 <= status // break if negative -> error
-				; ++i)
-			{
-				switch (if_devices[i].device_type) {
-				case TYPE_testtype:
-				case TYPE_PCAP_FILE:
-				case TYPE_PCAP:
-					status = pcap_dispatch( if_devices[i].device_handle.pcap
-										  , max_packet_count
-										  , handle_packet
-										  , (u_char*) &if_devices[i]);
-					break;
-
-				case TYPE_SOCKET_INET:
-				case TYPE_SOCKET_UNIX:
-					status = socket_dispatch( if_devices[0].device_handle.socket
-										, max_packet_count
-										, handle_packet
-										, (u_char*) &if_devices[i]);
-					break;
-
-				default:
-					break;
-				}
-
-				//  break for-loop if no device has data
-				// wait at select
-				if (status > 0)
-					n++;
-			} // for (each device)
-		}
-		// todo: is it necessary to loop here; why not just using select
-		while (0 <= status && 0 < n);
-	} while (0 <= status);
-
-	mlogf(ALWAYS, "Error DeviceNo %d %s: pcap_loop: %s\n"
-				, i
-				, if_devices[i].device_name
-				, pcap_geterr(if_devices[i].device_handle.pcap));
-
-	return;
-}
-
-/*-----------------------------------------------------------------------------
- MAIN
- -----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//  MAIN
+//------------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
 	int i;
 	// initializing custom logger
@@ -1082,7 +666,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		// init ipfix module
-		init_libipfix();
+		libipfix_init();
 
 		// open pcap interfaces with filter
 		for (i = 0; i < g_options.number_interfaces; ++i) {
@@ -1092,15 +676,9 @@ int main(int argc, char *argv[]) {
 
 		// setup ipfix_exporter for each device
 		for (i = 0; i < g_options.number_interfaces; ++i) {
-			open_libipfix(&if_devices[i], &g_options);
+			libipfix_open(&if_devices[i], &g_options);
 		}
 		mlogf(INFO, "open_ipfix_export() okay (%d times) \n", i);
-
-//	// setup the signal handler
-//	signal_setup();
-//
-//	// run capture_loop until program termination
-//	capture_loop(if_devices, &options);
 
 		/* ---- main event loop  ---- */
 		event_loop(); // todo: refactoring

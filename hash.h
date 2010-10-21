@@ -22,10 +22,10 @@
 #define bitsizeof(t) (sizeof(t) * BITS_PER_BYTE)
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 
-
-int findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl);  // find layers in pcap paket
 
 
 typedef enum {
@@ -74,6 +74,12 @@ typedef enum {
 	P_EXISTS = 1
 } payload_t;
 
+// get the ttl-field of an IPv4 header
+uint8_t getTTL( const uint8_t *packet, uint16_t packetLength, int16_t offset, netProt_t nettype );
+
+// find layers in pcap paket
+void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers );
+
 uint16_t copyFields_Rec( const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4]);
@@ -87,6 +93,14 @@ uint16_t copyFields_U_TCP_and_Net(const uint8_t *packet, uint16_t packetLength,
 			 int16_t headerOffset[4], uint8_t layers[4]			);
 
 uint16_t copyFields_Packet(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4]);
+
+uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4]);
+
+uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4]);
 

@@ -18,8 +18,8 @@
 #define TEMPLATES_H_
 
 /* help macros */
-#define IPFIX_MAKE_TEMPLATE(handle,template,fields) ipfix_make_template(handle, \
-		&(template), fields, sizeof(fields) / sizeof(export_fields_t) )
+#define IPFIX_MAKE_TEMPLATE(handle,template,fields) \
+	ipfix_make_template(handle, &(template), fields, sizeof(fields) / sizeof(export_fields_t) )
 
 
 
@@ -32,12 +32,22 @@
  * RFC5101 - http://tools.ietf.org/html/rfc5101
  *
  * for an overview of available IPFIX fields and
- * their meaning see 
+ * their meaning see
  * RFC5102 - http://tools.ietf.org/html/rfc5102
  * (or in more himan readable form:
  * http://www.iana.org/assignments/ipfix/ipfix.xhtml)
  */
 
+
+/*
+ * when invoked with "-t ts" the following fields are exported
+ * in each IPFIX data record:
+ */
+
+export_fields_t export_fields_ts[] = {
+                { 0, IPFIX_FT_OBSERVATIONTIMEMICROSECONDS, 8 },
+                { 0, IPFIX_FT_DIGESTHASHVALUE, 4 },
+};
 
 /*
  * when invoked with "-t min" the following fields are exported

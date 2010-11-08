@@ -56,7 +56,7 @@ struct {
 	ev_timer  export_timer_sampling;
 	ev_timer  export_timer_stats;
 	ev_timer  resync_timer;
-	ev_io*    packet_watchers;
+	ev_io     packet_watchers[MAX_INTERFACES];
 } events;
 
 
@@ -132,8 +132,8 @@ void event_loop() {
 
 	/*  packet watchers */
 	event_setup_pcapdev(loop);
-	/* setup network console
-	 */
+
+	/* setup network console */
 	event_setup_netcon(loop);
 
 	/* Enter main event loop; call unloop to exit.
@@ -246,7 +246,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 	if_device->sampling_delta_count++;
 	if_device->totalpacketcount++;
 
-	if( INFO <= mlog_vlevel ) {
+	if(0){//if( INFO <= mlog_vlevel ) {
 		int i = 0;
 		for (i = 0; i < header->caplen; ++i) {
 			mlogf(INFO, "%02x ", packet[i]);
@@ -265,7 +265,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 	if (0 == copiedbytes) {
 
-		mlogf(WARNING, "Warning: packet does not contain Selection\n");
+		mlogf(ALL, "Warning: packet does not contain Selection\n");
 		// todo: ?alternative selection function
 		// todo: ?for the whole configuration
 		// todo: ????drop????
@@ -277,7 +277,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 	// hash the chosen packet data
 	hash_result = g_options.hash_function(if_device->outbuffer, copiedbytes);
-	mlogf( INFO, "hash result: 0x%04X\n", hash_result );
+	mlogf( ALL, "hash result: 0x%04X\n", hash_result );
 
 	// hash result must be in the chosen selection range to count
 	if ((g_options.sel_range_min < hash_result)
@@ -566,10 +566,11 @@ void export_timer_stats_cb (EV_P_ ev_timer *w, int revents) {
 void resync_timer_cb (EV_P_ ev_timer *w, int revents) {
 	int i;
 	ipfix_collector_sync_t *col;
+
 	for (i = 0; i < (g_options.number_interfaces); i++) {
 		col = (ipfix_collector_sync_t*) if_devices[i].ipfixhandle->collectors;
+		LOGGER_debug("collector_fd: %d", col->fd);
 		netcon_resync( col->fd );
-
 	}
 }
 

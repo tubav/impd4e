@@ -20,9 +20,6 @@
 #include "logger.h"
 #include "netcon.h"
 
-#include "main.h"
-
-
 
 #define SERVICE_NAME_LENGTH 64 /* service  = port no */
 #define MAX_CLIENTS 5  /* max number of simultaneous clients */
@@ -116,16 +113,20 @@ static void connection_read( struct connection * conn ){
 	int res = NETCON_CMD_UNKNOWN;
 	strncpy(msg,conn->in_buf, len );
 	msg[len]='\0';
+
 	LOGGER_debug("cmd: %s",msg);
-	conn->in_pos.rd=conn->in_pos.wr=0;
+	conn->in_pos.rd=0;
+	conn->in_pos.wr=0;
+
 	/* execute cmd callbacks until msg consumed */
 	for(reg=&netcon.reg;*reg!=NULL && res!=NETCON_CMD_MATCHED; reg=&(*reg)->next ){
 		res = (*(*reg)->cmd)( msg);
 	}
+
 	if(!res){
 		LOGGER_warn("Unknown command: %s",msg);
 	}
-
+	return;
 }
 static void read_cb(EV_P_ struct ev_io *w, int revents) {
 	struct connection *conn= (struct connection*) w->data;
@@ -146,7 +147,7 @@ static void read_cb(EV_P_ struct ev_io *w, int revents) {
 	if (revents & EV_READ){
 		r=read(conn->fd,conn->in_buf+conn->in_pos.wr,maxlen);
 		if(r<=0){
-		    connection_close(EV_A_ conn);
+			connection_close(EV_A_ conn);
 			return;
 		}
 		conn->in_pos.wr+=r;
@@ -229,13 +230,15 @@ int netcon_init( struct ev_loop *loop, char *host, int port ){
 	int res; /* result */
 	char  service[SERVICE_NAME_LENGTH];
 	int reuseaddr_on = 1;
-	LOGGER_debug("netcon init: %s:%d",host, port);
+
 	netcon.reg=NULL;
 	netcon.loop = loop;
 	netcon.conn = NULL;
 
 	LOGGER_info("netcom sync only");
 	return 0;
+
+	LOGGER_debug("netcon init: %s:%d",host, port);
 	/* -- checking if we can use host port for binding address  */
 	/*getaddrinfo needs port as string  (or service name)*/
 	snprintf(service,SERVICE_NAME_LENGTH,"%d",port);
@@ -310,12 +313,16 @@ void netcon_sync_cleanup(){
 //	ev_io_stop(netcon.loop, )
 
 }
+
 int netcon_resync( int fd ){
 	struct connection *conn,**ptr;
 //	setnonblock(fd);
-//	flags = fcntl(fd, F_GETFL);
-//	LOGGER_debug("NONBLOCK?: %d",flags & O_NONBLOCK );
-//	LOGGER_debug("netcon add sync: %d",fd);
+	int flags = fcntl(fd, F_GETFL);
+	LOGGER_debug("NONBLOCK?: %d",flags & O_NONBLOCK );
+	LOGGER_debug("netcon add sync: %d",fd);
+
+
+	LOGGER_debug("checking file descriptor: %d",fd);
 	if( fd< 0 ){
 		for(ptr=&netcon.conn;*ptr!=NULL;ptr=&(*ptr)->next ){
 			if((*ptr)->fd >0 ){
@@ -326,7 +333,9 @@ int netcon_resync( int fd ){
 		}
 		return 0;
 	}
+
 	/* looking for closed connections */
+	LOGGER_debug("checking closed connections:");
  	for(ptr=&netcon.conn;*ptr!=NULL;ptr=&(*ptr)->next ){
 //		LOGGER_debug("found: %d",(*ptr)->fd);
 		if ((*ptr)->fd==fd){
@@ -334,10 +343,13 @@ int netcon_resync( int fd ){
  			return 0;
  		}
  	}
+
  	/* looking for free slots */
+	LOGGER_debug("checking free slots:");
 	for(ptr=&netcon.conn;*ptr!=NULL && (*ptr)->fd!=-1 ;ptr=&(*ptr)->next );
 
  	/* Setting up sync connection  */
+	LOGGER_debug("setup connection:");
 	if(  *ptr==NULL ){
 		if ( (conn = calloc(1,sizeof(*conn)))==NULL ){
 			LOGGER_error("could not setup sync connection");
@@ -355,8 +367,10 @@ int netcon_resync( int fd ){
 	conn->ev_read.data = conn;
 	conn->ev_write.data = conn; /* won't be used in sync */
 
+	LOGGER_debug("init event loop:");
 	ev_io_init(&conn->ev_read,read_cb,conn->fd,EV_READ);
 
+	LOGGER_debug("start event loop:");
 	ev_io_start(netcon.loop,&conn->ev_read);
 
 	return 0;

@@ -89,20 +89,21 @@ void print_help() {
 				"         selection and exports packetIDs via IPFIX to a collector.\n\n"
 				"USAGE: impd4e -i interface [options] \n"
 				"\n");
+
 	printf(
 			"options: \n"
-			"   -C  <collector IP> \n"
-			"   -c  <export packet count>      size of export buffer after which packets\n"
-			"                                  are flushed (per device)\n"
+			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used \n"
+			"                                  multiple times.   \n"
+			"\t i - ethernet adapter;             -i i:eth0\n"
+			"\t p - pcap file;                    -i p:traffic.pcap\n"
+			"\t f - plain text file;              -i f:data.txt\n"
+			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
+			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
+			"\n"
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. \n"
 			"                                  tcp udp icmp)\n"
-			"   -F  <hash_function>            hash function to use \"BOB\", \"OAAT\", \n"
-			"                                  \"TWMX\", \"HSIEH\"\n"
-			"   -h                             print this help \n"
 			"   -I  <interval>                 pktid export interval in seconds. Use 0 for \n"
 			"                                  disabling pkid export. Ex. -I 1.5  \n"
-			"   -i  <interface>                interface(s) to listen on. It can be used \n"
-			"                                  multiple times.   \n"
 			"   -J  <interval>                 probe stats export interval in seconds. \n"
 			"                                  Measurement is done at each elapsed interval. \n"
 			"                                  Use -J 0 for disabling this export.\n"
@@ -135,17 +136,30 @@ void print_help() {
 			"\n"
 			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
+			"   -r  <sampling ratio>           in %% (double)\n"
+			"\n"
+			"   -s  <selection function>       which parts of the header used for hashing\n"
+			"                                  either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\", \"RAW\" \n"
+			"   -F  <hash_function>            hash function to use:\n"
+			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
+			"   -p  <hash function>            use different hash_function for packetID generation:\n"
+			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
+			"\n"
 			"   -o  <observation domain id>    identification of the interface in\n"
 			"                                  the IPFIX Header\n"
-			"   -P  <collector port> \n"
-			"   -p  <hash function>            use different hash_function for packetID\n"
-			"                                  generation: \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
-			"   -r  <sampling ratio>           in %% (double)\n"
-			"   -s  <selection function>       which parts of the header used for hashing\n"
-			"                                  either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\" \n"
-			"   -t  <template>                 either \"min\" or \"lp\"\n"
+			"   -C  <Collector IP>             an IPFIX collector address\n"
+			"                                  Default: localhost\n"
+			"   -P  <Collector Port>           an IPFIX Collector Port\n"
+			"                                  Default: 4739\n"
+			"   -c  <export packet count>      size of export buffer after which packets\n"
+			"                                  are flushed (per device)\n"
+			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\"\n"
+			"                                  Default: \"min\""
 			"   -u                             use only one oid from the first interface \n"
-			"   -v  verbose-level              can be used multiple times to increase output \n\n");
+			"\n"
+			"   -v                             verbose-level; use multiple times to increase output \n"
+			"   -h                             print this help \n"
+			"\n");
 
 }
 
@@ -167,24 +181,25 @@ void impd4e_shutdown() {
  * Set default options
  */
 void options_set_defaults(options_t *options) {
-	options->number_interfaces = 0;
-	options->bpf = NULL;
-	options->templateID = MINT_ID;
-	options->collectorPort = 4739;
+	options->verbosity           = 0;
+	options->number_interfaces   = 0;
+	options->bpf                 = NULL;
+	options->templateID          = MINT_ID;
+	options->collectorPort       = 4739;
 	strcpy(options->collectorIP, "localhost");
 	options->observationDomainID = 0;
-	options->hash_function = calcHashValue_BOB;
-	options->selection_function = copyFields_U_TCP_and_Net;
-	options->sel_range_min = 0x19999999; // (2^32 / 10)
-	options->sel_range_max = 0x33333333; // (2^32 / 5)
-	options->snapLength = 80;
-	options->verbosity = 0;
-	options->export_packet_count = 1000;
-	options->export_pktid_interval = 3.0; /* seconds */
-	options->export_sampling_interval = 10.0; /* seconds */
-	options->export_stats_interval = 30.0; /* seconds */
+	options->hash_function       = calcHashValue_BOB;
+	options->selection_function  = copyFields_U_TCP_and_Net;
+	options->sel_range_min       = 0x19999999; // (2^32 / 10)
+	options->sel_range_max       = 0x33333333; // (2^32 / 5)
+	options->snapLength          = 80;
 
-	options->hashAsPacketID = 1;
+	options->export_packet_count      = 1000;
+	options->export_pktid_interval    =  3.0; /* seconds */
+	options->export_sampling_interval = 10.0; /* seconds */
+	options->export_stats_interval    = 30.0; /* seconds */
+
+	options->hashAsPacketID          = 1;
 	options->use_oid_first_interface = 0;
 
 	//	options->samplingResultExport = false;
@@ -223,11 +238,11 @@ void parseSelFunction(char *arg_string, options_t *options) {
 	struct selfunction {
 		char *hstring;
 		selectionFunction selfunction;
-	} selfunctions[] = 	{ { HASH_INPUT_REC8, copyFields_Rec }
-						, { HASH_INPUT_IP, copyFields_Only_Net }
-						, { HASH_INPUT_IPTP, copyFields_U_TCP_and_Net }
+	} selfunctions[] = 	{ { HASH_INPUT_REC8,   copyFields_Rec }
+						, { HASH_INPUT_IP,     copyFields_Only_Net }
+						, { HASH_INPUT_IPTP,   copyFields_U_TCP_and_Net }
 						, { HASH_INPUT_PACKET, copyFields_Packet }
-						, { HASH_INPUT_RAW, copyFields_Raw }
+						, { HASH_INPUT_RAW,    copyFields_Raw }
 						, { HASH_INPUT_SELECT, copyFields_Select } };
 
 	for (k = 0; k < (sizeof(selfunctions) / sizeof(struct selfunction)); k++) {
@@ -583,13 +598,6 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 		mlogf(ALWAYS, "ipfix_open() failed: %s\n", strerror(errno));
 
 	}
-	if (ipfix_add_collector(if_device->ipfixhandle,
-			options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
-			< 0) {
-		LOGGER_error("ipfix_add_collector(%s,%d) failed: %s\n",
-				options->collectorIP, options->collectorPort, strerror(
-						errno));
-	}
 
 	// create templates
 	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
@@ -625,6 +633,16 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 		LOGGER_fatal("template initialization failed: %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
+
+	if (ipfix_add_collector(if_device->ipfixhandle,
+			options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
+			< 0) {
+		LOGGER_error("ipfix_add_collector(%s,%d) failed: %s\n",
+				options->collectorIP, options->collectorPort, strerror(
+						errno));
+	}
+
+	return;
 }
 
 void libipfix_reconnect() {

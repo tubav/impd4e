@@ -621,6 +621,12 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 						errno));
 	}
 
+//	LOGGER_info("device:      %p", if_device);
+//	LOGGER_info("ipfixhandle: %p", if_device->ipfixhandle);
+//	LOGGER_info("collectors:  %p", if_device->ipfixhandle->collectors);
+//	LOGGER_info("fd:          %d", ((ipfix_collector_sync_t*) if_device->ipfixhandle->collectors)->fd);
+//	LOGGER_info("&fd:         %p", &((ipfix_collector_sync_t*) if_device->ipfixhandle->collectors)->fd);
+
 	return;
 }
 

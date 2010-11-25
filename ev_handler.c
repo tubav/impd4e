@@ -277,7 +277,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 	// hash the chosen packet data
 	hash_result = g_options.hash_function(if_device->outbuffer, copiedbytes);
-	mlogf( ALL, "hash result: 0x%04X\n", hash_result );
+	//mlogf( ALL, "hash result: 0x%04X\n", hash_result );
 
 	// hash result must be in the chosen selection range to count
 	if ((g_options.sel_range_min < hash_result)
@@ -362,9 +362,9 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 		}
 
 	} // if((options.sel_range_min < hash_result) && (options.sel_range_max > hash_result))
-	else {
-		mlogf(INFO, "INFO: drop packet; hash not in selection range\n");
-	}
+//	else {
+//		mlogf(INFO, "INFO: drop packet; hash not in selection range\n");
+//	}
 }
 
 

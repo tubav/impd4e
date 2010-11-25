@@ -22,13 +22,14 @@
 // -----------------------------------------------------------------------------
 
 /* sync extension, depends on ipfix_collector_t defined in libipfix */
+/* do not change order !!! */
 typedef struct collector_node_sync {
 	struct collector_node_sync *next;
 	int   usecount;
 	char* chost; /* collector hostname */
 	int   cport; /* collector port */
-	int   fd;    /* open socket */
 	ipfix_proto_t protocol; /* used protocol (e.g. tcp) */
+	int   fd;    /* open socket */
 } ipfix_collector_sync_t;
 
 

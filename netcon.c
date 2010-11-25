@@ -135,12 +135,16 @@ static void read_cb(EV_P_ struct ev_io *w, int revents) {
 //	if(conn->sync){
 //		LOGGER_debug("SYNC DATA!");
 //	}
+
+	// trace event loop
+//	LOGGER_trace("ev=%d, fd=%d, data=%p",w->events, w->fd, w->data);
+
 	if( revents & EV_ERROR) {
 		LOGGER_error("event loop error");
 		return;
 	}
 	if( maxlen==0){
-		LOGGER_warn("ïnput buffer is full");
+		LOGGER_warn("input buffer is full");
 		connection_read(conn);
 		return;
 	}
@@ -317,9 +321,9 @@ void netcon_sync_cleanup(){
 int netcon_resync( int fd ){
 	struct connection *conn,**ptr;
 //	setnonblock(fd);
-	int flags = fcntl(fd, F_GETFL);
-	LOGGER_debug("NONBLOCK?: %d",flags & O_NONBLOCK );
-	LOGGER_debug("netcon add sync: %d",fd);
+//	int flags = fcntl(fd, F_GETFL);
+//	LOGGER_debug("NONBLOCK?: %x (%x)",flags & O_NONBLOCK,O_NONBLOCK );
+//	LOGGER_debug("netcon add sync: %d",fd);
 
 
 	LOGGER_debug("checking file descriptor: %d",fd);

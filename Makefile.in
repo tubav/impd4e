@@ -60,7 +60,7 @@ install:
 	chmod 755 ${bindir}/impd4e
 
 impd4e: $(OBJS)
-	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -D_GNU_SOURCE
+	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -DOPENWRT_BUILD
 
 .c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -D_GNU_SOURCE -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DOPENWRT_BUILD -c $<

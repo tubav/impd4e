@@ -62,6 +62,12 @@
 #include "helper.h"
 #include "netcon.h"
 
+// Are we building impd4e for Openwrt
+#ifdef OPENWRT_BUILD
+    #define _GNU_SOURCE
+#endif
+
+
 /*----------------------------------------------------------------------------
  Globals
  ----------------------------------------------------------------------------- */
@@ -496,11 +502,14 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 	socket_addressLength = SUN_LEN(&socket_address);
 
 	// connect the socket to the destination
+    // FIXME: this won't build on OpenWrt
+    #ifndef OPENWRT_BUILD
 	if (0 > connect(if_device->device_handle.socket,
 			(__CONST_SOCKADDR_ARG) &socket_address, socket_addressLength)) {
 		perror("socket: connect");
 		exit(2);
 	}
+    #endif
 
 }
 

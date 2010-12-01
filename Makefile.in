@@ -33,7 +33,8 @@ VERSION = @PACKAGE_VERSION@
 install_sh = @install_sh@
 OPENSSL = @OPENSSL@
 
-DEFS = @DEFS@ 
+DEFS = @DEFS@
+DEFS = $(DEFS) -D_GNU_SOURCE
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@ -L/usr/local/lib -L/usr/lib
 LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc -lev -lm

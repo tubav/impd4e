@@ -100,6 +100,8 @@ void print_help() {
 			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
 			"\n"
+			"   -l  <snaplength>               setup max capturing size in bytes\n" 
+			"                                  Default: 80 \n"
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. \n"
 			"                                  tcp udp icmp)\n"
 			"   -I  <interval>                 pktid export interval in seconds. Use 0 for \n"
@@ -119,7 +121,9 @@ void print_help() {
 			"   -r  <sampling ratio>           in %% (double)\n"
 			"\n"
 			"   -s  <selection function>       which parts of the header used for hashing\n"
-			"                                  either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\", \"RAW\" \n"
+			"                                  either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\", \"RAW\" \"SELECT<offset list>\"\n"
+			"                                  SELECT uses a comma-seperated list of offsets and offset ranges\n"
+			"				   Example: SELECT20,34-45,14-17,4\n"
 			"   -F  <hash_function>            hash function to use:\n"
 			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
 			"   -p  <hash function>            use different hash_function for packetID generation:\n"
@@ -230,6 +234,7 @@ void parseSelFunction(char *arg_string, options_t *options) {
 		{
 			options->selection_function = selfunctions[k].selfunction;
 			// todo: special handling for raw and select
+			parseRange( arg_string+strlen(selfunctions[k].hstring) );
 		}
 	}
 }
@@ -259,7 +264,7 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-	char par[] = "hvnSuJ:K:i:I:o:r:t:f:m:M:s:F:c:P:C:";
+	char par[] = "hvnSuJ:K:i:I:o:r:t:f:m:M:s:F:c:P:C:l:";
 	char *endptr;
 	errno = 0;
 

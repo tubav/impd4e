@@ -104,6 +104,8 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4]);
 
+void parseRange( char* arg );
+
 uint32_t calcHashValue_BOB( uint8_t *dataBuffer, uint16_t dataBufferLength );
 uint32_t calcHashValue_Hsieh( uint8_t *dataBuffer, uint16_t dataBufferLength );
 uint32_t calcHashValue_OAAT(uint8_t *dataBuffer, uint16_t dataBufferLength);

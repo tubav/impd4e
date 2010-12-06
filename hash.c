@@ -66,6 +66,16 @@ const uint8_t IP6HDR_ESP   = 50;
 
 const int OFLAG = 1;
 
+struct range_select {
+  int offset;
+  int length;
+  struct range_sel* next;
+};
+
+struct range_select rSel;
+
+
+
 /** copies the IP Header into the hash input */
 // assume 'findHeaders()' run before calling that function
 uint16_t copy_NetFields( const uint8_t* packet, uint16_t packetLength
@@ -235,10 +245,70 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
-	return 0;
+//  mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+
+  struct range_select* p = &rSel;
+  int length = 0;
+
+  do 
+  {
+   // if( (length+p->length < outBufferLength)
+   //   && (p->offset+p->length < packetLength) ) 
+    {
+      memcpy( outBuffer+length, packet+p->offset, p->length );
+      length += p->length;
+    }
+  }
+  while( NULL != (p = p->next) );
+
+  int i = 0;
+  for( i = 0; i < length; ++i )
+    fprintf( stderr, "%x ", outBuffer[i] );
+  fprintf( stderr, "\n" );
+
+  return length;
 }
 
+void parseRange( char* arg ) {
+  //int arg_length = strlen( arg );
+  int value = 0;
+  int len = 0;
+  bool isRange = false;
+  struct range_select* p = &rSel;
+
+  while( len = strcspn( arg, ",-" ) )
+  {
+    value = atoi( arg );
+    //fprintf( stderr, "char: %c\n", arg[len]);
+    //fprintf( stderr, "value: %d\n", value);
+
+    if( false == isRange ) {
+      p->offset = value;
+      p->length = 1;
+    }
+    else {
+      p->length = value - p->offset;
+    }
+
+    isRange = (arg[len]=='-')?true:false;
+    if( false == isRange ) {
+      p->next = malloc( sizeof(struct range_select) );
+      memset( p->next, 0, sizeof(struct range_select) );
+      p = p->next;
+    }
+    arg = arg+len;
+    if( ',' == *arg || '-' == *arg ) ++arg;
+  }
+
+  p = &rSel;
+  do 
+  {
+    fprintf( stderr, "offset: %d\n", p->offset );
+    fprintf( stderr, "length: %d\n", p->length );
+  }
+  while( NULL != (p = p->next) );
+  return;
+}
 
 
 //

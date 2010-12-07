@@ -69,11 +69,19 @@ const int OFLAG = 1;
 struct range_select {
   int offset;
   int length;
-  struct range_sel* next;
+  struct range_select* next;
 };
 
-struct range_select rSel;
+struct range_select* rSel = NULL;
 
+void print_selection_offsets( struct range_select* p ) {
+  do
+  {
+	mlogf( INFO, "offset: %d\n", p->offset );
+	mlogf( INFO, "length: %d\n", p->length );
+  }
+  while( NULL != (p = p->next) );
+}
 
 
 /** copies the IP Header into the hash input */
@@ -233,83 +241,144 @@ uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	//mlogf( ALWAYS ,"copyFields_Raw(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( DEBUG ,"copyFields_Raw(): pL=%d, bL=%d\n", packetLength, outBufferLength);
 
-	// uint16_t length = min( packetLength, outBufferLength );
-	memcpy( outBuffer, packet, packetLength);
-
-	return packetLength; // length;
+	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
 }
 
-uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
+uint16_t copyFields_Link(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-//  mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	mlogf( DEBUG ,"copyFields_Link(): pL=%d, bL=%d\n", packetLength, outBufferLength);
 
-  struct range_select* p = &rSel;
+	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
+}
+
+
+uint16_t copyFields_Net(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG ,"copyFields_Net(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	// TODO:
+	return 0; // length;
+}
+
+
+uint16_t copyFields_Trans(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG ,"copyFields_Trans(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	// TODO:
+	return 0; // length;
+}
+
+
+uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG ,"copyFields_Payload(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	// TODO:
+	return 0; // length;
+}
+
+
+uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength )
+{
+  struct range_select* p = rSel;
+
+  // store buffer usage
   int length = 0;
 
-  do 
+  do
   {
-   // if( (length+p->length < outBufferLength)
-   //   && (p->offset+p->length < packetLength) ) 
-    {
-      memcpy( outBuffer+length, packet+p->offset, p->length );
-      length += p->length;
-    }
+    memcpy( outBuffer+length, packet+p->offset, p->length );
+    length += p->length;
   }
   while( NULL != (p = p->next) );
 
-  int i = 0;
-  for( i = 0; i < length; ++i )
-    fprintf( stderr, "%x ", outBuffer[i] );
-  fprintf( stderr, "\n" );
+  print_byte_array_hex( outBuffer, length );
 
   return length;
 }
 
+//
+//
 void parseRange( char* arg ) {
-  //int arg_length = strlen( arg );
   int value = 0;
   int len = 0;
-  bool isRange = false;
-  struct range_select* p = &rSel;
+  struct range_select** p = &rSel;
 
-  while( len = strcspn( arg, ",-" ) )
-  {
+  // store last separator
+  char separator = 0;
+
+  do {
+    // get next separator position
+    len   = strcspn( arg, ",-+<>:^" );
     value = atoi( arg );
-    //fprintf( stderr, "char: %c\n", arg[len]);
-    //fprintf( stderr, "value: %d\n", value);
 
-    if( false == isRange ) {
-      p->offset = value;
-      p->length = 1;
-    }
-    else {
-      p->length = value - p->offset;
+    // offset have to be >= 0; in case of the '-' separator
+    value = (0>value)?0:value;
+
+    switch( separator ) {
+    case '-': // include borders
+    	(*p)->length = value - (*p)->offset + 1;
+    	break;
+
+    case ':': // length modifier
+    case '+': // length modifier
+    	(*p)->length = value;
+    	break;
+
+    case '[': // exclude right border
+    case '<': // exclude right border
+    	(*p)->length = value - (*p)->offset;
+    	break;
+
+    case ']': // exclude left borders
+    case '>': // exclude left borders
+    	(*p)->length = value - (*p)->offset;
+    	(*p)->offset += 1;
+    	break;
+
+    case '^': // exclude borders
+    	(*p)->offset += 1;
+    	(*p)->length = value - (*p)->offset;
+    	break;
+
+    case ',':
+    default:
+        *p = (struct range_select*) malloc( sizeof(struct range_select) );
+
+        (*p)->offset = value;
+        (*p)->length = 0==len?0:1;
+        (*p)->next   = NULL;
+    	break;
     }
 
-    isRange = (arg[len]=='-')?true:false;
-    if( false == isRange ) {
-      p->next = malloc( sizeof(struct range_select) );
-      memset( p->next, 0, sizeof(struct range_select) );
-      p = p->next;
-    }
-    arg = arg+len;
-    if( ',' == *arg || '-' == *arg ) ++arg;
+    // length have to be >= 0; in case of the range separators
+    if( 0 > (*p)->length ) (*p)->length = 0;
+
+    separator = arg[len];
+    arg += len;
+
+    // set next element
+    if( ',' == separator ) p = &(*p)->next;
+
   }
+  while( '\0' != *arg++ ); // until end of string is reached
 
-  p = &rSel;
-  do 
-  {
-    fprintf( stderr, "offset: %d\n", p->offset );
-    fprintf( stderr, "length: %d\n", p->length );
-  }
-  while( NULL != (p = p->next) );
+  print_selection_offsets( rSel );
+
   return;
 }
-
 
 //
 //

@@ -140,18 +140,22 @@ typedef struct export_data {
 // hash functions for parsing
 
 
-#define HASH_FUNCTION_BOB "BOB"
-#define HASH_FUNCTION_OAAT "OAAT"
-#define HASH_FUNCTION_TWMX "TWMX"
+#define HASH_FUNCTION_BOB   "BOB"
+#define HASH_FUNCTION_OAAT  "OAAT"
+#define HASH_FUNCTION_TWMX  "TWMX"
 #define HASH_FUNCTION_HSIEH "HSIEH"
 
 //hash input selection functions for parsing
-#define HASH_INPUT_REC8   "REC8"
-#define HASH_INPUT_IP     "IP"
-#define HASH_INPUT_IPTP   "IP+TP"
-#define HASH_INPUT_PACKET "PACKET"
-#define HASH_INPUT_RAW    "RAW"
-#define HASH_INPUT_SELECT "SELECT"
+#define HASH_INPUT_REC8    "REC8"
+#define HASH_INPUT_IP      "IP"
+#define HASH_INPUT_IPTP    "IP+TP"
+#define HASH_INPUT_PACKET  "PACKET"
+#define HASH_INPUT_RAW     "RAW"
+#define HASH_INPUT_LINK    "LINK"
+#define HASH_INPUT_NET     "NET"
+#define HASH_INPUT_TRANS   "TRANS"
+#define HASH_INPUT_PAYLOAD "PAYLOAD"
+#define HASH_INPUT_SELECT  "SELECT"
 
 // template definition
 
@@ -174,9 +178,9 @@ typedef enum hash_function {
 
 typedef enum hash_input_selection {
 	INPUT_8_RECOMMENDED_BYTES = 0x001,
-	INPUT_IP_HEADER 	  = 0x002,
+	INPUT_IP_HEADER           = 0x002,
 	INPUT_IP_TRANSPORT_HEADER = 0x003,
-	INPUT_WHOLE_PACKET	  = 0x004,
+	INPUT_WHOLE_PACKET        = 0x004,
 } hash_input_selection_t;
 
 

@@ -92,15 +92,14 @@ void print_help() {
 
 	printf(
 			"options: \n"
-			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used \n"
-			"                                  multiple times.   \n"
+			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t i - ethernet adapter;             -i i:eth0\n"
 			"\t p - pcap file;                    -i p:traffic.pcap\n"
 			"\t f - plain text file;              -i f:data.txt\n"
 			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
 			"\n"
-			"   -l  <snaplength>               setup max capturing size in bytes\n" 
+			"   -l  <snaplength>               setup max capturing size in bytes\n"
 			"                                  Default: 80 \n"
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. \n"
 			"                                  tcp udp icmp)\n"
@@ -120,10 +119,22 @@ void print_help() {
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
 			"   -r  <sampling ratio>           in %% (double)\n"
 			"\n"
-			"   -s  <selection function>       which parts of the header used for hashing\n"
-			"                                  either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\", \"RAW\" \"SELECT<offset list>\"\n"
-			"                                  SELECT uses a comma-seperated list of offsets and offset ranges\n"
-			"				   Example: SELECT20,34-45,14-17,4\n"
+			"   -s  <selection function>       which parts of the packet used for hashing (presets)\n"
+			"                                  either: \"IP+TP\", \"IP\", \"REC8\", \"PACKET\"\n"
+			"   -S  <selection function>       which parts of the packet used for hashing (byte selection)\n"
+			"                                  <keyword><offset list>\n"
+			"                                  keywords: \"RAW\", \"LINK\", \"NET\", \"TRANS\", \"PAYLOAD\"\n"
+			"                                  offset list: comma seperated list with byte offsets and offset ranges\n"
+			"                                      , add another offset/offset range\n"
+			"                                      - range modifier (include borders)\n"
+			"                                      ^ range modifier (exclude borders)\n"
+			"                                      < range modifier (exclude right border)\n"
+			"                                      > range modifier (exclude left border)\n"
+			"                                      + range modifier (offset length)\n"
+			"                                      : range modifier (offset length)\n"
+			"                                    < and > have to be escaped \n"
+			"                                  Example: RAW20,34-45,14+4,4\n"
+			"\n"
 			"   -F  <hash_function>            hash function to use:\n"
 			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
 			"   -p  <hash function>            use different hash_function for packetID generation:\n"
@@ -226,14 +237,19 @@ void parseSelFunction(char *arg_string, options_t *options) {
 						, { HASH_INPUT_IPTP,   copyFields_U_TCP_and_Net }
 						, { HASH_INPUT_PACKET, copyFields_Packet }
 						, { HASH_INPUT_RAW,    copyFields_Raw }
-						, { HASH_INPUT_SELECT, copyFields_Select } };
+						, { HASH_INPUT_LINK,   copyFields_Link }
+						, { HASH_INPUT_NET,    copyFields_Net }
+						, { HASH_INPUT_TRANS,  copyFields_Trans }
+						, { HASH_INPUT_PAYLOAD,copyFields_Payload }
+						, { HASH_INPUT_SELECT, copyFields_Raw } };
 
 	for (k = 0; k < (sizeof(selfunctions) / sizeof(struct selfunction)); k++) {
 		if (strncasecmp(arg_string, selfunctions[k].hstring
 				, strlen(selfunctions[k].hstring)) == 0)
 		{
 			options->selection_function = selfunctions[k].selfunction;
-			// todo: special handling for raw and select
+
+			// needed for RAW, LINK, NET, TRANS, PAYLOAD
 			parseRange( arg_string+strlen(selfunctions[k].hstring) );
 		}
 	}
@@ -264,7 +280,7 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-	char par[] = "hvnSuJ:K:i:I:o:r:t:f:m:M:s:F:c:P:C:l:";
+	char par[] = "hvnyuJ:K:i:I:o:r:t:f:m:M:s:S:F:c:P:C:l:";
 	char *endptr;
 	errno = 0;
 
@@ -370,6 +386,7 @@ void parse_cmdline(int argc, char **argv) {
 			}
 			break;
 		case 's':
+		case 'S':
 			parseSelFunction(optarg, options);
 			break;
 		case 'F':
@@ -403,7 +420,7 @@ void parse_cmdline(int argc, char **argv) {
 		case 'n':
 			// TODO parse enable export sampling
 			break;
-		case 'S':
+		case 'y':
 			// TODO
 			//			options->export_sysinfo = true;
 			break;

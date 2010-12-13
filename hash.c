@@ -26,6 +26,7 @@
 #include <arpa/inet.h>
 #include "mlog.h"
 #include "constants.h"
+#include "helper.h"
 
 #include "hash.h"
 #include "bobhash.h"
@@ -72,7 +73,8 @@ struct range_select {
   struct range_select* next;
 };
 
-struct range_select* rSel = NULL;
+static struct range_select baseSelection;
+struct range_select* rSel = &baseSelection;
 
 void print_selection_offsets( struct range_select* p ) {
   do
@@ -282,31 +284,46 @@ uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Payload(): pL=%d, bL=%d\n", packetLength, outBufferLength);
-	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	mlogf( DEBUG, "copyFields_Payload(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( ALWAYS,"copyFields_Select(): not yet implemented\n");
 	// TODO:
 	return 0; // length;
 }
 
 
 uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength )
+			 uint8_t *b, uint16_t bLen )
 {
-  struct range_select* p = rSel;
-
-  // store buffer usage
-  int length = 0;
+  struct range_select* range = rSel;
+  uint16_t written = 0;
 
   do
   {
-    memcpy( outBuffer+length, packet+p->offset, p->length );
-    length += p->length;
+	mlogf( WARNING, "sizes: pL=%d, bL=%d, oS=%d, oL=%d\n"
+					, packetLength, bLen, range->offset, range->length );
+
+	  // calculate copy range, prevent segmentation faults
+	int write = packetLength - range->offset;
+	if( 0 < write ) {
+//		write = min((0==range->length)?write:range->length, bLen);
+		write = (0==range->length)?write:min(write,range->length);
+		write = min(write, bLen);
+		mlogf( DEBUG, "-> write: %d\n", write );
+
+		memcpy( b+written, packet+range->offset, write );
+		written += write;
+		bLen    -= write;
+	}
+	else {
+		mlogf( WARNING, "range selection out of range: pL=%d, oS=%d, oL=%d\n"
+					  , packetLength, range->offset, range->length );
+	}
   }
-  while( NULL != (p = p->next) );
+  while(0 < bLen && NULL != (range = range->next) );
 
-  print_byte_array_hex( outBuffer, length );
+  //print_byte_array_hex( b, written );
 
-  return length;
+  return written;
 }
 
 //
@@ -375,7 +392,7 @@ void parseRange( char* arg ) {
   }
   while( '\0' != *arg++ ); // until end of string is reached
 
-  print_selection_offsets( rSel );
+  //print_selection_offsets( rSel );
 
   return;
 }

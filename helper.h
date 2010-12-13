@@ -30,6 +30,6 @@ void determineLinkType(device_dev_t* pcap_device);
 
 void setFilter(device_dev_t* pcap_device);
 
-void print_byte_array_hex( char* p, int length );
+void print_byte_array_hex( uint8_t* p, int length );
 
 #endif /* HELPER_H_ */

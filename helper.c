@@ -249,7 +249,7 @@ void setFilter(device_dev_t* pcap_device) {
 }
 
 
-void print_byte_array_hex( char* p, int length ) {
+void print_byte_array_hex( uint8_t* p, int length ) {
 	int i = 0;
 	fprintf( stderr, "bytes(length=%d): ", length );
 	for( i = 0; i < length; ++i )

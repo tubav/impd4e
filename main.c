@@ -174,7 +174,7 @@ void impd4e_shutdown() {
 /**
  * Set default options
  */
-void options_set_defaults(options_t *options) {
+void set_defaults_options(options_t *options) {
 	options->verbosity           = 0;
 	options->number_interfaces   = 0;
 	options->bpf                 = NULL;
@@ -199,6 +199,18 @@ void options_set_defaults(options_t *options) {
 	//	options->samplingResultExport = false;
 	//	options->export_sysinfo = false;
 }
+
+
+void set_defaults_device(device_dev_t* dev) {
+
+	// allocate memory for outbuffer; depend on cmd line options
+	// just for the real amount of interfaces used
+	dev->outbufferLength = g_options.snapLength;
+	dev->outbuffer       = calloc( g_options.snapLength, sizeof(uint8_t) );
+
+}
+
+
 /**
  * Parse command line hash function
  */
@@ -674,7 +686,7 @@ int main(int argc, char *argv[]) {
 	logger_init(LOGGER_LEVEL_WARN);
 
 	// set defaults options
-	options_set_defaults(&g_options);
+	set_defaults_options(&g_options);
 	mlogf(INFO, "set_defaults() okay \n");
 
 	// parse commandline; set global parameter options
@@ -684,29 +696,24 @@ int main(int argc, char *argv[]) {
 	logger_setlevel(g_options.verbosity);
 
 	if (g_options.number_interfaces != 0) {
-		// allocate memory for outbuffer; depend on cmd line options
-		// just for the real amount of interfaces used
-		for (i = 0; i < g_options.number_interfaces; ++i) {
-			if_devices[i].outbuffer = calloc(g_options.snapLength, sizeof(uint8_t));
-		}
-
 		// init ipfix module
 		libipfix_init();
 
-		// open pcap interfaces with filter
 		for (i = 0; i < g_options.number_interfaces; ++i) {
-			open_device(&if_devices[i], &g_options);
-		}
-		mlogf(INFO, "open_device() okay (%d times) \n", i);
+			set_defaults_device( &if_devices[i] );
 
-		// setup ipfix_exporter for each device
-		for (i = 0; i < g_options.number_interfaces; ++i) {
+			// open pcap interfaces with filter
+			open_device(&if_devices[i], &g_options);
+			mlogf(INFO, "open_device(%d)\n", i);
+
+			// setup ipfix_exporter for each device
 			libipfix_open(&if_devices[i], &g_options);
+			mlogf(INFO, "open_ipfix_export(%d)\n", i);
 		}
-		mlogf(INFO, "open_ipfix_export() okay (%d times) \n", i);
 
 		/* ---- main event loop  ---- */
-		event_loop(); // todo: refactoring
+		event_loop(); // todo: refactoring?
+
 		// init event-loop
 		// todo: loop = init_event_loop();
 		// register export callback

@@ -98,14 +98,15 @@ void print_help() {
 
 	printf(
 			"options: \n"
-			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used \n"
-			"                                  multiple times.   \n"
+			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t i - ethernet adapter;             -i i:eth0\n"
 			"\t p - pcap file;                    -i p:traffic.pcap\n"
 			"\t f - plain text file;              -i f:data.txt\n"
 			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
 			"\n"
+			"   -l  <snaplength>               setup max capturing size in bytes\n"
+			"                                  Default: 80 \n"
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. \n"
 			"                                  tcp udp icmp)\n"
 			"   -I  <interval>                 pktid export interval in seconds. Use 0 for \n"
@@ -124,8 +125,22 @@ void print_help() {
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
 			"   -r  <sampling ratio>           in %% (double)\n"
 			"\n"
-			"   -s  <selection function>       which parts of the header used for hashing\n"
-			"                                  either \"IP+TP\", \"IP\", \"REC8\", \"PACKET\", \"RAW\" \n"
+			"   -s  <selection function>       which parts of the packet used for hashing (presets)\n"
+			"                                  either: \"IP+TP\", \"IP\", \"REC8\", \"PACKET\"\n"
+			"   -S  <selection function>       which parts of the packet used for hashing (byte selection)\n"
+			"                                  <keyword><offset list>\n"
+			"                                  keywords: \"RAW\", \"LINK\", \"NET\", \"TRANS\", \"PAYLOAD\"\n"
+			"                                  offset list: comma seperated list with byte offsets and offset ranges\n"
+			"                                      , add another offset/offset range\n"
+			"                                      - range modifier (include borders)\n"
+			"                                      ^ range modifier (exclude borders)\n"
+			"                                      < range modifier (exclude right border)\n"
+			"                                      > range modifier (exclude left border)\n"
+			"                                      + range modifier (offset length)\n"
+			"                                      : range modifier (offset length)\n"
+			"                                    < and > have to be escaped \n"
+			"                                  Example: RAW20,34-45,14+4,4\n"
+			"\n"
 			"   -F  <hash_function>            hash function to use:\n"
 			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
 			"   -p  <hash function>            use different hash_function for packetID generation:\n"
@@ -165,7 +180,7 @@ void impd4e_shutdown() {
 /**
  * Set default options
  */
-void options_set_defaults(options_t *options) {
+void set_defaults_options(options_t *options) {
 	options->verbosity           = 0;
 	options->number_interfaces   = 0;
 	options->bpf                 = NULL;
@@ -190,6 +205,18 @@ void options_set_defaults(options_t *options) {
 	//	options->samplingResultExport = false;
 	//	options->export_sysinfo = false;
 }
+
+
+void set_defaults_device(device_dev_t* dev) {
+
+	// allocate memory for outbuffer; depend on cmd line options
+	// just for the real amount of interfaces used
+	dev->outbufferLength = g_options.snapLength;
+	dev->outbuffer       = calloc( g_options.snapLength, sizeof(uint8_t) );
+
+}
+
+
 /**
  * Parse command line hash function
  */
@@ -228,14 +255,20 @@ void parseSelFunction(char *arg_string, options_t *options) {
 						, { HASH_INPUT_IPTP,   copyFields_U_TCP_and_Net }
 						, { HASH_INPUT_PACKET, copyFields_Packet }
 						, { HASH_INPUT_RAW,    copyFields_Raw }
-						, { HASH_INPUT_SELECT, copyFields_Select } };
+						, { HASH_INPUT_LINK,   copyFields_Link }
+						, { HASH_INPUT_NET,    copyFields_Net }
+						, { HASH_INPUT_TRANS,  copyFields_Trans }
+						, { HASH_INPUT_PAYLOAD,copyFields_Payload }
+						, { HASH_INPUT_SELECT, copyFields_Raw } };
 
 	for (k = 0; k < (sizeof(selfunctions) / sizeof(struct selfunction)); k++) {
 		if (strncasecmp(arg_string, selfunctions[k].hstring
 				, strlen(selfunctions[k].hstring)) == 0)
 		{
 			options->selection_function = selfunctions[k].selfunction;
-			// todo: special handling for raw and select
+
+			// needed for RAW, LINK, NET, TRANS, PAYLOAD
+			parseRange( arg_string+strlen(selfunctions[k].hstring) );
 		}
 	}
 }
@@ -265,7 +298,7 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-	char par[] = "hvnSuJ:K:i:I:o:r:t:f:m:M:s:F:c:P:C:";
+	char par[] = "hvnyuJ:K:i:I:o:r:t:f:m:M:s:S:F:c:P:C:l:";
 	char *endptr;
 	errno = 0;
 
@@ -371,6 +404,7 @@ void parse_cmdline(int argc, char **argv) {
 			}
 			break;
 		case 's':
+		case 'S':
 			parseSelFunction(optarg, options);
 			break;
 		case 'F':
@@ -404,7 +438,7 @@ void parse_cmdline(int argc, char **argv) {
 		case 'n':
 			// TODO parse enable export sampling
 			break;
-		case 'S':
+		case 'y':
 			// TODO
 			//			options->export_sysinfo = true;
 			break;
@@ -661,7 +695,7 @@ int main(int argc, char *argv[]) {
 	logger_init(LOGGER_LEVEL_WARN);
 
 	// set defaults options
-	options_set_defaults(&g_options);
+	set_defaults_options(&g_options);
 	mlogf(INFO, "set_defaults() okay \n");
 
 	// parse commandline; set global parameter options
@@ -671,29 +705,24 @@ int main(int argc, char *argv[]) {
 	logger_setlevel(g_options.verbosity);
 
 	if (g_options.number_interfaces != 0) {
-		// allocate memory for outbuffer; depend on cmd line options
-		// just for the real amount of interfaces used
-		for (i = 0; i < g_options.number_interfaces; ++i) {
-			if_devices[i].outbuffer = calloc(g_options.snapLength, sizeof(uint8_t));
-		}
-
 		// init ipfix module
 		libipfix_init();
 
-		// open pcap interfaces with filter
 		for (i = 0; i < g_options.number_interfaces; ++i) {
-			open_device(&if_devices[i], &g_options);
-		}
-		mlogf(INFO, "open_device() okay (%d times) \n", i);
+			set_defaults_device( &if_devices[i] );
 
-		// setup ipfix_exporter for each device
-		for (i = 0; i < g_options.number_interfaces; ++i) {
+			// open pcap interfaces with filter
+			open_device(&if_devices[i], &g_options);
+			mlogf(INFO, "open_device(%d)\n", i);
+
+			// setup ipfix_exporter for each device
 			libipfix_open(&if_devices[i], &g_options);
+			mlogf(INFO, "open_ipfix_export(%d)\n", i);
 		}
-		mlogf(INFO, "open_ipfix_export() okay (%d times) \n", i);
 
 		/* ---- main event loop  ---- */
-		event_loop(); // todo: refactoring
+		event_loop(); // todo: refactoring?
+
 		// init event-loop
 		// todo: loop = init_event_loop();
 		// register export callback

@@ -14,6 +14,7 @@
 
 #include <pcap.h>
 #include <ipfix.h>
+#include <pfring.h>
 
 #include "hash.h" // todo:
 
@@ -70,6 +71,7 @@ typedef union device {
 	pcap_t* pcap;
 	char*   pcap_file;
 	int     socket;
+    pfring* pfring;
 } device_t;
 
 typedef enum {
@@ -80,6 +82,7 @@ typedef enum {
 	, TYPE_SOCKET_INET
 	, TYPE_FILE
 	, TYPE_testtype
+    , TYPE_PFRING
 } device_type_t;
 
 typedef struct device_desc {

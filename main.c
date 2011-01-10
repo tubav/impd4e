@@ -37,7 +37,7 @@
 
 #include <netinet/in.h>
 #include <netinet/in.h>
-#include <net/if.h>
+#include <linux/if.h>
 #include <arpa/inet.h>
 
 #include <pcap.h>
@@ -104,6 +104,7 @@ void print_help() {
 			"\t f - plain text file;              -i f:data.txt\n"
 			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
+            "\t r - ethernet adapter using pfring;-i r:eth0\n"
 			"\n"
 			"   -l  <snaplength>               setup max capturing size in bytes\n"
 			"                                  Default: 80 \n"
@@ -350,6 +351,9 @@ void parse_cmdline(int argc, char **argv) {
 				case 'u': // unix domain socket
 					if_devices[if_idx].device_type = TYPE_SOCKET_UNIX;
 					break;
+                case 'r': // use pfring instead of libpcap
+                    if_devices[if_idx].device_type = TYPE_PFRING;
+                    break;
 				case 'x': // unknown option
 					if_devices[if_idx].device_type = TYPE_UNKNOWN;
 					break;
@@ -536,8 +540,8 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 	socket_addressLength = SUN_LEN(&socket_address);
 
 	// connect the socket to the destination
-    // FIXME: this won't build on OpenWrt
-    #ifndef OPENWRT_BUILD
+	// FIXME: this won't build on OpenWrt
+	#ifndef OPENWRT_BUILD
 	if (0 > connect(if_device->device_handle.socket,
 			(__CONST_SOCKADDR_ARG) &socket_address, socket_addressLength)) {
 		perror("socket: connect");
@@ -545,6 +549,35 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 	}
     #endif
 
+}
+
+void open_pfring(device_dev_t* if_dev, options_t *options) {
+	// TODO: this is dummy code which still uses libpcap
+	mlogf(ALWAYS, "selected PF_RING\n");
+	if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
+			options->snapLength, 1, 1000, errbuf);
+	//if_dev->device_handle.pfring = pfring_open(device, promisc, options->snaplen, 0);
+	if (NULL == if_dev->device_handle.pcap) {
+		mlogf(ALWAYS, "%s \n", errbuf);
+		exit(1);
+	}
+
+	// if (pcap_lookupnet(options->if_names[i],
+	//      &(if_devices[i].IPv4address), &(if_devices[i].mask), errbuf)
+	//      < 0) {
+	//  printf("could not determine netmask and Ip-Adrdess of device %s \n",
+	//          options->if_names[i]);
+	// }
+
+	/* I want IP address attached to device */
+	if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
+
+	/* display result */
+	mlogf(ALWAYS, "Device %s has IP %s \n", if_dev->device_name, htoa(
+			if_dev->IPv4address));
+
+	determineLinkType(if_dev);
+	setFilter(if_dev);
 }
 
 void open_device(device_dev_t* if_device, options_t *options) {
@@ -575,6 +608,11 @@ void open_device(device_dev_t* if_device, options_t *options) {
 
 	case TYPE_SOCKET_UNIX:
 		open_socket_unix(if_device, options);
+		break;
+
+	case TYPE_PFRING:
+		//open_pfring(if_device, options);
+		mlogf(ALWAYS, "not yet implemented!\n");
 		break;
 
 	case TYPE_UNKNOWN:
@@ -704,40 +742,39 @@ int main(int argc, char *argv[]) {
 
 	logger_setlevel(g_options.verbosity);
 
-	if (g_options.number_interfaces != 0) {
-		// init ipfix module
-		libipfix_init();
-
-		for (i = 0; i < g_options.number_interfaces; ++i) {
-			set_defaults_device( &if_devices[i] );
-
-			// open pcap interfaces with filter
-			open_device(&if_devices[i], &g_options);
-			mlogf(INFO, "open_device(%d)\n", i);
-
-			// setup ipfix_exporter for each device
-			libipfix_open(&if_devices[i], &g_options);
-			mlogf(INFO, "open_ipfix_export(%d)\n", i);
-		}
-
-		/* ---- main event loop  ---- */
-		event_loop(); // todo: refactoring?
-
-		// init event-loop
-		// todo: loop = init_event_loop();
-		// register export callback
-		// todo: event_register_callback( loop, callback[] );
-		// start event-loop
-		// todo: start_event_loop( loop );
-
-		/* -- normal shutdown --  */
-		impd4e_shutdown();
-		LOGGER_info("bye.");
-	}
-	else {
+	if (g_options.number_interfaces == 0) {
 		print_help();
 		exit(-1);
 	}
+
+	// init ipfix module
+	libipfix_init();
+
+	for (i = 0; i < g_options.number_interfaces; ++i) {
+		set_defaults_device( &if_devices[i] );
+
+		// open pcap interfaces with filter
+		open_device(&if_devices[i], &g_options);
+		mlogf(INFO, "open_device(%d)\n", i);
+
+		// setup ipfix_exporter for each device
+		libipfix_open(&if_devices[i], &g_options);
+		mlogf(INFO, "open_ipfix_export(%d)\n", i);
+	}
+
+	/* ---- main event loop  ---- */
+	event_loop(); // todo: refactoring?
+
+	// init event-loop
+	// todo: loop = init_event_loop();
+	// register export callback
+	// todo: event_register_callback( loop, callback[] );
+	// start event-loop
+	// todo: start_event_loop( loop );
+
+	/* -- normal shutdown --  */
+	impd4e_shutdown();
+	LOGGER_info("bye.");
 
 	exit(0);
 }

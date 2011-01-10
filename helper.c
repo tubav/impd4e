@@ -15,7 +15,9 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include <net/if.h>
+//#include <net/if.h>
+#include <linux/if.h>
+
 #include <netinet/in.h>
 
 #include <pcap.h>

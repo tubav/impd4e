@@ -35,10 +35,10 @@ OPENSSL = @OPENSSL@
 
 DEFS = @DEFS@
 CPPFLAGS = @CPPFLAGS@
-LDFLAGS = @LDFLAGS@ -L/usr/local/lib -L/usr/lib
+LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc -lev -lm
 CCOPT = -Wall -g
-INCLS = -I. -I/usr/local/include -I/usr/include
+INCLS = -I.
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 TARGETS = impd4e

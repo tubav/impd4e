@@ -64,7 +64,8 @@
 
 // Are we building impd4e for Openwrt
 #ifdef OPENWRT_BUILD
-    #define _GNU_SOURCE
+	#define _GNU_SOURCE
+	#define PF_RING
 #endif
 
 
@@ -104,7 +105,9 @@ void print_help() {
 			"\t f - plain text file;              -i f:data.txt\n"
 			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
-            "\t r - ethernet adapter using pfring;-i r:eth0\n"
+			#ifdef PFRING
+			"\t r - ethernet adapter using pfring;-i r:eth0\n"
+			#endif
 			"\n"
 			"   -l  <snaplength>               setup max capturing size in bytes\n"
 			"                                  Default: 80 \n"
@@ -351,9 +354,11 @@ void parse_cmdline(int argc, char **argv) {
 				case 'u': // unix domain socket
 					if_devices[if_idx].device_type = TYPE_SOCKET_UNIX;
 					break;
-                case 'r': // use pfring instead of libpcap
-                    if_devices[if_idx].device_type = TYPE_PFRING;
-                    break;
+				#ifdef PFRING
+				case 'r': // use pfring instead of libpcap
+					if_devices[if_idx].device_type = TYPE_PFRING;
+				break;
+				#endif
 				case 'x': // unknown option
 					if_devices[if_idx].device_type = TYPE_UNKNOWN;
 					break;
@@ -547,20 +552,25 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 		perror("socket: connect");
 		exit(2);
 	}
-    #endif
+#endif
 
 }
 
+#ifdef PFRING
 void open_pfring(device_dev_t* if_dev, options_t *options) {
 	// TODO: this is dummy code which still uses libpcap
 	mlogf(ALWAYS, "selected PF_RING\n");
-	if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
-			options->snapLength, 1, 1000, errbuf);
-	//if_dev->device_handle.pfring = pfring_open(device, promisc, options->snaplen, 0);
-	if (NULL == if_dev->device_handle.pcap) {
+	mlogf(ALWAYS, "device_name: %s\n", if_dev->device_name);
+	//if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
+	//		options->snapLength, 1, 1000, errbuf);
+	if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1, 
+			options->snapLength, 0);	
+	if (NULL == if_dev->device_handle.pfring) {
 		mlogf(ALWAYS, "%s \n", errbuf);
 		exit(1);
 	}
+
+	exit(0);
 
 	// if (pcap_lookupnet(options->if_names[i],
 	//      &(if_devices[i].IPv4address), &(if_devices[i].mask), errbuf)
@@ -579,6 +589,7 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 	determineLinkType(if_dev);
 	setFilter(if_dev);
 }
+#endif
 
 void open_device(device_dev_t* if_device, options_t *options) {
 	// parameter check
@@ -610,10 +621,11 @@ void open_device(device_dev_t* if_device, options_t *options) {
 		open_socket_unix(if_device, options);
 		break;
 
+	#ifdef PFRING
 	case TYPE_PFRING:
-		//open_pfring(if_device, options);
-		mlogf(ALWAYS, "not yet implemented!\n");
+		open_pfring(if_device, options);
 		break;
+	#endif
 
 	case TYPE_UNKNOWN:
 	default:

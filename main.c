@@ -570,15 +570,6 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 		exit(1);
 	}
 
-	exit(0);
-
-	// if (pcap_lookupnet(options->if_names[i],
-	//      &(if_devices[i].IPv4address), &(if_devices[i].mask), errbuf)
-	//      < 0) {
-	//  printf("could not determine netmask and Ip-Adrdess of device %s \n",
-	//          options->if_names[i]);
-	// }
-
 	/* I want IP address attached to device */
 	if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
 
@@ -586,8 +577,11 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 	mlogf(ALWAYS, "Device %s has IP %s \n", if_dev->device_name, htoa(
 			if_dev->IPv4address));
 
-	determineLinkType(if_dev);
-	setFilter(if_dev);
+	// pfring only supports ethernet
+	//determineLinkType(if_dev);
+
+	// TODO: add filters
+	//setFilter(if_dev);
 }
 #endif
 

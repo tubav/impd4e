@@ -64,8 +64,12 @@
 
 // Are we building impd4e for Openwrt
 #ifdef OPENWRT_BUILD
-	#define _GNU_SOURCE
-	#define PF_RING
+	#ifndef _GNU_SOURCE
+		#define _GNU_SOURCE
+	#endif
+	#ifndef PF_RING
+		#define PF_RING
+	#endif
 #endif
 
 

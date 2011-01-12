@@ -197,8 +197,6 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 	// retrieve respective device a new packet was seen
 	device_dev_t *pcap_dev_ptr = (device_dev_t *) w->data;
 
-	//printf("packet\n");
-
 	switch (pcap_dev_ptr->device_type) {
 	case TYPE_testtype:
 	case TYPE_PCAP_FILE:
@@ -239,10 +237,6 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 			LOGGER_error( "Error DeviceNo  %s: %s\n"
 				, pcap_dev_ptr->device_name, "" );
 		}
-
-			//pfring_recv(pd, (char*)buffer, sizeof(buffer), &hdr
-			//				, 0)) {
-			//dummyProcesssPacket(&hdr, buffer);
 		break;
     #endif
 
@@ -252,8 +246,128 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 }
 
 #ifdef PFRING
-void packet_pfring_cb(const struct pfring_pkthdr *h, const u_char *p) {
-	printf("PFRING packet_pfring_cb\n");
+void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
+                        const u_char *packet) {
+    device_dev_t* if_device = (device_dev_t*) user_args;
+    uint8_t layers[4] = { 0 };
+    uint32_t hash_result;
+    uint32_t copiedbytes;
+    uint8_t ttl;
+    uint64_t timestamp;
+
+    LOGGER_trace("packet_pfring_cb");
+
+    if_device->sampling_delta_count++;
+    if_device->totalpacketcount++;
+
+    // selection of variable fields of the packet -
+    // depends on the selection function choosen
+    copiedbytes = g_options.selection_function(packet, header->caplen,
+            if_device->outbuffer, if_device->outbufferLength,
+            if_device->offset, layers);
+
+    ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
+            layers[L_NET]);
+
+    if (0 == copiedbytes) {
+        mlogf(WARNING, "Warning: packet does not contain Selection\n");
+        // todo: ?alternative selection function
+        // todo: ?for the whole configuration
+        // todo: ????drop????
+        return;
+    }
+
+    // hash the chosen packet data
+    hash_result = g_options.hash_function(if_device->outbuffer, copiedbytes);
+
+    // hash result must be in the chosen selection range to count
+    if ((g_options.sel_range_min < hash_result)
+            && (g_options.sel_range_max > hash_result))
+    {
+        if_device->export_packet_count++;
+        if_device->sampling_size++;
+
+        // bypassing export if disabled by cmd line
+        if (g_options.export_pktid_interval <= 0) {
+            return;
+        }
+
+        int pktid = 0;
+        // in case we want to use the hashID as packet ID
+        if (g_options.hashAsPacketID == 1) {
+            pktid = hash_result;
+        } else {
+            pktid = g_options.pktid_function(if_device->outbuffer, copiedbytes);
+        }
+
+        timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
+                + (uint64_t) header->ts.tv_usec;
+
+        switch (g_options.templateID) {
+        case MINT_ID: {
+            void* fields[] = { &timestamp, &hash_result, &ttl };
+            uint16_t lengths[] = { 8, 4, 1 };
+
+            if (0 > ipfix_export_array(if_device->ipfixhandle,
+                    if_device->ipfixtmpl_min, 3, fields, lengths)) {
+                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                exit(1);
+            }
+            break;
+        }
+
+        case TS_ID: {
+            void* fields[] = { &timestamp, &hash_result };
+            uint16_t lengths[] = { 8, 4 };
+
+            if (0 > ipfix_export_array(if_device->ipfixhandle,
+                    if_device->ipfixtmpl_ts, 2, fields, lengths)) {
+                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                exit(1);
+            }
+            break;
+        }
+
+        case TS_TTL_PROTO_ID: {
+            uint16_t length;
+
+            if (layers[L_NET] == N_IP) {
+                length = ntohs(*((uint16_t*)
+                                    (&packet[if_device->offset[L_NET] + 2])));
+            } else if (layers[L_NET] == N_IP6) {
+                length = ntohs(*((uint16_t*)
+                                    (&packet[if_device->offset[L_NET] + 4])));
+            } else {
+                mlogf(ALWAYS, "cannot parse packet length \n");
+                length = 0;
+            }
+
+            void* fields[] = {  &timestamp,
+                                &hash_result,
+                                &ttl,
+                                &length,
+                                &layers[L_TRANS],
+                                &layers[L_NET]
+                             };
+            uint16_t lengths[6] = { 8, 4, 1, 2, 1, 1 };
+
+            if (0 > ipfix_export_array(if_device->ipfixhandle,
+                    if_device->ipfixtmpl_ts_ttl, 6, fields, lengths)) {
+                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                exit(1);
+            }
+            break;
+        }
+        default:
+            break;
+        } // switch (options.templateID)
+
+        // flush ipfix storage if max packetcount is reached
+        if (if_device->export_packet_count >= g_options.export_packet_count) {
+            if_device->export_packet_count = 0;
+            export_flush();
+        }
+    }
 }
 #endif
 

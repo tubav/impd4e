@@ -67,8 +67,8 @@
 	#ifndef _GNU_SOURCE
 		#define _GNU_SOURCE
 	#endif
-	#ifndef PF_RING
-		#define PF_RING
+	#ifndef PFRING
+		#define PFRING
 	#endif
 #endif
 
@@ -582,10 +582,14 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 			if_dev->IPv4address));
 
 	// pfring only supports ethernet
-	//determineLinkType(if_dev);
+    if_dev->link_type = DLT_EN10MB;
+    if_dev->offset[L_NET] = 14;
 
 	// TODO: add filters
-	//setFilter(if_dev);
+	//setPFRingFilter(if_dev);
+
+    // set policy to drop
+    //setPFRingFilterPolicy(if_dev, 0);
 }
 #endif
 

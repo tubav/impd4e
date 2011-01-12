@@ -229,7 +229,7 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
 }
 
 #ifdef PFRING
-#define verbose
+//#define verbose
 #ifdef verbose
 /* ****************************************************** */
 
@@ -367,7 +367,7 @@ int32_t gmt2local(time_t t) {
 /* *************************************** */
 
 int pfring_dispatch(pfring* pd, int max_packets, 
-					void(*packet_handler)(const struct pfring_pkthdr*, const u_char*),
+					void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*),
 					u_char* user_args)
 {
 	int32_t  recv_ret = 0;
@@ -397,7 +397,7 @@ int pfring_dispatch(pfring* pd, int max_packets,
 					return -1;
 				break;
 			default:
-				packet_handler(&hdr, buffer);
+				packet_handler(user_args, &hdr, buffer);
 				#ifdef verbose
 					struct ether_header ehdr;
 					u_short eth_type, vlan_id;
@@ -467,13 +467,13 @@ int pfring_dispatch(pfring* pd, int max_packets,
 								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
 								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
 					}
-				#endif
+				#endif // verbose
 				break;
 
 		}
 	return 1;
 }
-#endif
+#endif // PFRING
 
 void determineLinkType(device_dev_t* pcap_device) {
 
@@ -520,6 +520,39 @@ void setFilter(device_dev_t* pcap_device) {
 	}
 }
 
+#ifdef PFRING
+int setPFRingFilter(device_dev_t* pfring_device) {
+    static uint16_t rule_id = 0;
+    filtering_rule rule;
+
+    memset(&rule, 0, sizeof(rule));
+
+    rule.rule_id = rule_id++;
+    rule.rule_action = forward_packet_and_stop_rule_evaluation;
+    //rule.core_fields.port_low = 80;
+    //rule.core_fields.port_high = 80;
+    rule.core_fields.proto = 0x06;
+
+    if(pfring_add_filtering_rule(pfring_device->device_handle.pfring, &rule) < 0) {
+        mlogf(ALWAYS, "setPFRingFilter(%d) failed\n", rule_id);
+        return -1;
+    }
+
+    mlogf(ALWAYS, "setPFRingFilter(%d) succeeded\n", rule_id);
+    return 0;
+}
+
+int setPFRingFilterPolicy(device_dev_t* pfring_device, uint8_t accept) {
+
+    if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring, 
+            accept) < 0) {
+        mlogf(ALWAYS, "setPFRingFilterPolicy(%d) failed\n", accept);
+        return -1;
+    }
+    mlogf(ALWAYS, "setPFRingFilterPolicy(%d) succeeded\n", accept);
+    return 0;
+}
+#endif //PFRING
 
 void print_byte_array_hex( uint8_t* p, int length ) {
 	int i = 0;

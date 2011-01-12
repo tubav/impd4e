@@ -50,7 +50,8 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents);
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 		const u_char * packet);
 #ifdef PFRING
-void packet_pfring_cb(const struct pfring_pkthdr *h, const u_char *p);
+void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header, 
+        const u_char *packet);
 #endif
 
 /* -- export -- */

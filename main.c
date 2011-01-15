@@ -72,6 +72,9 @@
 	#endif
 #endif
 
+#ifdef PFRING
+#include "pfring_filter.h"
+#endif
 
 /*----------------------------------------------------------------------------
  Globals
@@ -306,7 +309,11 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-	char par[] = "hvnyuJ:K:i:I:o:r:t:f:m:M:s:S:F:c:P:C:l:";
+    #ifdef PFRING
+   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:";
+    #else
+    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:";
+    #endif
 	char *endptr;
 	errno = 0;
 
@@ -314,6 +321,15 @@ void parse_cmdline(int argc, char **argv) {
 
 	while (-1 != (c = getopt(argc, argv, par))) {
 		switch (c) {
+        #ifdef PFRING
+        case 'a':
+            /* pf_ring filter */
+            // print_all_ip_prot();
+            printf("possible protocols include: ");
+            print_all_ip_prot_str();
+            printf("\n");
+            break;
+        #endif
 		case 'C':
 			/* collector port */
 			strcpy(options->collectorIP, optarg);
@@ -562,11 +578,8 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 
 #ifdef PFRING
 void open_pfring(device_dev_t* if_dev, options_t *options) {
-	// TODO: this is dummy code which still uses libpcap
 	mlogf(ALWAYS, "selected PF_RING\n");
 	mlogf(ALWAYS, "device_name: %s\n", if_dev->device_name);
-	//if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
-	//		options->snapLength, 1, 1000, errbuf);
 	if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1, 
 			options->snapLength, 0);	
 	if (NULL == if_dev->device_handle.pfring) {

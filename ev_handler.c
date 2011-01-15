@@ -689,6 +689,11 @@ void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents) {
 	for (i = 0; i < g_options.number_interfaces ; i++) {
 		device_dev_t *dev = &if_devices[i];
 		export_data_interface_stats(dev, observationTimeMilliseconds, dev->sampling_size, dev->sampling_delta_count );
+		#ifdef PFRING
+		#ifdef PFRING_STATS
+		print_stats( dev );
+		#endif
+		#endif
 	}
 	export_flush();
 }

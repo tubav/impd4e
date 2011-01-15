@@ -27,6 +27,9 @@ int get_file_desc( device_dev_t* pDevice );
 int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args);
 
 #ifdef PFRING
+#ifdef PFRING_STATS
+void print_stats( device_dev_t* dev );
+#endif
 int pfring_dispatch(pfring* pd, int max_packets, void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*), u_char* user_args);
 int setPFRingFilter(device_dev_t* pfring_device);
 #endif

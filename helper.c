@@ -364,6 +364,104 @@ int32_t gmt2local(time_t t) {
 
 #endif // verbose
 
+#ifdef PFRING_STATS
+
+static struct timeval startTime;
+#define MAX_NUM_THREADS 1
+unsigned long long numPkts = 0, numBytes = 0;
+u_int8_t wait_for_packet = 1, dna_mode = 0, do_shutdown = 0;
+
+/* *************************************** */
+/*
+ * The time difference in millisecond
+ */
+double delta_time (struct timeval * now,
+           struct timeval * before) {
+  time_t delta_seconds;
+  time_t delta_microseconds;
+
+  /*
+   * compute delta in second, 1/10's and 1/1000's second units
+   */
+  delta_seconds      = now -> tv_sec  - before -> tv_sec;
+  delta_microseconds = now -> tv_usec - before -> tv_usec;
+
+  if(delta_microseconds < 0) {
+    /* manually carry a one from the seconds field */
+    delta_microseconds += 1000000;  /* 1e6 */
+    -- delta_seconds;
+  }
+  return((double)(delta_seconds * 1000) + (double)delta_microseconds/1000);
+}
+
+/* ******************************** */
+
+void print_stats( device_dev_t* dev ) {
+  pfring_stat pfringStat;
+  struct timeval endTime;
+  double deltaMillisec;
+  static u_int8_t print_all;
+  static u_int64_t lastPkts = 0;
+  u_int64_t diff;
+  static struct timeval lastTime;
+
+  if(startTime.tv_sec == 0) {
+    gettimeofday(&startTime, NULL);
+    print_all = 0;
+  } else
+    print_all = 1;
+
+  gettimeofday(&endTime, NULL);
+  deltaMillisec = delta_time(&endTime, &startTime);
+
+  if(pfring_stats(dev->device_handle.pfring, &pfringStat) >= 0) {
+    double thpt;
+    unsigned long long nBytes = 0, nPkts = 0;
+
+    nBytes += numBytes;
+    nPkts += numPkts;
+
+    thpt = ((double)8*nBytes)/(deltaMillisec*1000);
+
+    fprintf(stderr, "=========================\n"
+		"Interface: %s\n"
+        "Absolute Stats: [%u pkts rcvd][%u pkts dropped]\n"
+        "Total Pkts=%u/Dropped=%.1f %%\n",
+		dev->device_name,
+        (unsigned int)pfringStat.recv, (unsigned int)pfringStat.drop,
+        (unsigned int)(pfringStat.recv+pfringStat.drop),
+        pfringStat.recv == 0 ? 0 :
+        (double)(pfringStat.drop*100)/(double)(pfringStat.recv+pfringStat.drop));
+    fprintf(stderr, "%llu pkts - %llu bytes", nPkts, nBytes);
+
+    if(print_all)
+      fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec]\n",
+          (double)(nPkts*1000)/deltaMillisec, thpt);
+    else
+      fprintf(stderr, "\n");
+
+    if(print_all && (lastTime.tv_sec > 0)) {
+      deltaMillisec = delta_time(&endTime, &lastTime);
+      diff = pfringStat.recv-lastPkts;
+      fprintf(stderr, "=========================\n"
+          "Actual Stats: %llu pkts [%.1f ms][%.1f pkt/sec]\n",
+          (long long unsigned int)diff,
+          deltaMillisec, ((double)diff/(double)(deltaMillisec/1000)));
+    }
+
+    lastPkts = pfringStat.recv;
+  }
+
+  lastTime.tv_sec = endTime.tv_sec, lastTime.tv_usec = endTime.tv_usec;
+
+  fprintf(stderr, "=========================\n\n");
+}
+
+/* ******************************** */
+
+
+#endif // PFRING_STATS
+
 /* *************************************** */
 
 int pfring_dispatch(pfring* pd, int max_packets, 
@@ -372,7 +470,9 @@ int pfring_dispatch(pfring* pd, int max_packets,
 {
 	int32_t  recv_ret = 0;
 	uint8_t  buffer[BUFFER_SIZE];
+	#ifdef verbose
 	uint8_t* bufferPtr = buffer;
+	#endif
 
 	struct pfring_pkthdr hdr;
 

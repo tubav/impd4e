@@ -15,7 +15,7 @@
 #include <ipfix.h>
 
 #include "constants.h"
-
+#include "helper.h"
 
 // -----------------------------------------------------------------------------
 // Type definitions

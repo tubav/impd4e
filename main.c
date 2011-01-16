@@ -186,6 +186,9 @@ void print_help() {
 		for ( i = 0; i < last_pfring_filter_keyword; i++ )
 			printf("%s, ", pfring_filter_keywords[i]);
 		printf("%s\n\n", pfring_filter_keywords[last_pfring_filter_keyword]);
+		printf("Possible PF_RING ip protocols include: ");
+        print_all_ip_prot_str();
+        printf("\n\n");
 	#endif
 }
 
@@ -576,10 +579,6 @@ void parse_cmdline(int argc, char **argv) {
         #ifdef PFRING
         case 'a':
             /* pf_ring filter */
-            // print_all_ip_prot();
-            //printf("possible protocols include: ");
-            //print_all_ip_prot_str();
-            //printf("\n");
             parse_pfring_filter(optarg, options);
             break;
         #endif

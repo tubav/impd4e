@@ -622,35 +622,32 @@ void setFilter(device_dev_t* pcap_device) {
 
 #ifdef PFRING
 int setPFRingFilter(device_dev_t* pfring_device) {
-    static uint16_t rule_id = 0;
-    filtering_rule rule;
+	uint8_t i = 0;
 
-    memset(&rule, 0, sizeof(rule));
-
-    rule.rule_id = rule_id++;
-    rule.rule_action = forward_packet_and_stop_rule_evaluation;
-    //rule.core_fields.port_low = 80;
-    //rule.core_fields.port_high = 80;
-    rule.core_fields.proto = 0x06;
-
-    if(pfring_add_filtering_rule(pfring_device->device_handle.pfring, &rule) < 0) {
-        mlogf(ALWAYS, "setPFRingFilter(%d) failed\n", rule_id);
-        return -1;
-    }
-
-    mlogf(ALWAYS, "setPFRingFilter(%d) succeeded\n", rule_id);
-    return 0;
+	for ( i = 0; i < g_options.rules_in_list; i++ ) {
+		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
+										 &g_options.rules[i]) < 0) {
+			mlogf(ALWAYS, "setPFRingFilter(%d) failed\n", i);
+			return -1;
+		}
+		mlogf(ALWAYS, "setPFRingFilter(%d) succeeded\n", i);
+	}
+	return 0;
 }
 
-int setPFRingFilterPolicy(device_dev_t* pfring_device, uint8_t accept) {
+int8_t setPFRingFilterPolicy(device_dev_t* pfring_device) {
 
-    if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring, 
-            accept) < 0) {
-        mlogf(ALWAYS, "setPFRingFilterPolicy(%d) failed\n", accept);
-        return -1;
-    }
-    mlogf(ALWAYS, "setPFRingFilterPolicy(%d) succeeded\n", accept);
-    return 0;
+	// check if user supplied filtering policy and if not, set it to ACCEPT
+	if( g_options.filter_policy == -1 )
+		g_options.filter_policy = 1;
+	
+	if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring, 
+			g_options.filter_policy) < 0) {
+		mlogf(ALWAYS, "setPFRingFilterPolicy(%d) failed\n", g_options.filter_policy);
+		return -1;
+	}
+	mlogf(ALWAYS, "setPFRingFilterPolicy(%d) succeeded\n", g_options.filter_policy);
+	return 0;
 }
 #endif //PFRING
 

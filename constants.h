@@ -30,6 +30,10 @@
 
 #define BUFFER_SIZE 1024
 
+#ifdef PFRING
+#define MAX_RULES 256
+#endif // PFRING
+
 typedef uint32_t (*hashFunction)(uint8_t*,uint16_t);
 typedef uint16_t (*selectionFunction) (const uint8_t *, uint16_t , uint8_t *, uint16_t, int16_t *, uint8_t*);
 
@@ -50,6 +54,11 @@ typedef struct options
 	char     collectorIP[256];
 	int16_t  collectorPort;
 	char*    bpf; // berkley packet filter
+    #ifdef PFRING
+    filtering_rule rules[MAX_RULES];
+    uint16_t rules_in_list;
+    int8_t   filter_policy;
+    #endif // PFRING
 	uint32_t          observationDomainID;
 	hashFunction      hash_function;
 	hashFunction      pktid_function;

@@ -37,6 +37,7 @@ int setPFRingFilter(device_dev_t* pfring_device);
 void determineLinkType(device_dev_t* pcap_device);
 
 void setFilter(device_dev_t* pcap_device);
+int8_t setPFRingFilterPolicy(device_dev_t* pfring_device);
 
 void print_byte_array_hex( uint8_t* p, int length );
 

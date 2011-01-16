@@ -22,162 +22,6 @@
 
 #include "pfring_filter.h"
 
-/* this defines an invalid protocol */
-#define INVALID_PROT 0xFF
-
-/* last assigned protocol number */
-uint8_t last_prot = 0x8f;
-
-/* list all ip protocol numbers as assigned by the iana
- * see: http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xml
- */
-char* protocols[0xff] = {
-            "hopopt",
-            "icmp",
-            "igmp",
-            "ggp",
-            "ipv4",
-            "st",
-            "tcp",
-            "cbt",
-            "egp",
-            "igp",
-            "bbn-rcc-mon",
-            "nvp-ii",
-            "pup",
-            "argus",
-            "emcon",
-            "xnet",
-            "chaos",
-            "udp",
-            "mux",
-            "dcn-meas",
-            "hmp",
-            "prm",
-            "xns-idp",
-            "trunk-1",
-            "trunk-2",
-            "leaf-1",
-            "leaf-2",
-            "rdp",
-            "irtp",
-            "iso-tp4",
-            "netblt",
-            "mfe-nsp",
-            "merit-inp",
-            "dccp",
-            "3pc",
-            "idpr",
-            "xtp",
-            "ddp",
-            "idpr-cmtp",
-            "tp++",
-            "il",
-            "ipv6",
-            "sdrp",
-            "ipv6-route",
-            "ipv6-frag",
-            "idrp",
-            "rsvp",
-            "gre",
-            "dsr",
-            "bna",
-            "esp",
-            "ah",
-            "i-nlsp",
-            "swipe",
-            "narp",
-            "mobile",
-            "tlsp",
-            "skip",
-            "ipv6-icmp",
-            "ipv6-nonxt",
-            "ipv6-opts",
-            "anyhost",
-            "cftp",
-            "anynet",
-            "sat-expak",
-            "kryptolan",
-            "rvd",
-            "ippc",
-            "anydistfs",
-            "sat-mon",
-            "visa",
-            "ipcv",
-            "cpnx",
-            "cphb",
-            "wsn",
-            "pvp",
-            "br-sat-mon",
-            "sun-nd",
-            "wb-mon",
-            "wb-expak",
-            "iso-ip",
-            "vmtp",
-            "secure-vmtp",
-            "vines",
-            "ttp",
-            "nsfnet-igp",
-            "dgp",
-            "tcf",
-            "eigrp",
-            "ospfigp",
-            "sprite-rpc",
-            "larp",
-            "mtp",
-            "ax.25",
-            "ipip",
-            "micp",
-            "scc-sp",
-            "etherip",
-            "encap",
-            "anyprivenc",
-            "gmtp",
-            "ifmp",
-            "pnni",
-            "pim",
-            "aris",
-            "scps",
-            "qnx",
-            "a/n",
-            "ipcomp",
-            "snp",
-            "compaq-peer",
-            "ipx-in-ip",
-            "vrrp",
-            "pgm",
-            "any0hop",
-            "l2tp",
-            "ddx",
-            "iatp",
-            "stp",
-            "srp",
-            "uti",
-            "smp",
-            "sm",
-            "ptp",
-            "isisoveripv4",
-            "fire",
-            "crtp",
-            "crudp",
-            "sscopmce",
-            "iplt",
-            "sps",
-            "pipesctp",
-            "fc",
-            "rsvp-e2e-ignore",
-            "mobilityheader",
-            "udplite",
-            "mplsinip",
-            "manet",
-            "hip",
-            "shim6",
-            "wesp",
-            "rohc",
-            "exptest0",
-            "exptest1"
-        };
-
 /* converts a string describing an ip protocol to the corresponding 
  * protocol number as assinged by the iana. lower case string is expected.
  * see: http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xml
@@ -187,8 +31,8 @@ char* protocols[0xff] = {
 uint8_t get_ip_prot( const char* prot ) {
     int i = 0;
 
-    for ( i = 0; i <= last_prot; i++ )
-        if ( strncmp(protocols[i], prot, sizeof(protocols[i])) == 0 )
+    for ( i = 0; i <= last_ip_prot; i++ )
+        if ( strncmp(ip_protocols[i], prot, sizeof(ip_protocols[i])) == 0 )
             // found protocol
             return i;
 
@@ -199,18 +43,18 @@ uint8_t get_ip_prot( const char* prot ) {
 void print_ip_prot( const char* prot ) {
     int i = 0;
 
-    for ( i = 0; i <= last_prot; i++ )
-        if ( strncmp(protocols[i], prot, sizeof(protocols[i])) == 0 )
+    for ( i = 0; i <= last_ip_prot; i++ )
+        if ( strncmp(ip_protocols[i], prot, sizeof(ip_protocols[i])) == 0 )
             // found protocol
-            printf("prot(0x%02x): %s\n", i, protocols[i]);
+            printf("prot(0x%02x): %s\n", i, ip_protocols[i]);
 }
 
 /* print all protocol names and numbers */
 void print_all_ip_prot() {
     int i = 0;
 
-    for ( i = 0; i <= last_prot; i++ )
-        printf("prot(0x%02x): %s\n", i, protocols[i]);
+    for ( i = 0; i <= last_ip_prot; i++ )
+        printf("prot(0x%02x): %s\n", i, ip_protocols[i]);
 }
 
 /* print all protocol names */
@@ -218,8 +62,8 @@ void print_all_ip_prot_str() {
     int i = 0;
 
     // print all but last prot
-    for ( i = 0; i < last_prot; i++ )
-        printf("%s, ", protocols[i]);
+    for ( i = 0; i < last_ip_prot; i++ )
+        printf("%s, ", ip_protocols[i]);
     // print last prot
-    printf("%s", protocols[last_prot]);
+    printf("%s", ip_protocols[last_ip_prot]);
 }

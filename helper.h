@@ -31,13 +31,11 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
 void print_stats( device_dev_t* dev );
 #endif
 int pfring_dispatch(pfring* pd, int max_packets, void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*), u_char* user_args);
-int setPFRingFilter(device_dev_t* pfring_device);
 #endif
 
 void determineLinkType(device_dev_t* pcap_device);
 
 void setFilter(device_dev_t* pcap_device);
-int8_t setPFRingFilterPolicy(device_dev_t* pfring_device);
 
 void print_byte_array_hex( uint8_t* p, int length );
 

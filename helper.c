@@ -620,37 +620,6 @@ void setFilter(device_dev_t* pcap_device) {
 	}
 }
 
-#ifdef PFRING
-int setPFRingFilter(device_dev_t* pfring_device) {
-	uint8_t i = 0;
-
-	for ( i = 0; i < g_options.rules_in_list; i++ ) {
-		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
-										 &g_options.rules[i]) < 0) {
-			mlogf(ALWAYS, "setPFRingFilter(%d) failed\n", i);
-			return -1;
-		}
-		mlogf(ALWAYS, "setPFRingFilter(%d) succeeded\n", i);
-	}
-	return 0;
-}
-
-int8_t setPFRingFilterPolicy(device_dev_t* pfring_device) {
-
-	// check if user supplied filtering policy and if not, set it to ACCEPT
-	if( g_options.filter_policy == -1 )
-		g_options.filter_policy = 1;
-	
-	if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring, 
-			g_options.filter_policy) < 0) {
-		mlogf(ALWAYS, "setPFRingFilterPolicy(%d) failed\n", g_options.filter_policy);
-		return -1;
-	}
-	mlogf(ALWAYS, "setPFRingFilterPolicy(%d) succeeded\n", g_options.filter_policy);
-	return 0;
-}
-#endif //PFRING
-
 void print_byte_array_hex( uint8_t* p, int length ) {
 	int i = 0;
 	fprintf( stderr, "bytes(length=%d): ", length );

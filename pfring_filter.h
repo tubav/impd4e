@@ -213,4 +213,7 @@ void print_ip_prot( const char* prot );
 void print_all_ip_prot();
 void print_all_ip_prot_str();
 
+int setPFRingFilter(device_dev_t* pfring_device);
+int8_t setPFRingFilterPolicy(device_dev_t* pfring_device);
+
 #endif // _PFRING_FILTER_H_

@@ -22,7 +22,6 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <pcap.h>
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
@@ -53,7 +52,6 @@
 #include "logger.h"
 #include "netcon.h"
 #include "ev_handler.h"
-#include <ev.h> // event loop
 
 #include "helper.h"
 #include "constants.h"
@@ -194,7 +192,9 @@ void event_setup_pcapdev(struct ev_loop *loop) {
 		pcap_dev_ptr = &if_devices[i];
 		// TODO review
 
+        #ifndef PFRING
 		setNONBlocking( pcap_dev_ptr );
+        #endif
 
 		/* storing a reference of packet device to
 		 be passed via watcher on a packet event so
@@ -219,6 +219,7 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 
 	switch (pcap_dev_ptr->device_type) {
 	case TYPE_testtype:
+    #ifndef PFRING
 	case TYPE_PCAP_FILE:
 	case TYPE_PCAP:
 		// dispatch packet
@@ -246,8 +247,7 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 
 		}
 		break;
-
-	#ifdef PFRING
+	#else
     case TYPE_PFRING:
 		if( 0 > pfring_dispatch( if_devices[0].device_handle.pfring
 							, PCAP_DISPATCH_PACKET_COUNT
@@ -393,6 +393,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
 }
 #endif
 
+#ifndef PFRING
 // formaly known as handle_packet()
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
 	device_dev_t* if_device = (device_dev_t*) user_args;
@@ -528,7 +529,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 //		mlogf(INFO, "INFO: drop packet; hash not in selection range\n");
 //	}
 }
-
+#endif
 
 /**
  * returns: 1 consumed, 0 otherwise
@@ -582,17 +583,26 @@ void export_data_interface_stats(device_dev_t *dev,
 	static uint16_t lengths[] = { 8, 4, 8, 4, 4, 0, 0 };
 	static char interfaceName[255];
 	static char interfaceDescription[255];
+    #ifndef PFRING
 	struct pcap_stat pcapStat;
-	struct in_addr addr;
-	void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
-					, &pcapStat.ps_recv, &pcapStat.ps_drop
-					, interfaceName, interfaceDescription };
+    void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
+                    , &pcapStat.ps_recv, &pcapStat.ps_drop
+                    , interfaceName, interfaceDescription };
+    #else
+    pfring_stat pfringStat;
+    void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
+                    , &pfringStat.recv, &pfringStat.drop
+                    , interfaceName, interfaceDescription };
+    #endif
+    struct in_addr addr;
+
 	snprintf(interfaceName,255, "%s",dev->device_name );
 	addr.s_addr = htonl(dev->IPv4address);
 	snprintf(interfaceDescription,255,"%s",inet_ntoa(addr));
 	lengths[5]=strlen(interfaceName);
 	lengths[6]=strlen(interfaceDescription);
 
+    #ifndef PFRING
 	/* Get pcap statistics in case of live capture */
 	if ( TYPE_PCAP == dev->device_type ) {
 		if (pcap_stats(dev->device_handle.pcap, &pcapStat) < 0) {
@@ -603,6 +613,17 @@ void export_data_interface_stats(device_dev_t *dev,
 		pcapStat.ps_drop = 0;
 		pcapStat.ps_recv = 0;
 	}
+    #else
+    if ( TYPE_PFRING == dev->device_type ) {
+        if (pfring_stats(dev->device_handle.pfring, &pfringStat) < 0) {
+            LOGGER_error("Error DeviceNo  %s: Failed to get statistics\n", 
+                        dev->device_name);
+        }
+    } else {
+        pfringStat.drop = 0;
+        pfringStat.recv = 0;
+    }
+    #endif
 
 	LOGGER_trace("sampling: (%d, %lu)", size, (long unsigned) deltaCount);
 	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_interface_stats, 7,

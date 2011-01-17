@@ -24,7 +24,9 @@
 
 #include <ev.h>
 
+#ifndef PFRING
 #include <pcap.h>
+#endif
 
 #include <ipfix.h>
 
@@ -61,9 +63,10 @@ void sigpipe_cb (EV_P_ ev_signal *w, int revents);
 
 /* -- capture --*/
 void packet_watcher_cb(EV_P_ ev_io *w, int revents);
+#ifndef PFRING
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 		const u_char * packet);
-#ifdef PFRING
+#else
 void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header, 
         const u_char *packet);
 #endif
@@ -89,7 +92,6 @@ void export_data_sync(device_dev_t *dev,
 /* -- event loop --*/
 void event_loop();
 ev_timer* event_register_timer(EV_P_ ev_tstamp tstamp, timer_cb_t* cb );
-
 void event_setup_pcapdev(struct ev_loop *loop);
 void event_setup_netcon(struct ev_loop *loop);
 

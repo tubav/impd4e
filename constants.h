@@ -96,7 +96,9 @@ typedef struct options
 } options_t;
 
 typedef union device {
+    #ifndef PFRING
 	pcap_t* pcap;
+    #endif
 	char*   pcap_file;
 	int     socket;
 	#ifdef PFRING
@@ -133,8 +135,13 @@ typedef struct device_dev {
 	device_type_t     device_type;
 	char*             device_name;	// network adapter; file-name; socket-name; depends on device type
 	device_t          device_handle;
+    #ifndef PFRING
 	bpf_u_int32       IPv4address;
 	bpf_u_int32       mask;
+    #else
+    uint32_t          IPv4address;
+    uint32_t          mask;
+    #endif
 	int               link_type;
 	ipfix_t*          ipfixhandle;
 //	ipfix_template_t* ipfixtemplate;
@@ -239,9 +246,10 @@ enum {
 
 extern options_t     g_options;
 extern device_dev_t  if_devices[];
+#ifndef PFRING
 extern char pcap_errbuf[PCAP_ERRBUF_SIZE];
 extern char errbuf[PCAP_ERRBUF_SIZE];
-
+#endif
 
 
 #endif /* CONSTANTS_H_ */

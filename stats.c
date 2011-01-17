@@ -32,6 +32,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 /* from /usr/src/linux/fs/proc/array.c.  */
 #define PROC_PID_STAT_FORMAT "%d %s %c %d %d %d %d %d %u %lu \

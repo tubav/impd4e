@@ -20,13 +20,17 @@
 
 #ifndef STAT_H_
 #define STAT_H_
+#ifndef PFRING
 #include <pcap.h>
+#endif
+
+#include <stdint.h>
 
 struct probe_stat {
 	/**
 	 *
 	 */
-	u_int64_t observationTimeMilliseconds;
+	uint64_t observationTimeMilliseconds;
 	/**
 	 * System idle CPU
 	 */
@@ -34,7 +38,7 @@ struct probe_stat {
 	/**
 	 * System free memory in kilobytes
 	 */
-	u_int64_t systemMemFree;
+	uint64_t systemMemFree;
 	/**
 	 * percentage of CPU used in user level (application)
 	 */
@@ -46,11 +50,11 @@ struct probe_stat {
 	/**
 	 * the process virtual memory used in bytes
 	 */
-	u_int64_t processMemVzs;
+	uint64_t processMemVzs;
 	/**
 	 * the process resident set size in bytes
 	 */
-	u_int64_t processMemRss;
+	uint64_t processMemRss;
 
 };
 int get_probe_stats(struct probe_stat *stats );

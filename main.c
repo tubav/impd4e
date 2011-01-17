@@ -41,9 +41,9 @@
 #include <netinet/in.h>
 #include <linux/if.h>
 #include <arpa/inet.h>
-
+#ifndef PFRING
 #include <pcap.h>
-
+#endif
 // event loop
 #include <ev.h>
 #include "ev_handler.h"
@@ -82,8 +82,10 @@
  Globals
  ----------------------------------------------------------------------------- */
 
+#ifndef PFRING
 char pcap_errbuf[PCAP_ERRBUF_SIZE];
 char errbuf[PCAP_ERRBUF_SIZE];
+#endif
 
 options_t     g_options;
 device_dev_t  if_devices[MAX_INTERFACES];
@@ -110,13 +112,15 @@ void print_help() {
 				"\n");
 
 	printf(
+            #ifndef PFRING
 			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t i - ethernet adapter;             -i i:eth0\n"
 			"\t p - pcap file;                    -i p:traffic.pcap\n"
 			"\t f - plain text file;              -i f:data.txt\n"
 			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
-			#ifdef PFRING
+			#else
+            "   -i  <r>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t r - ethernet adapter using pfring;-i r:eth0\n"
 			#endif
 			"\n"
@@ -129,8 +133,10 @@ void print_help() {
             #endif // PFRING
 			"   -l  <snaplength>               setup max capturing size in bytes\n"
 			"                                  Default: 80 \n"
+            #ifndef PFRING
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. \n"
 			"                                  tcp udp icmp)\n"
+            #endif
 			"   -I  <interval>                 pktid export interval in seconds. Use 0 for \n"
 			"                                  disabling pkid export. Ex. -I 1.5  \n"
 			"   -J  <interval>                 probe stats export interval in seconds. \n"
@@ -734,6 +740,7 @@ void parse_cmdline(int argc, char **argv) {
 
 }
 
+#ifndef PFRING
 void open_pcap_file(device_dev_t* if_dev, options_t *options) {
 
 	// todo: parameter check
@@ -829,6 +836,7 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 #endif
 
 }
+#endif
 
 #ifdef PFRING
 void open_pfring(device_dev_t* if_dev, options_t *options) {
@@ -837,7 +845,7 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 	if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1, 
 			options->snapLength, 0);	
 	if (NULL == if_dev->device_handle.pfring) {
-		mlogf(ALWAYS, "%s \n", errbuf);
+		mlogf(ALWAYS, "Failed to set up PF_RING-device\n");
 		exit(1);
 	}
 
@@ -850,6 +858,7 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
     if_dev->offset[L_NET] = 14;
 
 	// START OF TMP
+    /*
 	// setup pfring-plugins
 	filtering_rule rule;
 	memset(&rule, 0, sizeof(rule));
@@ -869,17 +878,19 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
     //rule.rule_action = forward_packet_and_stop_rule_evaluation;
     //rule.core_fields.proto = 1;
     //rule.core_fields.host_low = 0, rule.core_fields.host_high = 0;
-    //rule.plugin_action.plugin_id = 1; /* Dummy plugin */
+    //rule.plugin_action.plugin_id = 1; // Dummy plugin
 
-    //rule.extended_fields.filter_plugin_id = 1; /* Dummy plugin */
+    //rule.extended_fields.filter_plugin_id = 1; // Dummy plugin
     memcpy(rule.extended_fields.filter_plugin_data, &filter, sizeof(filter));
-    /* strcpy(rule.extended_fields.payload_pattern, "hello"); */
+    // strcpy(rule.extended_fields.payload_pattern, "hello");
 
 	if(pfring_add_filtering_rule(if_dev->device_handle.pfring, &rule) < 0) {
 		mlogf(ALWAYS, "setPFRingFilter(PLUGIN) failed\n");
 		//return -1;
 	}
-	mlogf(ALWAYS, "setPFRingFilter(PLUGIN) succeeded\n");
+    else
+	    mlogf(ALWAYS, "setPFRingFilter(PLUGIN) succeeded\n");
+    */
 	// END OF TMP
 
 	setPFRingFilter(if_dev);
@@ -895,6 +906,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 	}
 
 	switch (if_device->device_type) {
+    #ifndef PFRING
 	// file as interface to listen
 	case TYPE_FILE:
 		mlogf(ALWAYS, "open_file(): not yet implemented!\n");
@@ -916,7 +928,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 	case TYPE_SOCKET_UNIX:
 		open_socket_unix(if_device, options);
 		break;
-
+    #endif
 	#ifdef PFRING
 	case TYPE_PFRING:
 		open_pfring(if_device, options);

@@ -35,7 +35,9 @@
 #include <linux/if.h>
 #include <netinet/in.h>
 
+#ifndef PFRING
 #include <pcap.h>
+#endif
 
 #include <string.h>
 
@@ -111,6 +113,7 @@ int sampling_set_ratio(options_t *options, double sampling_ratio) {
 }
 
 
+#ifndef PFRING
 void setNONBlocking( device_dev_t* pDevice )
 {
 	switch (pDevice->device_type) {
@@ -147,14 +150,17 @@ void setNONBlocking( device_dev_t* pDevice )
 		break;
 	}
 }
+#endif
 
 int get_file_desc( device_dev_t* pDevice ) {
 	switch (pDevice->device_type) {
 	case TYPE_testtype:
+    #ifndef PFRING
 	case TYPE_PCAP_FILE:
 	case TYPE_PCAP:
 		return pcap_fileno(pDevice->device_handle.pcap);
 		break;
+    #endif
 
     #ifdef PFRING
     case TYPE_PFRING:
@@ -174,6 +180,7 @@ int get_file_desc( device_dev_t* pDevice ) {
 
 }
 
+#ifndef PFRING
 int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args)
 {
 	int32_t  i;
@@ -230,6 +237,7 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
 
 	return nPackets;
 }
+#endif
 
 #ifdef PFRING
 //#define verbose
@@ -578,6 +586,7 @@ int pfring_dispatch(pfring* pd, int max_packets,
 }
 #endif // PFRING
 
+#ifndef PFRING
 void determineLinkType(device_dev_t* pcap_device) {
 
 	pcap_device->link_type = pcap_datalink(pcap_device->device_handle.pcap);
@@ -605,7 +614,9 @@ void determineLinkType(device_dev_t* pcap_device) {
 		break;
 	}
 }
+#endif
 
+#ifndef PFRING
 void setFilter(device_dev_t* pcap_device) {
 	/* apply filter */
 	struct bpf_program fp;
@@ -622,6 +633,7 @@ void setFilter(device_dev_t* pcap_device) {
 		}
 	}
 }
+#endif
 
 #ifdef PFRING
 int setPFRingFilter(device_dev_t* pfring_device) {

@@ -1,3 +1,23 @@
+/*
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network and exports hash-based packet IDs over IPFIX
+ *
+ * Copyright (c) 2010, Fraunhofer FOKUS (Ramon Massek)
+ * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <inttypes.h>
 #include <stdlib.h>
@@ -260,14 +280,12 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
     if_device->sampling_delta_count++;
     if_device->totalpacketcount++;
 
+	/* TODO: create plugin for packet-selection */
     // selection of variable fields of the packet -
     // depends on the selection function choosen
     copiedbytes = g_options.selection_function(packet, header->caplen,
             if_device->outbuffer, if_device->outbufferLength,
             if_device->offset, layers);
-
-    ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
-            layers[L_NET]);
 
     if (0 == copiedbytes) {
         mlogf(WARNING, "Warning: packet does not contain Selection\n");
@@ -279,6 +297,10 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
 
     // hash the chosen packet data
     hash_result = g_options.hash_function(if_device->outbuffer, copiedbytes);
+	/* EO TODO... */
+
+	ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
+		layers[L_NET]);
 
     // hash result must be in the chosen selection range to count
     if ((g_options.sel_range_min < hash_result)

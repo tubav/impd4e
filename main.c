@@ -1,13 +1,15 @@
-/**
- * @file
- * @brief parse command line, event handing, control functions.
- */
-/* impd4e - a small network probe which allows to monitor and sample datagrams
+/*
+ * impd4e - a small network probe which allows to monitor and sample datagrams
  * from the network and exports hash-based packet IDs over IPFIX
- * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll) & TU-Berlin (Christian Henke)
- * This program is free software; you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
+ *
+ * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll, Ramon Massek) &
+ *                     TU-Berlin (Christian Henke)
+ * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
 
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -846,6 +848,39 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 	// pfring only supports ethernet
     if_dev->link_type = DLT_EN10MB;
     if_dev->offset[L_NET] = 14;
+
+	// START OF TMP
+	// setup pfring-plugins
+	filtering_rule rule;
+	memset(&rule, 0, sizeof(rule));
+
+	struct dummy_filter {
+		u_int32_t src_host;
+	};
+	struct dummy_filter filter;
+	filter.src_host = ntohl(inet_addr("104.129.2.7"));
+
+	rule.rule_id = 0;
+	rule.rule_action = forward_packet_and_stop_rule_evaluation;
+	rule.plugin_action.plugin_id = 1;
+	rule.extended_fields.filter_plugin_id = 1;
+
+	//rule.rule_id = 5;
+    //rule.rule_action = forward_packet_and_stop_rule_evaluation;
+    //rule.core_fields.proto = 1;
+    //rule.core_fields.host_low = 0, rule.core_fields.host_high = 0;
+    //rule.plugin_action.plugin_id = 1; /* Dummy plugin */
+
+    //rule.extended_fields.filter_plugin_id = 1; /* Dummy plugin */
+    memcpy(rule.extended_fields.filter_plugin_data, &filter, sizeof(filter));
+    /* strcpy(rule.extended_fields.payload_pattern, "hello"); */
+
+	if(pfring_add_filtering_rule(if_dev->device_handle.pfring, &rule) < 0) {
+		mlogf(ALWAYS, "setPFRingFilter(PLUGIN) failed\n");
+		//return -1;
+	}
+	mlogf(ALWAYS, "setPFRingFilter(PLUGIN) succeeded\n");
+	// END OF TMP
 
 	setPFRingFilter(if_dev);
     setPFRingFilterPolicy(if_dev);

@@ -1,14 +1,17 @@
 /**
  * @file helper.c
  * impd4e - helper functions
- * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll, Ramon Massek) & TU-Berlin (Christian Henke)
+ * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll, Ramon Massek) \
+ *                     & TU-Berlin (Christian Henke)
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
- * Code within #ifdef verbose [..] #endif: (C) 2005-10 - Luca Deri <deri@ntop.org>
+ * Code within #ifdef verbose [..] #endif: 
+ *                                   (c) 2005-10 - Luca Deri <deri@ntop.org>
  *
- * This program is free software; you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
 
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or

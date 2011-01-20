@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <netinet/in.h>
-#include <net/if.h>
+#include <linux/if.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -197,6 +197,8 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 	// retrieve respective device a new packet was seen
 	device_dev_t *pcap_dev_ptr = (device_dev_t *) w->data;
 
+	//printf("packet\n");
+
 	switch (pcap_dev_ptr->device_type) {
 	case TYPE_testtype:
 	case TYPE_PCAP_FILE:
@@ -227,10 +229,34 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 		}
 		break;
 
+	#ifdef PFRING
+    case TYPE_PFRING:
+		if( 0 > pfring_dispatch( if_devices[0].device_handle.pfring
+							, PCAP_DISPATCH_PACKET_COUNT
+							, packet_pfring_cb
+							, (u_char*) pcap_dev_ptr) )
+		{
+			LOGGER_error( "Error DeviceNo  %s: %s\n"
+				, pcap_dev_ptr->device_name, "" );
+		}
+
+			//pfring_recv(pd, (char*)buffer, sizeof(buffer), &hdr
+			//				, 0)) {
+			//dummyProcesssPacket(&hdr, buffer);
+		break;
+    #endif
+
 	default:
 		break;
 	}
 }
+
+#ifdef PFRING
+void packet_pfring_cb(const struct pfring_pkthdr *h, const u_char *p) {
+	printf("PFRING packet_pfring_cb\n");
+}
+#endif
+
 // formaly known as handle_packet()
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
 	device_dev_t* if_device = (device_dev_t*) user_args;

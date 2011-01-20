@@ -33,12 +33,12 @@ VERSION = @PACKAGE_VERSION@
 install_sh = @install_sh@
 OPENSSL = @OPENSSL@
 
-DEFS = @DEFS@ 
+DEFS = @DEFS@
 CPPFLAGS = @CPPFLAGS@
-LDFLAGS = @LDFLAGS@ -L/usr/local/lib -L/usr/lib
-LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc -lev
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc -lev -lm
 CCOPT = -Wall -g
-INCLS = -I. -I/usr/local/include -I/usr/include
+INCLS = -I.
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 TARGETS = impd4e

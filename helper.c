@@ -1,9 +1,24 @@
-/*
- * helper.c
+/**
+ * @file helper.c
+ * impd4e - helper functions
+ * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll, Ramon Massek) & TU-Berlin (Christian Henke)
+ * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
- *  Created on: 12.10.2010
- *      Author: rma
+ * Code within #ifdef verbose [..] #endif: (C) 2005-10 - Luca Deri <deri@ntop.org>
+ *
+ * This program is free software; you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation;
+ *  either version 3 of the License, or (at your option) any later version.
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -14,13 +29,17 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-
-#include <net/if.h>
+#include <linux/if.h>
 #include <netinet/in.h>
 
 #include <pcap.h>
 
 #include <string.h>
+
+#ifdef PFRING
+#include <netinet/ip.h>
+#include <net/ethernet.h>     /* the L2 protocols */
+#endif
 
 #include "mlog.h"
 #include "logger.h"
@@ -134,6 +153,12 @@ int get_file_desc( device_dev_t* pDevice ) {
 		return pcap_fileno(pDevice->device_handle.pcap);
 		break;
 
+    #ifdef PFRING
+    case TYPE_PFRING:
+            return pDevice->device_handle.pfring->fd;
+        break;
+    #endif
+
 	case TYPE_SOCKET_INET:
 	case TYPE_SOCKET_UNIX:
 		return pDevice->device_handle.socket;
@@ -202,6 +227,253 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
 
 	return nPackets;
 }
+
+#ifdef PFRING
+#define verbose
+#ifdef verbose
+/* ****************************************************** */
+
+static char hex[] = "0123456789ABCDEF";
+
+char* etheraddr_string(const u_char *ep, char *buf) {
+	u_int i, j;
+	char *cp;
+
+	cp = buf;
+	if ((j = *ep >> 4) != 0)
+		*cp++ = hex[j];
+	else
+		*cp++ = '0';
+
+	*cp++ = hex[*ep++ & 0xf];
+
+	for(i = 5; (int)--i >= 0;) {
+		*cp++ = ':';
+		if ((j = *ep >> 4) != 0)
+			*cp++ = hex[j];
+		else
+			*cp++ = '0';
+
+		*cp++ = hex[*ep++ & 0xf];
+	}
+
+	*cp = '\0';
+	return (buf);
+}
+
+/* ****************************************************** */
+
+/*
+ * A faster replacement for inet_ntoa().
+ */
+char* _intoa(unsigned int addr, char* buf, u_short bufLen) {
+	char *cp, *retStr;
+	u_int byte;
+	int n;
+
+	cp = &buf[bufLen];
+	*--cp = '\0';
+
+	n = 4;
+	do {
+		byte = addr & 0xff;
+		*--cp = byte % 10 + '0';
+		byte /= 10;
+		if (byte > 0) {
+			*--cp = byte % 10 + '0';
+			byte /= 10;
+			if (byte > 0)
+				*--cp = byte + '0';
+		}
+		*--cp = '.';
+		addr >>= 8;
+	} while (--n > 0);
+
+	/* Convert the string to lowercase */
+	retStr = (char*)(cp+1);
+
+	return(retStr);
+}
+
+/* ************************************ */
+
+char* intoa(unsigned int addr) {
+	static char buf[sizeof "ff:ff:ff:ff:ff:ff:255.255.255.255"];
+
+	return(_intoa(addr, buf, sizeof(buf)));
+}
+
+/* ************************************ */
+
+inline char* in6toa(struct in6_addr addr6) {
+	static char buf[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
+
+	snprintf(buf, sizeof(buf),
+			"%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+			addr6.s6_addr[0], addr6.s6_addr[1], addr6.s6_addr[2],
+			addr6.s6_addr[3], addr6.s6_addr[4], addr6.s6_addr[5], addr6.s6_addr[6],
+			addr6.s6_addr[7], addr6.s6_addr[8], addr6.s6_addr[9], addr6.s6_addr[10],
+			addr6.s6_addr[11], addr6.s6_addr[12], addr6.s6_addr[13], addr6.s6_addr[14],
+			addr6.s6_addr[15]);
+
+	return(buf);
+}
+
+/* ****************************************************** */
+
+char* proto2str(u_short proto) {
+	static char protoName[8];
+
+	switch(proto) {
+		case IPPROTO_TCP:  return("TCP");
+		case IPPROTO_UDP:  return("UDP");
+		case IPPROTO_ICMP: return("ICMP");
+		default:
+			snprintf(protoName, sizeof(protoName), "%d", proto);
+			return(protoName);
+	}
+}
+
+/* ****************************************************** */
+
+int32_t gmt2local(time_t t) {
+	int dt, dir;
+	struct tm *gmt, *loc;
+	struct tm sgmt;
+
+	if (t == 0)
+		t = time(NULL);
+	gmt = &sgmt;
+	*gmt = *gmtime(&t);
+	loc = localtime(&t);
+	dt = (loc->tm_hour - gmt->tm_hour) * 60 * 60 +
+			(loc->tm_min - gmt->tm_min) * 60;
+
+	/*
+	 * If the year or julian day is different, we span 00:00 GMT
+	 * and must add or subtract a day. Check the year first to
+	 * avoid problems when the julian day wraps.
+	 */
+	dir = loc->tm_year - gmt->tm_year;
+	if (dir == 0)
+		dir = loc->tm_yday - gmt->tm_yday;
+	dt += dir * 24 * 60 * 60;
+
+	return (dt);
+}
+
+#endif // verbose
+
+/* *************************************** */
+
+int pfring_dispatch(pfring* pd, int max_packets, 
+					void(*packet_handler)(const struct pfring_pkthdr*, const u_char*),
+					u_char* user_args)
+{
+	int32_t  recv_ret = 0;
+	uint8_t  buffer[BUFFER_SIZE];
+	uint8_t* bufferPtr = buffer;
+
+	struct pfring_pkthdr hdr;
+
+		// ensure buffer will fit
+		uint32_t caplen = BUFFER_SIZE;
+		if( BUFFER_SIZE > g_options.snapLength )
+		{
+			caplen = g_options.snapLength;
+		}
+		else
+		{
+			mlogf( WARNING, "socket_dispatch: snaplan exceed Buffer size (%d); "
+							"use Buffersize instead.\n", BUFFER_SIZE );
+		}
+		switch(recv_ret =  pfring_recv(pd, (char*)buffer, sizeof(buffer), &hdr
+                      , 0)) {
+			case 0:
+					// no packet available
+				break;
+			case -1:
+				perror("pf_ring: recv()");
+					return -1;
+				break;
+			default:
+				packet_handler(&hdr, buffer);
+				#ifdef verbose
+					struct ether_header ehdr;
+					u_short eth_type, vlan_id;
+					char buf1[32], buf2[32];
+					struct ip ip;
+					int s = (hdr.ts.tv_sec + gmt2local(0)) % 86400;
+
+					printf("%02d:%02d:%02d.%06u ",
+					s / 3600, (s % 3600) / 60, s % 60,
+					(unsigned)hdr.ts.tv_usec);
+
+					if(hdr.extended_hdr.parsed_header_len > 0) {
+						printf("[eth_type=0x%04X]", hdr.extended_hdr.parsed_pkt.eth_type);
+						printf("[l3_proto=%u]", (unsigned int)hdr.extended_hdr.parsed_pkt.l3_proto);
+
+						printf("[%s:%d -> ", (hdr.extended_hdr.parsed_pkt.eth_type == 0x86DD) ?
+								in6toa(hdr.extended_hdr.parsed_pkt.ipv6_src) : intoa(hdr.extended_hdr.parsed_pkt.ipv4_src),
+								hdr.extended_hdr.parsed_pkt.l4_src_port);
+						printf("%s:%d] ", (hdr.extended_hdr.parsed_pkt.eth_type == 0x86DD) ?
+								in6toa(hdr.extended_hdr.parsed_pkt.ipv6_dst) : intoa(hdr.extended_hdr.parsed_pkt.ipv4_dst),
+								hdr.extended_hdr.parsed_pkt.l4_dst_port);
+
+						printf("[%s -> %s] ",
+								etheraddr_string(hdr.extended_hdr.parsed_pkt.smac, buf1),
+								etheraddr_string(hdr.extended_hdr.parsed_pkt.dmac, buf2));
+					}
+
+					memcpy(&ehdr, bufferPtr+hdr.extended_hdr.parsed_header_len, sizeof(struct ether_header));
+					eth_type = ntohs(ehdr.ether_type);
+
+					printf("[%s -> %s][eth_type=0x%04X] ",
+							etheraddr_string(ehdr.ether_shost, buf1),
+							etheraddr_string(ehdr.ether_dhost, buf2), eth_type);
+
+					if(eth_type == 0x8100) {
+						vlan_id = (bufferPtr[14] & 15)*256 + bufferPtr[15];
+						eth_type = (bufferPtr[16])*256 + bufferPtr[17];
+						printf("[vlan %u] ", vlan_id);
+						bufferPtr+=4;
+					}
+
+					if(eth_type == 0x0800) {
+						memcpy(&ip, bufferPtr+hdr.extended_hdr.parsed_header_len+sizeof(ehdr), sizeof(struct ip));
+						printf("[%s:%d ", intoa(ntohl(ip.ip_src.s_addr)), hdr.extended_hdr.parsed_pkt.l4_src_port);
+						printf("-> %s:%d] ", intoa(ntohl(ip.ip_dst.s_addr)), hdr.extended_hdr.parsed_pkt.l4_dst_port);
+
+						printf("[tos=%d][tcp_seq_num=%u][caplen=%d][len=%d][parsed_header_len=%d]"
+								"[eth_offset=%d][l3_offset=%d][l4_offset=%d][payload_offset=%d]\n",
+								hdr.extended_hdr.parsed_pkt.ipv4_tos, hdr.extended_hdr.parsed_pkt.tcp.seq_num,
+								hdr.caplen, hdr.len, hdr.extended_hdr.parsed_header_len,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.eth_offset,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
+
+					} else {
+						if(eth_type == 0x0806)
+							printf("[ARP]");
+						else
+							printf("[eth_type=0x%04X]", eth_type);
+
+						printf("[caplen=%d][len=%d][parsed_header_len=%d]"
+								"[eth_offset=%d][l3_offset=%d][l4_offset=%d][payload_offset=%d]\n",
+								hdr.caplen, hdr.len, hdr.extended_hdr.parsed_header_len,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.eth_offset,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
+								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
+					}
+				#endif
+				break;
+
+		}
+	return 1;
+}
+#endif
 
 void determineLinkType(device_dev_t* pcap_device) {
 

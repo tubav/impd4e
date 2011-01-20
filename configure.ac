@@ -46,6 +46,7 @@ cygwin)
 esac
 
 withval=""
+withoutpcap="no"
 AC_ARG_WITH(pcap,
 [  --with-pcap=DIR         location of libpcap installation],
 [ 
@@ -59,6 +60,8 @@ AC_ARG_WITH(pcap,
       else
          AC_MSG_RESULT(no)
       fi
+   else
+      withoutpcap="yes"
    fi
 ] )
 
@@ -77,18 +80,22 @@ esac
 
 # libpcap support
 #
-AC_CHECK_LIB([$PCAP], pcap_open_live,[pcapsupport="yes"], 
+if test $withoutpcap != yes; then
+    AC_CHECK_LIB([$PCAP], pcap_open_live,[pcapsupport="yes"], 
              [pcapsupport="no"; AC_MSG_WARN([cannot find libpcap])])
-if test $pcapsupport = yes; then
-    SAVELIBS=$LIBS
-    LIBS="$LIBS $PCAPLIBS"
-    AC_CHECK_FUNCS(pcap_breakloop pcap_freecode)
-    LIBS=$SAVELIBS
+    if test $pcapsupport = yes; then
+        SAVELIBS=$LIBS
+        LIBS="$LIBS $PCAPLIBS"
+        AC_CHECK_FUNCS(pcap_breakloop pcap_freecode)
+        LIBS=$SAVELIBS
+    else
+        PCAPLIBS=""
+    fi
+    AC_SUBST(PCAPLIBS)
+    AC_SUBST(PCAPINCLS)
 else
     PCAPLIBS=""
 fi
-AC_SUBST(PCAPLIBS)
-AC_SUBST(PCAPINCLS)
 
 # Checks for header files.
 AC_HEADER_STDC

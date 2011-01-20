@@ -639,6 +639,19 @@ void setFilter(device_dev_t* pcap_device) {
 int setPFRingFilter(device_dev_t* pfring_device) {
 	uint8_t i = 0;
 
+    // if no filter was given then define a dummy filter which matches all
+    // packets. this filter will call the pf_ring-plugin which handles
+    // packet-selection
+    if ( g_options.rules_in_list == 0 ) {
+        filtering_rule rule;
+        memset(&rule, 0, sizeof(rule));
+        // add pf_ring selection plugin
+        rule.plugin_action.plugin_id = 1;
+        rule.extended_fields.filter_plugin_id = 1;
+        g_options.rules[0] = rule;
+        g_options.rules_in_list++;
+    }
+
 	for ( i = 0; i < g_options.rules_in_list; i++ ) {
 		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
 										 &g_options.rules[i]) < 0) {

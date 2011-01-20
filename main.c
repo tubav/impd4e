@@ -341,7 +341,7 @@ void parse_pfring_filter_arg(char* arg_string, options_t* options,
 	char* savePtr = NULL;
 
 	arg = strtok_r(arg_string, ":", &savePtr);
-	
+
 	for (i = 0; i <= last_pfring_filter_keyword; i++) {
 		if (strncasecmp(arg_string, pfring_filter_keywords[i],
                 strlen(pfring_filter_keywords[i])) == 0) {
@@ -484,6 +484,8 @@ void parse_pfring_filter_arg(char* arg_string, options_t* options,
 						printf("parse_pfring_filter_arg: UNKNOWN action: %s\n", value);
 					}
 				break;
+                /* this breaks with the selection plugin (at least policy accept
+                 * with drop-rules does)
 				// set default policy for ALL rules
 				case 13:
 					if (options->filter_policy == -1) {
@@ -503,6 +505,7 @@ void parse_pfring_filter_arg(char* arg_string, options_t* options,
 						printf("parse_pfring_filter_arg: policy was already set by a previous declaration\n");
 					}
 				break;
+                */
 			}
 			break;
         }
@@ -519,6 +522,10 @@ void parse_pfring_filter(char* arg_string, options_t* options) {
 	char* savePtr = NULL;
 	filtering_rule rule;
     memset(&rule, 0, sizeof(rule));
+
+    // add pf_ring selection plugin
+    rule.plugin_action.plugin_id = 1;
+    rule.extended_fields.filter_plugin_id = 1;
 
 	printf("===============================================================\n");
 	printf("parse_pfring_filter: arg_string       : %s\n\n", arg_string);
@@ -869,7 +876,7 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 	struct dummy_filter filter;
 	filter.src_host = ntohl(inet_addr("104.129.2.7"));
 
-	rule.rule_id = 0;
+	rule.rule_id = 30000;
 	rule.rule_action = forward_packet_and_stop_rule_evaluation;
 	rule.plugin_action.plugin_id = 1;
 	rule.extended_fields.filter_plugin_id = 1;

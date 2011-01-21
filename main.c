@@ -470,6 +470,9 @@ void parse_pfring_filter_arg(char* arg_string, options_t* options,
 						printf("parse_pfring_filter_arg: prio was already set by a previous declaration\n");
 					}
 				break;
+                /* this breaks with the selection plugin.
+                 * if user has supplied at least 1 filtering rule then
+                 * action is set to accept and policy to drop
 				// action
 				case 12:
 					if (strncasecmp(value, "ACCEPT", 6) == 0) {
@@ -484,6 +487,7 @@ void parse_pfring_filter_arg(char* arg_string, options_t* options,
 						printf("parse_pfring_filter_arg: UNKNOWN action: %s\n", value);
 					}
 				break;
+                */
                 /* this breaks with the selection plugin (at least policy accept
                  * with drop-rules does)
 				// set default policy for ALL rules
@@ -524,6 +528,7 @@ void parse_pfring_filter(char* arg_string, options_t* options) {
     memset(&rule, 0, sizeof(rule));
 
     // add pf_ring selection plugin
+    // TODO: set correct selection-plugin as user demanded
     rule.plugin_action.plugin_id = 1;
     rule.extended_fields.filter_plugin_id = 1;
 
@@ -840,7 +845,7 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 		perror("socket: connect");
 		exit(2);
 	}
-#endif
+    #endif
 
 }
 #endif
@@ -863,42 +868,6 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 	// pfring only supports ethernet
     if_dev->link_type = DLT_EN10MB;
     if_dev->offset[L_NET] = 14;
-
-	// START OF TMP
-    /*
-	// setup pfring-plugins
-	filtering_rule rule;
-	memset(&rule, 0, sizeof(rule));
-
-	struct dummy_filter {
-		u_int32_t src_host;
-	};
-	struct dummy_filter filter;
-	filter.src_host = ntohl(inet_addr("104.129.2.7"));
-
-	rule.rule_id = 30000;
-	rule.rule_action = forward_packet_and_stop_rule_evaluation;
-	rule.plugin_action.plugin_id = 1;
-	rule.extended_fields.filter_plugin_id = 1;
-
-	//rule.rule_id = 5;
-    //rule.rule_action = forward_packet_and_stop_rule_evaluation;
-    //rule.core_fields.proto = 1;
-    //rule.core_fields.host_low = 0, rule.core_fields.host_high = 0;
-    //rule.plugin_action.plugin_id = 1; // Dummy plugin
-
-    //rule.extended_fields.filter_plugin_id = 1; // Dummy plugin
-    memcpy(rule.extended_fields.filter_plugin_data, &filter, sizeof(filter));
-    // strcpy(rule.extended_fields.payload_pattern, "hello");
-
-	if(pfring_add_filtering_rule(if_dev->device_handle.pfring, &rule) < 0) {
-		mlogf(ALWAYS, "setPFRingFilter(PLUGIN) failed\n");
-		//return -1;
-	}
-    else
-	    mlogf(ALWAYS, "setPFRingFilter(PLUGIN) succeeded\n");
-    */
-	// END OF TMP
 
 	setPFRingFilter(if_dev);
     setPFRingFilterPolicy(if_dev);

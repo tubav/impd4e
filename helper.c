@@ -642,14 +642,25 @@ int setPFRingFilter(device_dev_t* pfring_device) {
     // if no filter was given then define a dummy filter which matches all
     // packets. this filter will call the pf_ring-plugin which handles
     // packet-selection
+    // also set filtering policy to accept
     if ( g_options.rules_in_list == 0 ) {
         filtering_rule rule;
         memset(&rule, 0, sizeof(rule));
         // add pf_ring selection plugin
+        // TODO: set correct selection-plugin as user demanded
         rule.plugin_action.plugin_id = 1;
         rule.extended_fields.filter_plugin_id = 1;
         g_options.rules[0] = rule;
         g_options.rules_in_list++;
+        // also set filtering policy to accept
+        g_options.filter_policy = 1;
+    }
+    else {
+        // rules were set to explicitly allow some packets.
+        // the pf_ring-plugin which handles packet-selection is called with
+        // each matching rule.
+        // set default filtering policy to drop all other packets.
+        g_options.filter_policy = 0;
     }
 
 	for ( i = 0; i < g_options.rules_in_list; i++ ) {

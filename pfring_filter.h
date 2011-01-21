@@ -26,11 +26,11 @@
 #define _PFRING_FILTER_H_
 
 /* last filter keyword */
-static const uint8_t last_pfring_filter_keyword = 12;
+static const uint8_t last_pfring_filter_keyword = 11;
 
 /* list all valid pfring filter keywords
  */
-static const char* pfring_filter_keywords[13] = {
+static const char* pfring_filter_keywords[12] = {
             "prot",
             "ipl",
             "iph",
@@ -42,9 +42,9 @@ static const char* pfring_filter_keywords[13] = {
             "mach",
             "mac",
             "vlan",
-            "prio",
-            "action"
+            "prio"
     };
+// filter_keywords: action, policy were removed
 
 /* this defines an invalid protocol */
 #define INVALID_PROT 0xFF

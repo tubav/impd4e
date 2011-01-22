@@ -76,6 +76,7 @@
 
 #ifdef PFRING
 #include "pfring_filter.h"
+#include <pf_plugin_impd4e.h>
 #endif
 
 /*----------------------------------------------------------------------------
@@ -526,11 +527,6 @@ void parse_pfring_filter(char* arg_string, options_t* options) {
 	char* savePtr = NULL;
 	filtering_rule rule;
     memset(&rule, 0, sizeof(rule));
-
-    // add pf_ring selection plugin
-    // TODO: set correct selection-plugin as user demanded
-    rule.plugin_action.plugin_id = 1;
-    rule.extended_fields.filter_plugin_id = 1;
 
 	printf("===============================================================\n");
 	printf("parse_pfring_filter: arg_string       : %s\n\n", arg_string);

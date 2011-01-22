@@ -51,6 +51,7 @@
 #include "helper.h"
 #include "constants.h"
 
+#include <pf_plugin_impd4e.h>
 
 uint32_t getIPv4AddressFromDevice(char* dev_name) {
 
@@ -638,6 +639,8 @@ void setFilter(device_dev_t* pcap_device) {
 #ifdef PFRING
 int setPFRingFilter(device_dev_t* pfring_device) {
 	uint8_t i = 0;
+    // data like hash and selection func which will be passed to kernel filter
+    struct impd_data *plugin_data;
 
     // if no filter was given then define a dummy filter which matches all
     // packets. this filter will call the pf_ring-plugin which handles
@@ -647,9 +650,16 @@ int setPFRingFilter(device_dev_t* pfring_device) {
         filtering_rule rule;
         memset(&rule, 0, sizeof(rule));
         // add pf_ring selection plugin
+        rule.plugin_action.plugin_id = 23;
+        rule.extended_fields.filter_plugin_id = 23;
+        plugin_data = (struct impd_data*)rule.extended_fields.filter_plugin_data;
         // TODO: set correct selection-plugin as user demanded
-        rule.plugin_action.plugin_id = 1;
-        rule.extended_fields.filter_plugin_id = 1;
+        plugin_data->sel_range_min = 0;
+        plugin_data->sel_range_max = 65535;
+        plugin_data->hash_function = BOB;
+        plugin_data->pktid_function = Net;
+        plugin_data->selection_function = Rec;
+        //memcpy(&(rule.extended_fields.filter_plugin_data), &plugin_data, sizeof(struct plugin_data));
         g_options.rules[0] = rule;
         g_options.rules_in_list++;
         // also set filtering policy to accept
@@ -664,6 +674,17 @@ int setPFRingFilter(device_dev_t* pfring_device) {
     }
 
 	for ( i = 0; i < g_options.rules_in_list; i++ ) {
+        // add pf_ring selection plugin
+        g_options.rules[i].plugin_action.plugin_id = 23;
+        g_options.rules[i].extended_fields.filter_plugin_id = 23;
+        plugin_data = (struct impd_data*)g_options.rules[i].extended_fields.filter_plugin_data;
+        // TODO: set correct selection-plugin as user demanded
+        plugin_data->sel_range_min = 0;
+        plugin_data->sel_range_max = 65535;
+        plugin_data->hash_function = BOB;
+        plugin_data->pktid_function = Net;
+        plugin_data->selection_function = Only_Net;
+
 		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
 										 &g_options.rules[i]) < 0) {
 			mlogf(ALWAYS, "setPFRingFilter(%d) failed\n", i);

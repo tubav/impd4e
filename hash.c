@@ -135,8 +135,12 @@ uint16_t copyFields_Rec( const uint8_t *packet,   uint16_t packetLength
 
 	uint16_t copiedbytes=0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    #ifndef PFRING
 	// find headers of the IP STACK
 	findHeaders(packet, packetLength, headerOffset, layers);
+    #endif
 
 	if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
 		if (layers[L_NET] == N_IP) {
@@ -181,11 +185,14 @@ uint16_t copyFields_Only_Net( const uint8_t *packet, uint16_t packetLength,
 
 	uint16_t copiedbytes = 0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    #ifndef PFRING
 	// find headers of the IP STACK
 	// todo: probably not needed here; just case for IP which used to be known already
 	// todo: or it can be simplified
 	findHeaders(packet, packetLength, headerOffset, layers);
-
+    #endif
 	copiedbytes = copy_NetFields( packet,       packetLength
 			                    , outBuffer,    outBufferLength
 			                    , headerOffset, layers);
@@ -203,9 +210,12 @@ uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
 	uint16_t  copiedbytes=0;
 	int 	  piece_length = 0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    //#ifndef PFRING
 	// find headers of the IP STACK
 	findHeaders(packet, packetLength, headerOffset, layers);
-
+    //#endif
 	copiedbytes = copy_NetFields( packet,       packetLength
 			                    , outBuffer,    outBufferLength
 			                    , headerOffset, layers);
@@ -248,9 +258,12 @@ uint16_t copyFields_Packet( const uint8_t *packet, uint16_t packetLength,
 	uint16_t copiedbytes = 0;
 	int piecelength      = 0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    #ifndef PFRING
 	// find headers of the IP STACK
 	findHeaders(packet, packetLength, headerOffset, layers);
-
+    #endif
 	copiedbytes = copy_NetFields( packet,       packetLength
 			                    , outBuffer,    outBufferLength
 			                    , headerOffset, layers);
@@ -548,7 +561,9 @@ uint8_t getTTL( const uint8_t *packet, uint16_t packetLength, int16_t offset, ne
 	else return 0;
 }
 
-
+// with PF_RING header information is passed from kernel to userspace
+// so there is no need to parse the packet again
+//#ifndef PFRING
 void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers )
 {
     unsigned short offs = headerOffset[L_NET];
@@ -646,6 +661,8 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
    		return;
     }
 }
+//#endif // PFRING
+
 //
 // /** is the packet inside the hash selection range? */
 //

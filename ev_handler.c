@@ -35,6 +35,10 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#ifdef PFRING
+#include <sys/time.h>
+#include <time.h>
+#endif
 
 #include "ev_handler.h"
 #include "logger.h"
@@ -269,63 +273,70 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
                         const u_char *packet) {
     device_dev_t* if_device = (device_dev_t*) user_args;
-    uint8_t layers[4] = { 0 };
-    uint32_t hash_result;
-    uint32_t copiedbytes;
-    uint8_t ttl;
-    uint64_t timestamp;
+    uint8_t layers[4]       = { 0 };
+    uint32_t hash_result    = 0;
+    uint32_t copiedbytes    = 0;
+    uint8_t ttl             = 0;
+    uint64_t timestamp      = 0;
+    int pktid               = 0;
 
     LOGGER_trace("packet_pfring_cb");
 
     if_device->sampling_delta_count++;
     if_device->totalpacketcount++;
 
-	/* TODO: create plugin for packet-selection */
-    // selection of variable fields of the packet -
-    // depends on the selection function choosen
-    copiedbytes = g_options.selection_function(packet, header->caplen,
-            if_device->outbuffer, if_device->outbufferLength,
-            if_device->offset, layers);
+    layers[L_NET]   = header->extended_hdr.parsed_pkt.ip_version;
+    layers[L_TRANS] = header->extended_hdr.parsed_pkt.l3_proto;
 
-    if (0 == copiedbytes) {
-        mlogf(WARNING, "Warning: packet does not contain Selection\n");
-        // todo: ?alternative selection function
-        // todo: ?for the whole configuration
-        // todo: ????drop????
+    // hash was already calculated in-kernel. use it
+    hash_result = header->extended_hdr.parsed_pkt.pkt_detail.aggregation.num_pkts;
+    /*
+    printf("offsets@t0 l(3,4,5): %d, %d, %d\n",
+            header->extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset + if_device->offset[L_NET],
+            header->extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset + if_device->offset[L_NET],
+            header->extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset + if_device->offset[L_NET]);
+    */
+    //if_device->offset[L_NET]     = header->extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset;
+    if_device->offset[L_TRANS]   = header->extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset + if_device->offset[L_NET];
+    if_device->offset[L_PAYLOAD] = header->extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset + if_device->offset[L_NET];
+
+    //printf("pre getTTL: caplen: %02d, offset_net: %02d, ipv: %d\n",
+    //        header->caplen, if_device->offset[L_NET], layers[L_NET]);
+	ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
+		            layers[L_NET]);
+
+    if_device->export_packet_count++;
+    if_device->sampling_size++;
+
+    // bypassing export if disabled by cmd line
+    if (g_options.export_pktid_interval <= 0) {
         return;
     }
 
-    // hash the chosen packet data
-    hash_result = g_options.hash_function(if_device->outbuffer, copiedbytes);
-	/* EO TODO... */
+    // in case we want to use the hashID as packet ID
+    if (g_options.hashAsPacketID == 1) {
+        pktid = hash_result;
+    } else {
+        // selection of viable fields of the packet - depend on the selection function choosen
+        copiedbytes = g_options.selection_function(packet, header->caplen,
+                        if_device->outbuffer, if_device->outbufferLength,
+                        if_device->offset, layers);
+        pktid = g_options.pktid_function(if_device->outbuffer, copiedbytes);
+    }
 
-	ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
-		layers[L_NET]);
+    /*
+    printf("offsets@t1 l(3,4,5): %d, %d, %d\n",
+            if_device->offset[L_NET],
+            if_device->offset[L_TRANS],
+            if_device->offset[L_PAYLOAD]);
+    */
 
-    // hash result must be in the chosen selection range to count
-    if ((g_options.sel_range_min < hash_result)
-            && (g_options.sel_range_max > hash_result))
-    {
-        if_device->export_packet_count++;
-        if_device->sampling_size++;
+    //printf("pktid: 0d%d\n", pktid);
 
-        // bypassing export if disabled by cmd line
-        if (g_options.export_pktid_interval <= 0) {
-            return;
-        }
+    timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
+                    + (uint64_t) header->ts.tv_usec;
 
-        int pktid = 0;
-        // in case we want to use the hashID as packet ID
-        if (g_options.hashAsPacketID == 1) {
-            pktid = hash_result;
-        } else {
-            pktid = g_options.pktid_function(if_device->outbuffer, copiedbytes);
-        }
-
-        timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
-                + (uint64_t) header->ts.tv_usec;
-
-        switch (g_options.templateID) {
+    switch (g_options.templateID) {
         case MINT_ID: {
             void* fields[] = { &timestamp, &hash_result, &ttl };
             uint16_t lengths[] = { 8, 4, 1 };
@@ -378,17 +389,16 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
                 mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
                 exit(1);
             }
-            break;
+        break;
         }
         default:
-            break;
-        } // switch (options.templateID)
+        break;
+    } // switch (options.templateID)
 
-        // flush ipfix storage if max packetcount is reached
-        if (if_device->export_packet_count >= g_options.export_packet_count) {
-            if_device->export_packet_count = 0;
-            export_flush();
-        }
+    // flush ipfix storage if max packetcount is reached
+    if (if_device->export_packet_count >= g_options.export_packet_count) {
+        if_device->export_packet_count = 0;
+        export_flush();
     }
 }
 #endif
@@ -657,7 +667,6 @@ void export_data_sync(device_dev_t *dev,
 void export_data_probe_stats(device_dev_t *dev) {
 	static uint16_t lengths[] = { 8, 4, 8, 4, 4, 8, 8 };
 	struct probe_stat probeStat;
-
 
 	void *fields[] = { &probeStat.observationTimeMilliseconds,
 			&probeStat.systemCpuIdle, &probeStat.systemMemFree,

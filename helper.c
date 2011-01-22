@@ -679,11 +679,11 @@ int setPFRingFilter(device_dev_t* pfring_device) {
         g_options.rules[i].extended_fields.filter_plugin_id = 23;
         plugin_data = (struct impd_data*)g_options.rules[i].extended_fields.filter_plugin_data;
         // TODO: set correct selection-plugin as user demanded
-        plugin_data->sel_range_min = 0;
-        plugin_data->sel_range_max = 65535;
+        plugin_data->sel_range_min = g_options.sel_range_min;
+        plugin_data->sel_range_max = g_options.sel_range_max;
         plugin_data->hash_function = BOB;
-        plugin_data->pktid_function = Net;
-        plugin_data->selection_function = Only_Net;
+        plugin_data->pktid_function = BOB;
+        plugin_data->selection_function = U_TCP_and_Net;
 
 		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
 										 &g_options.rules[i]) < 0) {

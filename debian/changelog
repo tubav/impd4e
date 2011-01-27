@@ -1,0 +1,5 @@
+impd4e (1.0-1) unstable; urgency=low
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Thu, 27 Jan 2011 15:57:54 +0100

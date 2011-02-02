@@ -65,6 +65,17 @@ binary-package:
 	cp $(PACKAGE) ./package/usr/bin
 	dpkg -b package $(PACKAGE)_$(VERSION)_all.deb
 
+pkg:
+	git-buildpackage --git-ignore-new
+
+snapshot:
+	git-dch --snapshot --auto --id-length=7 --git-author
+	git-buildpackage --git-ignore-new
+
+release:
+	git-dch --release --auto --id-length=7 --git-author
+	git-buildpackage
+
 install:
 	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
 	$(INSTALL_DATA) impd4e $(DESTDIR)/${bindir}/

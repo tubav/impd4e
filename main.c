@@ -156,6 +156,7 @@ void print_help() {
 			"\n"
 			"   -s  <selection function>       which parts of the packet used for hashing (presets)\n"
 			"                                  either: \"IP+TP\", \"IP\", \"REC8\", \"PACKET\"\n"
+			"                                  Default: \"IP+TP\"\n"
 			"   -S  <selection function>       which parts of the packet used for hashing (byte selection)\n"
 			"                                  <keyword><offset list>\n"
 			"                                  keywords: \"RAW\", \"LINK\", \"NET\", \"TRANS\", \"PAYLOAD\"\n"

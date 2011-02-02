@@ -56,10 +56,21 @@ clean:
 distclean:
 	rm -f $(CLEANFILES) $(DHPARAMS) Makefile
 
+tar:
+	rm -rf $(PACKAGE)-$(VERSION)
+	mkdir $(PACKAGE)-$(VERSION)
+	cp -r *.c *.h config/ configure configure.ac config.h.in Makefile.in $(PACKAGE)-$(VERSION)
+	tar -czvf $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
+
+binary-package:
+	mkdir -p ./package/usr/bin
+	cp $(PACKAGE) ./package/usr/bin
+	dpkg -b package $(PACKAGE)_$(VERSION)_all.deb
+
 install:
-	@[ -d ${bindir} ] || (mkdir -p ${bindir}; chmod 755 ${bindir})
-	$(INSTALL_DATA) impd4e ${bindir}/
-	chmod 755 ${bindir}/impd4e
+	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
+	$(INSTALL_DATA) impd4e $(DESTDIR)/${bindir}/
+	chmod 755 $(DESTDIR)${bindir}/impd4e
 
 impd4e: $(OBJS)
 	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)

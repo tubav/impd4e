@@ -10,3 +10,6 @@
 
 * fix configure.ac so that it detects if and where libev is installed
 	(corrently /usr/local/include|lib is blindly assumed)
+
+* add build dependencies for libipfix when there is a package to depend on
+  (debian/control)

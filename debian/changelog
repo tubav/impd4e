@@ -1,5 +1,143 @@
+impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
+
+  [ Carsten Schmoll ]
+  * added two more wish items
+
+  [ Christian Henke ]
+  * added GPL license
+
+  [ PRISM User ]
+  * fixed inclusion of LIBS for linking
+
+  [ NET-User ]
+  * fixed IP Address Bug
+  * hota added
+  * getIPscript
+
+  [ Christian Henke ]
+  * IPAddress read by script
+  * minor adjustements
+  * minor
+  * minor
+
+  [ NET-User ]
+  * bug fixes
+
+  [ Christian Henke ]
+  * main commit
+  * severe bug fixed - wrong packet offset parsing
+  * debug text removed
+  * bugfixing + adding read file option bugfixing + adding read file
+    option RR
+  * debug messages inserted
+
+  [ Robert Wuttke ]
+  * added debug-msgs to main.c
+  * added debug-msgs to main.c
+  * added debug-msgs to main.c
+
+  [ Christian Henke ]
+  * race condition ipfix_flush fix
+
+  [ Robert Wuttke ]
+  * timestamp debugging
+  * timestamp debugging
+  * timestamp debugging
+  * timestamp debugging
+
+  [ PRISM User ]
+  * fixed htoa so it also works correct on MIPS architecture
+  * stop on pcap init errors
+
+  [ Robert Wuttke ]
+  * removed unnecessary printf
+
+  [ Christian Henke ]
+  * some printf removals
+  * CPU Support with dbg info
+  * added CPU and RAM export in ca
+  * added support resource export idle CPU, cpu used by impd4e, free
+    RAM, used RAM by impd4e
+
+  [ Santos ]
+  *  - removed test and auto generated files
+  * - restoring Eclipse CDT files
+  * - added simple logger
+  * - doxygen
+  * - logger update
+  * node info (on going)
+  * node info (on going)
+  * - using libev for handling events
+  * stats export (on going)
+  * - exporting probe stats (on going, exporting dummy data)
+  * removing impd4e binary from repository
+  * exporting probe stats ok
+  * - install fixed
+  * - cmd line options for controlling exports
+  * - sync interface
+  * netcom sync only interface
+  * adding netcon to build
+
+  [ Christian Henke ]
+  * in findHeaders no IPV4/IPV6 packet not exported any more
+  * return 1 of findheader in default
+
+  [ Santos ]
+  * get oid from the first interface (-u option)
+
+  [ Ramon Masek ]
+  * a lot of changes for several file in oder to listen on different
+    interface types
+  * cleanup directory
+  * some cosmetics
+
+  [ Ramón Masek ]
+  * remove some files not used to be in a revision control system
+  * add additional LD and INCLUDE path
+  * move event handling into seperate files
+  * new files contain eventhandling now
+
+  [ Santos ]
+  * small help update
+
+  [ Ramón Masek ]
+  * correction after merge
+  * correction in event struct
+  * minor correction; comments
+  * correct stucture in ev_handler.h causes netcon not working properly;
+
+  [ Robert Wuttke ]
+  * added -lm to Makefile.in
+  * added -D_GNU_SOURCE to Makefile.in
+  * added -D_GNU_SOURCE to Makefile.in
+  * added -DOPENWRT_BUILD to Makefile.in
+  * added -D_GNU_SOURCE to Makefile.in
+
+  [ Ramón Masek ]
+  * add selection function to select bytes for hashing
+  * new keywords for selection functions
+  * update selection function, further checks
+
+  [ Robert Wuttke ]
+  * removed hardcoded include-paths from Makefile.in
+  * added some structures for pf_ring-support. replaced <net/if.h> with
+    <linux/if.h> to resolve a conflict as pf_ring which also includes
+    <linux/if.h>. improved one if-statement in main.c
+  * added #ifdef PFRING to all pfring-specific code
+  * implemented packet capturing using PF_RING. packet_pfring_cb needs
+    still to be implemented. added temp. verbose output for PF_RING-part
+  * fixed some OpenWrt/PF_RING specific defines
+
+  [ Ramón Masek ]
+  * add targets to Makefile:
+  * add debian directory for package building
+
+  [ Ramon Masek ]
+
+ -- Ramon Masek <rma@bomar>  Thu, 27 Jan 2011 16:22:08 +0100
+
 impd4e (1.0-1) unstable; urgency=low
 
   * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
 
- -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Thu, 27 Jan 2011 15:57:54 +0100
+ -- Ramon Masek <rma@bomar>  Thu, 27 Jan 2011 16:15:19 +0100

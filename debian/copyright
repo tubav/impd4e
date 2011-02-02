@@ -4,7 +4,7 @@ This work was packaged for Debian by:
 
 It was downloaded from:
 
-    <url://example.com>
+    http://www.ip-measurement.org
 
 Upstream Author(s):
 
@@ -13,8 +13,8 @@ Upstream Author(s):
 
 Copyright:
 
-    <Copyright (C) YYYY Firstname Lastname>
-    <likewise for another author>
+    Copyright (C) 2010 Fraunhofer FOKUS (Carsten Schmoll)
+    Copyright (C) 2010 TU-Berlin (Christian Henke)
 
 License:
 
@@ -46,5 +46,3 @@ The Debian packaging is:
 
 and is licensed under the GPL version 3, see above.
 
-# Please also look if there are files or directories which have a
-# different copyright/license attached and list them here.

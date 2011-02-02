@@ -134,10 +134,11 @@ impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
 
   [ Ramon Masek ]
 
- -- Ramon Masek <rma@bomar>  Thu, 27 Jan 2011 16:22:08 +0100
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Thu, 27 Jan 2011 16:22:08 +0100
 
 impd4e (1.0-1) unstable; urgency=low
 
-  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+  * Initial release (Closes: #0000)  <0000 is the bug number of your ITP>
+  * just a dummy Closes: for the initial release
 
- -- Ramon Masek <rma@bomar>  Thu, 27 Jan 2011 16:15:19 +0100
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Thu, 27 Jan 2011 16:15:19 +0100

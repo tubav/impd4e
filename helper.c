@@ -1,14 +1,17 @@
 /**
  * @file helper.c
  * impd4e - helper functions
- * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll, Ramon Massek) & TU-Berlin (Christian Henke)
+ * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll, Ramon Massek) \
+ *                     & TU-Berlin (Christian Henke)
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
- * Code within #ifdef verbose [..] #endif: (C) 2005-10 - Luca Deri <deri@ntop.org>
+ * Code within #ifdef verbose [..] #endif: 
+ *                                   (c) 2005-10 - Luca Deri <deri@ntop.org>
  *
- * This program is free software; you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
 
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -32,7 +35,9 @@
 #include <linux/if.h>
 #include <netinet/in.h>
 
+#ifndef PFRING
 #include <pcap.h>
+#endif
 
 #include <string.h>
 
@@ -46,6 +51,7 @@
 #include "helper.h"
 #include "constants.h"
 
+#include <pf_plugin_impd4e.h>
 
 uint32_t getIPv4AddressFromDevice(char* dev_name) {
 
@@ -108,6 +114,7 @@ int sampling_set_ratio(options_t *options, double sampling_ratio) {
 }
 
 
+#ifndef PFRING
 void setNONBlocking( device_dev_t* pDevice )
 {
 	switch (pDevice->device_type) {
@@ -144,14 +151,17 @@ void setNONBlocking( device_dev_t* pDevice )
 		break;
 	}
 }
+#endif
 
 int get_file_desc( device_dev_t* pDevice ) {
 	switch (pDevice->device_type) {
 	case TYPE_testtype:
+    #ifndef PFRING
 	case TYPE_PCAP_FILE:
 	case TYPE_PCAP:
 		return pcap_fileno(pDevice->device_handle.pcap);
 		break;
+    #endif
 
     #ifdef PFRING
     case TYPE_PFRING:
@@ -171,6 +181,7 @@ int get_file_desc( device_dev_t* pDevice ) {
 
 }
 
+#ifndef PFRING
 int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args)
 {
 	int32_t  i;
@@ -227,9 +238,10 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
 
 	return nPackets;
 }
+#endif
 
 #ifdef PFRING
-#define verbose
+//#define verbose
 #ifdef verbose
 /* ****************************************************** */
 
@@ -364,15 +376,115 @@ int32_t gmt2local(time_t t) {
 
 #endif // verbose
 
+#ifdef PFRING_STATS
+
+static struct timeval startTime;
+#define MAX_NUM_THREADS 1
+unsigned long long numPkts = 0, numBytes = 0;
+u_int8_t wait_for_packet = 1, dna_mode = 0, do_shutdown = 0;
+
+/* *************************************** */
+/*
+ * The time difference in millisecond
+ */
+double delta_time (struct timeval * now,
+           struct timeval * before) {
+  time_t delta_seconds;
+  time_t delta_microseconds;
+
+  /*
+   * compute delta in second, 1/10's and 1/1000's second units
+   */
+  delta_seconds      = now -> tv_sec  - before -> tv_sec;
+  delta_microseconds = now -> tv_usec - before -> tv_usec;
+
+  if(delta_microseconds < 0) {
+    /* manually carry a one from the seconds field */
+    delta_microseconds += 1000000;  /* 1e6 */
+    -- delta_seconds;
+  }
+  return((double)(delta_seconds * 1000) + (double)delta_microseconds/1000);
+}
+
+/* ******************************** */
+
+void print_stats( device_dev_t* dev ) {
+  pfring_stat pfringStat;
+  struct timeval endTime;
+  double deltaMillisec;
+  static u_int8_t print_all;
+  static u_int64_t lastPkts = 0;
+  u_int64_t diff;
+  static struct timeval lastTime;
+
+  if(startTime.tv_sec == 0) {
+    gettimeofday(&startTime, NULL);
+    print_all = 0;
+  } else
+    print_all = 1;
+
+  gettimeofday(&endTime, NULL);
+  deltaMillisec = delta_time(&endTime, &startTime);
+
+  if(pfring_stats(dev->device_handle.pfring, &pfringStat) >= 0) {
+    double thpt;
+    unsigned long long nBytes = 0, nPkts = 0;
+
+    nBytes += numBytes;
+    nPkts += numPkts;
+
+    thpt = ((double)8*nBytes)/(deltaMillisec*1000);
+
+    fprintf(stderr, "=========================\n"
+		"Interface: %s\n"
+        "Absolute Stats: [%u pkts rcvd][%u pkts dropped]\n"
+        "Total Pkts=%u/Dropped=%.1f %%\n",
+		dev->device_name,
+        (unsigned int)pfringStat.recv, (unsigned int)pfringStat.drop,
+        (unsigned int)(pfringStat.recv+pfringStat.drop),
+        pfringStat.recv == 0 ? 0 :
+        (double)(pfringStat.drop*100)/(double)(pfringStat.recv+pfringStat.drop));
+    fprintf(stderr, "%llu pkts - %llu bytes", nPkts, nBytes);
+
+    if(print_all)
+      fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec]\n",
+          (double)(nPkts*1000)/deltaMillisec, thpt);
+    else
+      fprintf(stderr, "\n");
+
+    if(print_all && (lastTime.tv_sec > 0)) {
+      deltaMillisec = delta_time(&endTime, &lastTime);
+      diff = pfringStat.recv-lastPkts;
+      fprintf(stderr, "=========================\n"
+          "Actual Stats: %llu pkts [%.1f ms][%.1f pkt/sec]\n",
+          (long long unsigned int)diff,
+          deltaMillisec, ((double)diff/(double)(deltaMillisec/1000)));
+    }
+
+    lastPkts = pfringStat.recv;
+  }
+
+  lastTime.tv_sec = endTime.tv_sec, lastTime.tv_usec = endTime.tv_usec;
+
+  fprintf(stderr, "=========================\n\n");
+}
+
+/* ******************************** */
+
+
+#endif // PFRING_STATS
+
 /* *************************************** */
 
 int pfring_dispatch(pfring* pd, int max_packets, 
-					void(*packet_handler)(const struct pfring_pkthdr*, const u_char*),
+					void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*),
 					u_char* user_args)
 {
 	int32_t  recv_ret = 0;
 	uint8_t  buffer[BUFFER_SIZE];
+	#ifdef verbose
 	uint8_t* bufferPtr = buffer;
+	#endif
 
 	struct pfring_pkthdr hdr;
 
@@ -397,7 +509,7 @@ int pfring_dispatch(pfring* pd, int max_packets,
 					return -1;
 				break;
 			default:
-				packet_handler(&hdr, buffer);
+				packet_handler(user_args, &hdr, buffer);
 				#ifdef verbose
 					struct ether_header ehdr;
 					u_short eth_type, vlan_id;
@@ -467,14 +579,15 @@ int pfring_dispatch(pfring* pd, int max_packets,
 								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
 								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
 					}
-				#endif
+				#endif // verbose
 				break;
 
 		}
 	return 1;
 }
-#endif
+#endif // PFRING
 
+#ifndef PFRING
 void determineLinkType(device_dev_t* pcap_device) {
 
 	pcap_device->link_type = pcap_datalink(pcap_device->device_handle.pcap);
@@ -502,7 +615,9 @@ void determineLinkType(device_dev_t* pcap_device) {
 		break;
 	}
 }
+#endif
 
+#ifndef PFRING
 void setFilter(device_dev_t* pcap_device) {
 	/* apply filter */
 	struct bpf_program fp;
@@ -519,7 +634,82 @@ void setFilter(device_dev_t* pcap_device) {
 		}
 	}
 }
+#endif
 
+#ifdef PFRING
+int setPFRingFilter(device_dev_t* pfring_device) {
+	uint8_t i = 0;
+    // data like hash and selection func which will be passed to kernel filter
+    struct impd_data *plugin_data;
+
+    // if no filter was given then define a dummy filter which matches all
+    // packets. this filter will call the pf_ring-plugin which handles
+    // packet-selection
+    // also set filtering policy to accept
+    if ( g_options.rules_in_list == 0 ) {
+        filtering_rule rule;
+        memset(&rule, 0, sizeof(rule));
+        // add pf_ring selection plugin
+        rule.plugin_action.plugin_id = 23;
+        rule.extended_fields.filter_plugin_id = 23;
+        plugin_data = (struct impd_data*)rule.extended_fields.filter_plugin_data;
+        // TODO: set correct selection-plugin as user demanded
+        plugin_data->sel_range_min = 0;
+        plugin_data->sel_range_max = 65535;
+        plugin_data->hash_function = BOB;
+        plugin_data->pktid_function = Net;
+        plugin_data->selection_function = Rec;
+        //memcpy(&(rule.extended_fields.filter_plugin_data), &plugin_data, sizeof(struct plugin_data));
+        g_options.rules[0] = rule;
+        g_options.rules_in_list++;
+        // also set filtering policy to accept
+        g_options.filter_policy = 1;
+    }
+    else {
+        // rules were set to explicitly allow some packets.
+        // the pf_ring-plugin which handles packet-selection is called with
+        // each matching rule.
+        // set default filtering policy to drop all other packets.
+        g_options.filter_policy = 0;
+    }
+
+	for ( i = 0; i < g_options.rules_in_list; i++ ) {
+        // add pf_ring selection plugin
+        g_options.rules[i].plugin_action.plugin_id = 23;
+        g_options.rules[i].extended_fields.filter_plugin_id = 23;
+        plugin_data = (struct impd_data*)g_options.rules[i].extended_fields.filter_plugin_data;
+        // TODO: set correct selection-plugin as user demanded
+        plugin_data->sel_range_min = g_options.sel_range_min;
+        plugin_data->sel_range_max = g_options.sel_range_max;
+        plugin_data->hash_function = BOB;
+        plugin_data->pktid_function = BOB;
+        plugin_data->selection_function = U_TCP_and_Net;
+
+		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
+										 &g_options.rules[i]) < 0) {
+			mlogf(ALWAYS, "setPFRingFilter(%d) failed\n", i);
+			return -1;
+		}
+		mlogf(ALWAYS, "setPFRingFilter(%d) succeeded\n", i);
+	}
+	return 0;
+}
+
+int8_t setPFRingFilterPolicy(device_dev_t* pfring_device) {
+
+	// check if user supplied filtering policy and if not, set it to ACCEPT
+	if( g_options.filter_policy == -1 )
+		g_options.filter_policy = 1;
+	
+	if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring, 
+			g_options.filter_policy) < 0) {
+		mlogf(ALWAYS, "setPFRingFilterPolicy(%d) failed\n", g_options.filter_policy);
+		return -1;
+	}
+	mlogf(ALWAYS, "setPFRingFilterPolicy(%d) succeeded\n", g_options.filter_policy);
+	return 0;
+}
+#endif //PFRING
 
 void print_byte_array_hex( uint8_t* p, int length ) {
 	int i = 0;

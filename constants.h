@@ -1,8 +1,21 @@
 /*
- * constants.h
+ * impd4e - constants.h
  *
- *  Created on: 26.08.2010
- *      Author: Ramon Masek
+ * Copyright (c) 2010, Fraunhofer FOKUS (Ramon Massek)
+ * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CONSTANTS_H_
@@ -12,7 +25,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#ifndef PFRING
 #include <pcap.h>
+#endif
+
 #include <ipfix.h>
 
 #ifdef PFRING
@@ -29,6 +45,10 @@
 #define PCAP_DISPATCH_PACKET_COUNT 10 /*!< max number of packets to be processed on each dispatch */
 
 #define BUFFER_SIZE 1024
+
+#ifdef PFRING
+#define MAX_RULES 256
+#endif // PFRING
 
 typedef uint32_t (*hashFunction)(uint8_t*,uint16_t);
 typedef uint16_t (*selectionFunction) (const uint8_t *, uint16_t , uint8_t *, uint16_t, int16_t *, uint8_t*);
@@ -50,6 +70,11 @@ typedef struct options
 	char     collectorIP[256];
 	int16_t  collectorPort;
 	char*    bpf; // berkley packet filter
+    #ifdef PFRING
+    filtering_rule rules[MAX_RULES];
+    uint16_t rules_in_list;
+    int8_t   filter_policy;
+    #endif // PFRING
 	uint32_t          observationDomainID;
 	hashFunction      hash_function;
 	hashFunction      pktid_function;
@@ -71,7 +96,9 @@ typedef struct options
 } options_t;
 
 typedef union device {
+    #ifndef PFRING
 	pcap_t* pcap;
+    #endif
 	char*   pcap_file;
 	int     socket;
 	#ifdef PFRING
@@ -108,8 +135,13 @@ typedef struct device_dev {
 	device_type_t     device_type;
 	char*             device_name;	// network adapter; file-name; socket-name; depends on device type
 	device_t          device_handle;
+    #ifndef PFRING
 	bpf_u_int32       IPv4address;
 	bpf_u_int32       mask;
+    #else
+    uint32_t          IPv4address;
+    uint32_t          mask;
+    #endif
 	int               link_type;
 	ipfix_t*          ipfixhandle;
 //	ipfix_template_t* ipfixtemplate;
@@ -214,9 +246,10 @@ enum {
 
 extern options_t     g_options;
 extern device_dev_t  if_devices[];
+#ifndef PFRING
 extern char pcap_errbuf[PCAP_ERRBUF_SIZE];
 extern char errbuf[PCAP_ERRBUF_SIZE];
-
+#endif
 
 
 #endif /* CONSTANTS_H_ */

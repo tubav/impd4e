@@ -8,3 +8,5 @@ Makefile
 *.status
 *.o
 Debug/*
+.*.swp
+autom4te.cache

@@ -1,13 +1,15 @@
-/**
- * @file
- * @brief parse command line, event handing, control functions.
- */
-/* impd4e - a small network probe which allows to monitor and sample datagrams
+/*
+ * impd4e - a small network probe which allows to monitor and sample datagrams
  * from the network and exports hash-based packet IDs over IPFIX
- * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll) & TU-Berlin (Christian Henke)
- * This program is free software; you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
+ *
+ * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll, Ramon Massek) &
+ *                     TU-Berlin (Christian Henke)
+ * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
 
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -39,9 +41,9 @@
 #include <netinet/in.h>
 #include <linux/if.h>
 #include <arpa/inet.h>
-
+#ifndef PFRING
 #include <pcap.h>
-
+#endif
 // event loop
 #include <ev.h>
 #include "ev_handler.h"
@@ -67,18 +69,24 @@
 	#ifndef _GNU_SOURCE
 		#define _GNU_SOURCE
 	#endif
-	#ifndef PF_RING
-		#define PF_RING
+	#ifndef PFRING
+		#define PFRING
 	#endif
 #endif
 
+#ifdef PFRING
+#include "pfring_filter.h"
+#include <pf_plugin_impd4e.h>
+#endif
 
 /*----------------------------------------------------------------------------
  Globals
  ----------------------------------------------------------------------------- */
 
+#ifndef PFRING
 char pcap_errbuf[PCAP_ERRBUF_SIZE];
 char errbuf[PCAP_ERRBUF_SIZE];
+#endif
 
 options_t     g_options;
 device_dev_t  if_devices[MAX_INTERFACES];
@@ -95,6 +103,9 @@ char* hashfunctionname[] = {
  * Print out command usage
  */
 void print_help() {
+	#ifdef PFRING
+	uint8_t i = 0;
+	#endif
 	printf(
 			"impd4e - a libpcap based measuring probe which uses hash-based packet\n"
 				"         selection and exports packetIDs via IPFIX to a collector.\n\n"
@@ -102,21 +113,31 @@ void print_help() {
 				"\n");
 
 	printf(
-			"options: \n"
+            #ifndef PFRING
 			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t i - ethernet adapter;             -i i:eth0\n"
 			"\t p - pcap file;                    -i p:traffic.pcap\n"
 			"\t f - plain text file;              -i f:data.txt\n"
 			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
-			#ifdef PFRING
+			#else
+            "   -i  <r>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t r - ethernet adapter using pfring;-i r:eth0\n"
 			#endif
 			"\n"
+			"options: \n"
+            #ifdef PFRING
+            "   -a <filter keyword>:<value>    Filtering if using PF_RING\n"
+				"\t\t\t\t  Specify an packet filter and/or the default\n"
+                "\t\t\t\t  filtering policy (valid for all filters).\n"
+                "\t\t\t\t  It can be used multiple times.\n"
+            #endif // PFRING
 			"   -l  <snaplength>               setup max capturing size in bytes\n"
 			"                                  Default: 80 \n"
+            #ifndef PFRING
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. \n"
 			"                                  tcp udp icmp)\n"
+            #endif
 			"   -I  <interval>                 pktid export interval in seconds. Use 0 for \n"
 			"                                  disabling pkid export. Ex. -I 1.5  \n"
 			"   -J  <interval>                 probe stats export interval in seconds. \n"
@@ -170,6 +191,15 @@ void print_help() {
 			"   -h                             print this help \n"
 			"\n");
 
+	#ifdef PFRING
+		printf("Possible PF_RING filter keywords include: ");
+		for ( i = 0; i < last_pfring_filter_keyword; i++ )
+			printf("%s, ", pfring_filter_keywords[i]);
+		printf("%s\n\n", pfring_filter_keywords[last_pfring_filter_keyword]);
+		printf("Possible PF_RING ip protocols include: ");
+        print_all_ip_prot_str();
+        printf("\n\n");
+	#endif
 }
 
 
@@ -300,6 +330,246 @@ void parseTemplate(char *arg_string, options_t *options) {
 	}
 }
 
+#ifdef PFRING
+/** 
+ * Parse one pfring filter arg
+ */
+void parse_pfring_filter_arg(char* arg_string, options_t* options,
+								filtering_rule* rule) {
+	uint8_t i = 0;
+	uint8_t k = 0;
+	char* arg = NULL;
+	char* value = NULL;
+	char* savePtr = NULL;
+
+	arg = strtok_r(arg_string, ":", &savePtr);
+
+	for (i = 0; i <= last_pfring_filter_keyword; i++) {
+		if (strncasecmp(arg_string, pfring_filter_keywords[i],
+                strlen(pfring_filter_keywords[i])) == 0) {
+			printf("parse_pfring_filter_arg: found keyword: %s\n", arg);
+			value = strtok_r(NULL, ":", &savePtr);
+			printf("parse_pfring_filter_arg: value        : %s\n", value);
+
+			switch(i) {
+				// prot
+				case 0:
+					for( k = 0; k <= last_ip_prot; k++ ) {
+						if (strncasecmp(value, ip_protocols[k],
+								strlen(ip_protocols[k])) == 0) {
+							if (rule->core_fields.proto == 0) {
+								rule->core_fields.proto = k;
+								printf("parse_pfring_filter_arg: set proto to : 0x%02x\n", k);
+							}
+							else {
+								printf("parse_pfring_filter_arg: proto was already set by a previous declaration\n");
+							}
+						}
+					}
+				break;
+	            // ipl
+				// TODO: add v6 support
+    	        case 1:
+					if(rule->core_fields.host_low.v4 == ntohl(inet_addr("0"))){
+						rule->core_fields.host_low.v4 = ntohl(inet_addr(value));
+						printf("parse_pfring_filter_arg: added ip\n");
+					}
+					else {
+						printf("parse_pfring_filter_arg: ip_low was already set by a previous declaration\n");
+					}
+				break;
+				// iph
+				// TODO: add v6 support
+        	    case 2:
+					if(rule->core_fields.host_high.v4 == ntohl(inet_addr("0"))){
+						rule->core_fields.host_high.v4 =ntohl(inet_addr(value));
+						printf("parse_pfring_filter_arg: added ip\n");
+					}
+					else {
+						printf("parse_pfring_filter_arg: ip_high was already set by a previous declaration\n");
+					}
+				break;
+				// ip
+				// TODO: add v6 support
+            	case 3:
+					if(rule->core_fields.host_high.v4 == ntohl(inet_addr("0"))&&
+							rule->core_fields.host_low.v4 == ntohl(inet_addr("0"))) {
+						rule->core_fields.host_low.v4 = ntohl(inet_addr(value));
+						rule->core_fields.host_high.v4=ntohl(inet_addr(value));
+						printf("parse_pfring_filter_arg: added ip\n");
+					}
+					else {
+						printf("parse_pfring_filter_arg: ip was already set by a previous declaration\n");
+					}
+				break;
+				// portl
+	            case 4:
+					if (rule->core_fields.port_low == 0) {
+						// TODO: add check to prevent integer-overflow
+						rule->core_fields.port_low = atoi(value);
+						printf("parse_pfring_filter_arg: added port_low: %d\n", rule->core_fields.port_low);
+					}
+					else {
+						printf("parse_pfring_filter_arg: port_low was already set by a previous declaration\n");
+					}
+				break;
+				// porth
+    	        case 5:
+					if (rule->core_fields.port_high == 0) {
+						// TODO: add check to prevent integer-overflow
+						rule->core_fields.port_high = atoi(value);
+						printf("parse_pfring_filter_arg: added port_high: %d\n", rule->core_fields.port_high);
+					}
+					else {
+						printf("parse_pfring_filter_arg: port_high was already set by a previous declaration\n");
+					}
+				break;
+				// port
+        	    case 6:
+					if (rule->core_fields.port_low == 0 &&
+							rule->core_fields.port_high == 0) {
+						// TODO: add check to prevent integer-overflow
+						rule->core_fields.port_low = atoi(value);
+						rule->core_fields.port_high = atoi(value);
+						printf("parse_pfring_filter_arg: added port: %d\n", rule->core_fields.port_low);
+					}
+					else {
+						printf("parse_pfring_filter_arg: port was already set by a previous declaration\n");
+					}
+				break;
+				// macl
+            	case 7:
+					printf("MAC address filtering is not yet implemented\n");
+				break;
+				// mach
+    	        case 8:
+					printf("MAC address filtering is not yet implemented\n");
+				break;
+				// mac
+	            case 9:
+					printf("MAC address filtering is not yet implemented\n");
+				break;
+				// vlan
+        	    case 10:
+					if (rule->core_fields.vlan_id == 0) {
+						// TODO: add check to prevent integer-overflow
+						rule->core_fields.vlan_id = atoi(value);
+                        printf("parse_pfring_filter_arg: added vlan: %d\n", rule->core_fields.vlan_id);
+                    }
+                    else {
+                        printf("parse_pfring_filter_arg: vlan was already set by a previous declaration\n");
+                    }
+				break;
+				// prio
+				/* Rules are processed in order from lowest to higest id */
+            	case 11:
+					if (rule->rule_id == 0 ) {
+						// TODO: add check to prevent integer-overflow
+						rule->rule_id = atoi(value);
+						printf("parse_pfring_filter_arg: added prio: %d\n", rule->rule_id);
+					}
+					else {
+						printf("parse_pfring_filter_arg: prio was already set by a previous declaration\n");
+					}
+				break;
+                /* this breaks with the selection plugin.
+                 * if user has supplied at least 1 filtering rule then
+                 * action is set to accept and policy to drop
+				// action
+				case 12:
+					if (strncasecmp(value, "ACCEPT", 6) == 0) {
+						rule->rule_action = forward_packet_and_stop_rule_evaluation;
+						printf("parse_pfring_filter_arg: added action: ACCEPT\n");
+					}
+					else if (strncasecmp(value, "DROP", 4) == 0) {
+						 rule->rule_action = dont_forward_packet_and_stop_rule_evaluation;
+						printf("parse_pfring_filter_arg: added action: DROP\n");
+					}
+					else {
+						printf("parse_pfring_filter_arg: UNKNOWN action: %s\n", value);
+					}
+				break;
+                */
+                /* this breaks with the selection plugin (at least policy accept
+                 * with drop-rules does)
+				// set default policy for ALL rules
+				case 13:
+					if (options->filter_policy == -1) {
+						if (strncasecmp(value, "ACCEPT", 6) == 0) {
+							options->filter_policy = 1;
+							printf("parse_pfring_filter_arg: set policy: ACCEPT\n");
+						}
+						else if (strncasecmp(value, "DROP", 4) == 0) {
+							options->filter_policy = 0;
+							printf("parse_pfring_filter_arg: set policy: DROP\n");
+						}
+						else {
+							printf("parse_pfring_filter_arg: UNKNOWN policy: %s\n", value);
+						}
+					}
+					else {
+						printf("parse_pfring_filter_arg: policy was already set by a previous declaration\n");
+					}
+				break;
+                */
+			}
+			break;
+        }
+	}
+	printf("\n");
+}
+
+/** 
+ * Parse pfring filter expressions 
+ */
+void parse_pfring_filter(char* arg_string, options_t* options) {
+	//int i = 0;
+	char* arg = NULL;
+	char* savePtr = NULL;
+	filtering_rule rule;
+    memset(&rule, 0, sizeof(rule));
+
+	printf("===============================================================\n");
+	printf("parse_pfring_filter: arg_string       : %s\n\n", arg_string);
+	/* steps:
+	 * split at whitespaces
+	 * for whitespace do
+	 *   split at colons
+	 *   check split[0] == known keyword
+     *   check split[0] == valid value
+	 *   apply setting / save
+	 */
+
+	// split at spaces
+	arg = strtok_r(arg_string, " ", &savePtr);
+	//printf("parse_pfring_filter: first arg        : %s\n", arg);
+	parse_pfring_filter_arg(arg, options, &rule);
+	while( (arg = strtok_r(NULL, " ", &savePtr)) != NULL ) {
+		//printf("parse_pfring_filter: next arg         : %s\n", arg);
+		parse_pfring_filter_arg(arg, options, &rule);
+	}
+
+	// check if any rule-field is set
+	if (	rule.core_fields.proto != 0     ||
+			rule.core_fields.port_low != 0  ||
+			rule.core_fields.port_high != 0 ||
+			// TODO: add v6 support
+			rule.core_fields.host_low.v4 != ntohl(inet_addr("0"))  ||
+			rule.core_fields.host_high.v4 != ntohl(inet_addr("0")) ||
+			rule.core_fields.vlan_id != 0   ) {
+
+		if (options->rules_in_list < MAX_RULES) {
+			options->rules[options->rules_in_list] = rule;
+			printf("parse_pfring_filter: added rule in slot: %d\n",options->rules_in_list);
+			options->rules_in_list++;
+		}
+		else {
+			printf("parse_pfring_filter: maximum number of rules reached. cannot add rule\n");
+		}
+	}
+}
+#endif
+
 /**
  * Process command line arguments
  */
@@ -307,14 +577,28 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-	char par[] = "hvnyuJ:K:i:I:o:r:t:f:m:M:s:S:F:c:P:C:l:";
+    #ifdef PFRING
+   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:";
+    #else
+    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:";
+    #endif
 	char *endptr;
 	errno = 0;
 
 	options->number_interfaces = 0;
+	#ifdef PFRING
+	options->rules_in_list = 0;
+	options->filter_policy = -1;
+	#endif
 
 	while (-1 != (c = getopt(argc, argv, par))) {
 		switch (c) {
+        #ifdef PFRING
+        case 'a':
+            /* pf_ring filter */
+            parse_pfring_filter(optarg, options);
+            break;
+        #endif
 		case 'C':
 			/* collector port */
 			strcpy(options->collectorIP, optarg);
@@ -465,6 +749,7 @@ void parse_cmdline(int argc, char **argv) {
 
 }
 
+#ifndef PFRING
 void open_pcap_file(device_dev_t* if_dev, options_t *options) {
 
 	// todo: parameter check
@@ -557,36 +842,32 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 		perror("socket: connect");
 		exit(2);
 	}
-#endif
+    #endif
 
 }
+#endif
 
 #ifdef PFRING
 void open_pfring(device_dev_t* if_dev, options_t *options) {
-	// TODO: this is dummy code which still uses libpcap
 	mlogf(ALWAYS, "selected PF_RING\n");
 	mlogf(ALWAYS, "device_name: %s\n", if_dev->device_name);
-	//if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
-	//		options->snapLength, 1, 1000, errbuf);
 	if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1, 
 			options->snapLength, 0);	
 	if (NULL == if_dev->device_handle.pfring) {
-		mlogf(ALWAYS, "%s \n", errbuf);
+		mlogf(ALWAYS, "Failed to set up PF_RING-device\n");
 		exit(1);
 	}
 
-	/* I want IP address attached to device */
 	if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
-
-	/* display result */
 	mlogf(ALWAYS, "Device %s has IP %s \n", if_dev->device_name, htoa(
 			if_dev->IPv4address));
 
 	// pfring only supports ethernet
-	//determineLinkType(if_dev);
+    if_dev->link_type = DLT_EN10MB;
+    if_dev->offset[L_NET] = 14;
 
-	// TODO: add filters
-	//setFilter(if_dev);
+	setPFRingFilter(if_dev);
+    setPFRingFilterPolicy(if_dev);
 }
 #endif
 
@@ -598,6 +879,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 	}
 
 	switch (if_device->device_type) {
+    #ifndef PFRING
 	// file as interface to listen
 	case TYPE_FILE:
 		mlogf(ALWAYS, "open_file(): not yet implemented!\n");
@@ -619,7 +901,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 	case TYPE_SOCKET_UNIX:
 		open_socket_unix(if_device, options);
 		break;
-
+    #endif
 	#ifdef PFRING
 	case TYPE_PFRING:
 		open_pfring(if_device, options);

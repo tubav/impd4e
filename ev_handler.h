@@ -1,8 +1,22 @@
 /*
- * eventHandler.h
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network and exports hash-based packet IDs over IPFIX
  *
- *  Created on: 12.10.2010
- *      Author: rma
+ * Copyright (c) 2010, Fraunhofer FOKUS (Ramon Massek)
+ * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef EVENTHANDLER_H_
@@ -10,12 +24,14 @@
 
 #include <ev.h>
 
+#ifndef PFRING
 #include <pcap.h>
+#endif
 
 #include <ipfix.h>
 
 #include "constants.h"
-
+#include "helper.h"
 
 // -----------------------------------------------------------------------------
 // Type definitions
@@ -47,10 +63,12 @@ void sigpipe_cb (EV_P_ ev_signal *w, int revents);
 
 /* -- capture --*/
 void packet_watcher_cb(EV_P_ ev_io *w, int revents);
+#ifndef PFRING
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header,
 		const u_char * packet);
-#ifdef PFRING
-void packet_pfring_cb(const struct pfring_pkthdr *h, const u_char *p);
+#else
+void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header, 
+        const u_char *packet);
 #endif
 
 /* -- export -- */
@@ -74,7 +92,6 @@ void export_data_sync(device_dev_t *dev,
 /* -- event loop --*/
 void event_loop();
 ev_timer* event_register_timer(EV_P_ ev_tstamp tstamp, timer_cb_t* cb );
-
 void event_setup_pcapdev(struct ev_loop *loop);
 void event_setup_netcon(struct ev_loop *loop);
 

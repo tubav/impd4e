@@ -1,8 +1,27 @@
+/*
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network and exports hash-based packet IDs over IPFIX
+ *
+ * Copyright (c) 2010, Fraunhofer FOKUS (Ramon Massek)
+ * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation either version 3 of the License, or (at your option) any
+ * later version.
+
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <pcap.h>
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
@@ -16,6 +35,10 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#ifdef PFRING
+#include <sys/time.h>
+#include <time.h>
+#endif
 
 #include "ev_handler.h"
 #include "logger.h"
@@ -33,7 +56,6 @@
 #include "logger.h"
 #include "netcon.h"
 #include "ev_handler.h"
-#include <ev.h> // event loop
 
 #include "helper.h"
 #include "constants.h"
@@ -174,7 +196,9 @@ void event_setup_pcapdev(struct ev_loop *loop) {
 		pcap_dev_ptr = &if_devices[i];
 		// TODO review
 
+        #ifndef PFRING
 		setNONBlocking( pcap_dev_ptr );
+        #endif
 
 		/* storing a reference of packet device to
 		 be passed via watcher on a packet event so
@@ -197,10 +221,9 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 	// retrieve respective device a new packet was seen
 	device_dev_t *pcap_dev_ptr = (device_dev_t *) w->data;
 
-	//printf("packet\n");
-
 	switch (pcap_dev_ptr->device_type) {
 	case TYPE_testtype:
+    #ifndef PFRING
 	case TYPE_PCAP_FILE:
 	case TYPE_PCAP:
 		// dispatch packet
@@ -228,8 +251,7 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 
 		}
 		break;
-
-	#ifdef PFRING
+	#else
     case TYPE_PFRING:
 		if( 0 > pfring_dispatch( if_devices[0].device_handle.pfring
 							, PCAP_DISPATCH_PACKET_COUNT
@@ -239,10 +261,6 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 			LOGGER_error( "Error DeviceNo  %s: %s\n"
 				, pcap_dev_ptr->device_name, "" );
 		}
-
-			//pfring_recv(pd, (char*)buffer, sizeof(buffer), &hdr
-			//				, 0)) {
-			//dummyProcesssPacket(&hdr, buffer);
 		break;
     #endif
 
@@ -252,11 +270,140 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 }
 
 #ifdef PFRING
-void packet_pfring_cb(const struct pfring_pkthdr *h, const u_char *p) {
-	printf("PFRING packet_pfring_cb\n");
+void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
+                        const u_char *packet) {
+    device_dev_t* if_device = (device_dev_t*) user_args;
+    uint8_t layers[4]       = { 0 };
+    uint32_t hash_result    = 0;
+    uint32_t copiedbytes    = 0;
+    uint8_t ttl             = 0;
+    uint64_t timestamp      = 0;
+    int pktid               = 0;
+
+    LOGGER_trace("packet_pfring_cb");
+
+    if_device->sampling_delta_count++;
+    if_device->totalpacketcount++;
+
+    layers[L_NET]   = header->extended_hdr.parsed_pkt.ip_version;
+    layers[L_TRANS] = header->extended_hdr.parsed_pkt.l3_proto;
+
+    // hash was already calculated in-kernel. use it
+    hash_result = header->extended_hdr.parsed_pkt.pkt_detail.aggregation.num_pkts;
+    /*
+    printf("offsets@t0 l(3,4,5): %d, %d, %d\n",
+            header->extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset + if_device->offset[L_NET],
+            header->extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset + if_device->offset[L_NET],
+            header->extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset + if_device->offset[L_NET]);
+    */
+    //if_device->offset[L_NET]     = header->extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset;
+    if_device->offset[L_TRANS]   = header->extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset + if_device->offset[L_NET];
+    if_device->offset[L_PAYLOAD] = header->extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset + if_device->offset[L_NET];
+
+    //printf("pre getTTL: caplen: %02d, offset_net: %02d, ipv: %d\n",
+    //        header->caplen, if_device->offset[L_NET], layers[L_NET]);
+	ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
+		            layers[L_NET]);
+
+    if_device->export_packet_count++;
+    if_device->sampling_size++;
+
+    // bypassing export if disabled by cmd line
+    if (g_options.export_pktid_interval <= 0) {
+        return;
+    }
+
+    // in case we want to use the hashID as packet ID
+    if (g_options.hashAsPacketID == 1) {
+        pktid = hash_result;
+    } else {
+        // selection of viable fields of the packet - depend on the selection function choosen
+        copiedbytes = g_options.selection_function(packet, header->caplen,
+                        if_device->outbuffer, if_device->outbufferLength,
+                        if_device->offset, layers);
+        pktid = g_options.pktid_function(if_device->outbuffer, copiedbytes);
+    }
+
+    /*
+    printf("offsets@t1 l(3,4,5): %d, %d, %d\n",
+            if_device->offset[L_NET],
+            if_device->offset[L_TRANS],
+            if_device->offset[L_PAYLOAD]);
+    */
+
+    //printf("pktid: 0d%d\n", pktid);
+
+    timestamp = (uint64_t) header->ts.tv_sec * 1000000ULL
+                    + (uint64_t) header->ts.tv_usec;
+
+    switch (g_options.templateID) {
+        case MINT_ID: {
+            void* fields[] = { &timestamp, &hash_result, &ttl };
+            uint16_t lengths[] = { 8, 4, 1 };
+
+            if (0 > ipfix_export_array(if_device->ipfixhandle,
+                    if_device->ipfixtmpl_min, 3, fields, lengths)) {
+                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                exit(1);
+            }
+            break;
+        }
+
+        case TS_ID: {
+            void* fields[] = { &timestamp, &hash_result };
+            uint16_t lengths[] = { 8, 4 };
+
+            if (0 > ipfix_export_array(if_device->ipfixhandle,
+                    if_device->ipfixtmpl_ts, 2, fields, lengths)) {
+                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                exit(1);
+            }
+            break;
+        }
+
+        case TS_TTL_PROTO_ID: {
+            uint16_t length;
+
+            if (layers[L_NET] == N_IP) {
+                length = ntohs(*((uint16_t*)
+                                    (&packet[if_device->offset[L_NET] + 2])));
+            } else if (layers[L_NET] == N_IP6) {
+                length = ntohs(*((uint16_t*)
+                                    (&packet[if_device->offset[L_NET] + 4])));
+            } else {
+                mlogf(ALWAYS, "cannot parse packet length \n");
+                length = 0;
+            }
+
+            void* fields[] = {  &timestamp,
+                                &hash_result,
+                                &ttl,
+                                &length,
+                                &layers[L_TRANS],
+                                &layers[L_NET]
+                             };
+            uint16_t lengths[6] = { 8, 4, 1, 2, 1, 1 };
+
+            if (0 > ipfix_export_array(if_device->ipfixhandle,
+                    if_device->ipfixtmpl_ts_ttl, 6, fields, lengths)) {
+                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                exit(1);
+            }
+        break;
+        }
+        default:
+        break;
+    } // switch (options.templateID)
+
+    // flush ipfix storage if max packetcount is reached
+    if (if_device->export_packet_count >= g_options.export_packet_count) {
+        if_device->export_packet_count = 0;
+        export_flush();
+    }
 }
 #endif
 
+#ifndef PFRING
 // formaly known as handle_packet()
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
 	device_dev_t* if_device = (device_dev_t*) user_args;
@@ -392,7 +539,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 //		mlogf(INFO, "INFO: drop packet; hash not in selection range\n");
 //	}
 }
-
+#endif
 
 /**
  * returns: 1 consumed, 0 otherwise
@@ -446,17 +593,26 @@ void export_data_interface_stats(device_dev_t *dev,
 	static uint16_t lengths[] = { 8, 4, 8, 4, 4, 0, 0 };
 	static char interfaceName[255];
 	static char interfaceDescription[255];
+    #ifndef PFRING
 	struct pcap_stat pcapStat;
-	struct in_addr addr;
-	void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
-					, &pcapStat.ps_recv, &pcapStat.ps_drop
-					, interfaceName, interfaceDescription };
+    void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
+                    , &pcapStat.ps_recv, &pcapStat.ps_drop
+                    , interfaceName, interfaceDescription };
+    #else
+    pfring_stat pfringStat;
+    void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
+                    , &pfringStat.recv, &pfringStat.drop
+                    , interfaceName, interfaceDescription };
+    #endif
+    struct in_addr addr;
+
 	snprintf(interfaceName,255, "%s",dev->device_name );
 	addr.s_addr = htonl(dev->IPv4address);
 	snprintf(interfaceDescription,255,"%s",inet_ntoa(addr));
 	lengths[5]=strlen(interfaceName);
 	lengths[6]=strlen(interfaceDescription);
 
+    #ifndef PFRING
 	/* Get pcap statistics in case of live capture */
 	if ( TYPE_PCAP == dev->device_type ) {
 		if (pcap_stats(dev->device_handle.pcap, &pcapStat) < 0) {
@@ -467,6 +623,17 @@ void export_data_interface_stats(device_dev_t *dev,
 		pcapStat.ps_drop = 0;
 		pcapStat.ps_recv = 0;
 	}
+    #else
+    if ( TYPE_PFRING == dev->device_type ) {
+        if (pfring_stats(dev->device_handle.pfring, &pfringStat) < 0) {
+            LOGGER_error("Error DeviceNo  %s: Failed to get statistics\n", 
+                        dev->device_name);
+        }
+    } else {
+        pfringStat.drop = 0;
+        pfringStat.recv = 0;
+    }
+    #endif
 
 	LOGGER_trace("sampling: (%d, %lu)", size, (long unsigned) deltaCount);
 	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_interface_stats, 7,
@@ -500,7 +667,6 @@ void export_data_sync(device_dev_t *dev,
 void export_data_probe_stats(device_dev_t *dev) {
 	static uint16_t lengths[] = { 8, 4, 8, 4, 4, 8, 8 };
 	struct probe_stat probeStat;
-
 
 	void *fields[] = { &probeStat.observationTimeMilliseconds,
 			&probeStat.systemCpuIdle, &probeStat.systemMemFree,
@@ -575,6 +741,11 @@ void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents) {
 	for (i = 0; i < g_options.number_interfaces ; i++) {
 		device_dev_t *dev = &if_devices[i];
 		export_data_interface_stats(dev, observationTimeMilliseconds, dev->sampling_size, dev->sampling_delta_count );
+		#ifdef PFRING
+		#ifdef PFRING_STATS
+		print_stats( dev );
+		#endif
+		#endif
 	}
 	export_flush();
 }

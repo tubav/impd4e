@@ -8,3 +8,5 @@
 * fix configure.ac so that it detects if and where libipfix is installed
 	(corrently /usr/local/include|lib is blindly assumed)
 
+* fix configure.ac so that it detects if and where libev is installed
+	(corrently /usr/local/include|lib is blindly assumed)

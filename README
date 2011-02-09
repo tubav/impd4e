@@ -1,5 +1,8 @@
+/**
+@file
+*/
 
-impd4e 1.0
+/** @mainpage impd4e - Internet Measurement Probe for Embedded Devices
 
 This package contains a small network probe which allows to monitor and 
 sample datagrams from the network and exports hash-based packet IDs over
@@ -7,6 +10,9 @@ the IPFIX protocol.
 
 This package makes use of the Fraunhofer FOKUS "libipfix" library which
 must be installed prior to compilation of impd4e.
+
+This package also requires libev, which can be downloaded from
+http://software.schmorp.de/pkg/libev.html
 
 The impd4e tool exports the following fields via IPFIX depending on the
 use of the -t parameter. See templates.h for details.
@@ -16,6 +22,6 @@ https://sourceforge.net/projects/libipfix/
 
 You can download the latest version of impd4e from:
 https://sourceforge.net/projects/impd4e/
-
 Please send inquiries/comments/reports to openimp@fokus.fraunhofer.de
 
+*/

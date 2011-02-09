@@ -22,10 +22,10 @@
 #define bitsizeof(t) (sizeof(t) * BITS_PER_BYTE)
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 
-
-void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl);  // find layers in pcap paket
 
 
 typedef enum {
@@ -74,6 +74,17 @@ typedef enum {
 	P_EXISTS = 1
 } payload_t;
 
+// get the ttl-field of an IPv4 header
+uint8_t getTTL( const uint8_t *packet, uint16_t packetLength, int16_t offset, netProt_t nettype );
+
+// find layers in pcap paket
+void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers );
+
+// parse range selection from given parameter
+// used to be a comma seperated list of byte offsets and ranges
+void parseRange( char* arg );
+
+
 uint16_t copyFields_Rec( const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4]);
@@ -90,10 +101,33 @@ uint16_t copyFields_Packet(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4]);
 
+uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4]);
+
+uint16_t copyFields_Link(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4]);
+
+uint16_t copyFields_Net(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4]);
+
+uint16_t copyFields_Trans(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4]);
+
+uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4]);
+
+uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength );
+
 uint32_t calcHashValue_BOB( uint8_t *dataBuffer, uint16_t dataBufferLength );
 uint32_t calcHashValue_Hsieh( uint8_t *dataBuffer, uint16_t dataBufferLength );
 uint32_t calcHashValue_OAAT(uint8_t *dataBuffer, uint16_t dataBufferLength);
-//uint32_t calcHashValue_SBOX(uint8_t *dataBuffer,uint16_t dataBufferLength);
 uint32_t calcHashValue_TWMXRSHash(uint8_t *dataBuffer, uint16_t dataBufferLength);
+//uint32_t calcHashValue_SBOX(uint8_t *dataBuffer,uint16_t dataBufferLength);
 
 #endif /*HASH_H_*/

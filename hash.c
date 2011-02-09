@@ -18,13 +18,15 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-#include <math.h> 
+#include <math.h>
 #include <pcap.h>
 #include <string.h>
 
 
 #include <arpa/inet.h>
 #include "mlog.h"
+#include "constants.h"
+#include "helper.h"
 
 #include "hash.h"
 #include "bobhash.h"
@@ -32,7 +34,7 @@
 #include "twmx.h"
 
 
- 	
+
 
 #define min(X, Y)                \
 ({ typeof (X) x_ = (X);          \
@@ -48,7 +50,7 @@ const unsigned long NETMASK = 0x0;
 
 // fixed header lengths
 
- 
+
 const int ETHER_HLEN = 14;
 const int UDP_HLEN = 8;
 const int ICMP_HLEN = 4;
@@ -65,14 +67,62 @@ const uint8_t IP6HDR_ESP   = 50;
 
 const int OFLAG = 1;
 
+struct range_select {
+  int offset;
+  int length;
+  struct range_select* next;
+};
+
+static struct range_select baseSelection;
+struct range_select* rSel = &baseSelection;
+
+void print_selection_offsets( struct range_select* p ) {
+  do
+  {
+	mlogf( INFO, "offset: %d\n", p->offset );
+	mlogf( INFO, "length: %d\n", p->length );
+  }
+  while( NULL != (p = p->next) );
+}
+
+
+/** copies the IP Header into the hash input */
+// assume 'findHeaders()' run before calling that function
+uint16_t copy_NetFields( const uint8_t* packet, uint16_t packetLength
+					   , uint8_t* outBuffer, uint16_t outBufferLength
+					   , int16_t headerOffset[4], uint8_t layers[4] )
+{	// copy Net_Layer_Fields
+
+	uint16_t length = 0;
+
+	if (layers[L_NET] == N_IP) {  // case IPv4
+
+		//  we choose the fields of IP Header which are static between hops but are variable between flows
+		 memcpy(outBuffer,   packet+headerOffset[L_NET],    8);
+		 memcpy(outBuffer+8, packet+headerOffset[L_NET]+9,  1);
+		 memcpy(outBuffer+9, packet+headerOffset[L_NET]+12, 8);
+		 length=17;
+
+	}
+	if (layers[L_NET] == N_IP6)  { // case IPv6
+	 	memcpy(outBuffer,   packet+headerOffset[L_NET],   7);
+		memcpy(outBuffer+7, packet+headerOffset[L_NET]+8, 32);
+		length +=39;
+	}
+	return length;
+}
+
 
 /** copy recommended 8 bytes -- only TCP UDP ICMP supported */
 
-uint16_t copyFields_Rec( const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]
-			) {
+uint16_t copyFields_Rec( const uint8_t *packet,   uint16_t packetLength
+					   , uint8_t *outBuffer,      uint16_t outBufferLength
+					   , int16_t headerOffset[4], uint8_t layers[4] ) { // these are just pointer, the size doesn't matter
+
 	uint16_t copiedbytes=0;
+
+	// find headers of the IP STACK
+	findHeaders(packet, packetLength, headerOffset, layers);
 
 	if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
 		if (layers[L_NET] == N_IP) {
@@ -115,25 +165,19 @@ uint16_t copyFields_Only_Net( const uint8_t *packet, uint16_t packetLength,
 			 )
 {	// copy Net_Layer_Fields
 
-	uint16_t length = 0;
+	uint16_t copiedbytes = 0;
 
-	if (layers[L_NET] == N_IP) {  // case IPv4
+	// find headers of the IP STACK
+	// todo: probably not needed here; just case for IP which used to be known already
+	// todo: or it can be simplified
+	findHeaders(packet, packetLength, headerOffset, layers);
 
-		//  we choose the fields of IP Header which are static between hops but are variable between flows
+	copiedbytes = copy_NetFields( packet,       packetLength
+			                    , outBuffer,    outBufferLength
+			                    , headerOffset, layers);
 
-		 memcpy(outBuffer,packet+headerOffset[L_NET],8);
-		 memcpy(outBuffer+8,packet+headerOffset[L_NET]+9,1);
-		 memcpy(outBuffer+9,packet+headerOffset[L_NET]+12,8);
-		 length=17;
-
-	}
-	if (layers[L_NET] == N_IP6)  { // case IPv6
-	 	memcpy(outBuffer,packet+headerOffset[L_NET],7);
-		memcpy(outBuffer+7,packet+headerOffset[L_NET]+8,32);
-		length +=39;
-	}
-	return length;
-  }
+	return copiedbytes;
+}
 
 /** copies the IP Header and Transport Header (only TCP,ICMP,UDP) into the Hash Input */
 
@@ -141,11 +185,16 @@ uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4]
 			)
-{   	uint16_t copiedbytes=0;
-	int piece_length = 0;
+{
+	uint16_t  copiedbytes=0;
+	int 	  piece_length = 0;
 
-	copiedbytes = copyFields_Only_Net(packet,packetLength,outBuffer,outBufferLength, headerOffset,layers);
+	// find headers of the IP STACK
+	findHeaders(packet, packetLength, headerOffset, layers);
 
+	copiedbytes = copy_NetFields( packet,       packetLength
+			                    , outBuffer,    outBufferLength
+			                    , headerOffset, layers);
 
 	// check if there is a transport layer included in the packet
 	if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
@@ -160,7 +209,9 @@ uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
 			copiedbytes += piece_length;
 		}
 	}
-	else {copiedbytes = 0; }
+	else {
+		copiedbytes = 0;
+	}
 
 	return copiedbytes;
 }
@@ -172,12 +223,180 @@ uint16_t copyFields_Packet( const uint8_t *packet, uint16_t packetLength,
 			 int16_t headerOffset[4], uint8_t layers[4]
 			)
 {
-	uint16_t copiedbytes=0;
-	copiedbytes = copyFields_Only_Net(packet,packetLength,outBuffer,outBufferLength, headerOffset,layers);
-	int piecelength = min(packetLength-20, 50);
+	uint16_t copiedbytes = 0;
+	int piecelength      = 0;
+
+	// find headers of the IP STACK
+	findHeaders(packet, packetLength, headerOffset, layers);
+
+	copiedbytes = copy_NetFields( packet,       packetLength
+			                    , outBuffer,    outBufferLength
+			                    , headerOffset, layers);
+
+	piecelength = min(packetLength-20, 50);
 	memcpy(outBuffer+copiedbytes,packet+headerOffset[L_NET]+20,piecelength);
+
 	return (copiedbytes+packetLength-20);
 }
+
+uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG ,"copyFields_Raw(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+
+	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
+}
+
+uint16_t copyFields_Link(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG ,"copyFields_Link(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+
+	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
+}
+
+
+uint16_t copyFields_Net(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG ,"copyFields_Net(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	// TODO:
+	return 0; // length;
+}
+
+
+uint16_t copyFields_Trans(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG ,"copyFields_Trans(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	// TODO:
+	return 0; // length;
+}
+
+
+uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *outBuffer, uint16_t outBufferLength,
+			 int16_t headerOffset[4], uint8_t layers[4])
+{
+	mlogf( DEBUG, "copyFields_Payload(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	mlogf( ALWAYS,"copyFields_Select(): not yet implemented\n");
+	// TODO:
+	return 0; // length;
+}
+
+
+uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
+			 uint8_t *b, uint16_t bLen )
+{
+  struct range_select* range = rSel;
+  uint16_t written = 0;
+
+  do
+  {
+	mlogf( WARNING, "sizes: pL=%d, bL=%d, oS=%d, oL=%d\n"
+					, packetLength, bLen, range->offset, range->length );
+
+	  // calculate copy range, prevent segmentation faults
+	int write = packetLength - range->offset;
+	if( 0 < write ) {
+//		write = min((0==range->length)?write:range->length, bLen);
+		write = (0==range->length)?write:min(write,range->length);
+		write = min(write, bLen);
+		mlogf( DEBUG, "-> write: %d\n", write );
+
+		memcpy( b+written, packet+range->offset, write );
+		written += write;
+		bLen    -= write;
+	}
+	else {
+		mlogf( WARNING, "range selection out of range: pL=%d, oS=%d, oL=%d\n"
+					  , packetLength, range->offset, range->length );
+	}
+  }
+  while(0 < bLen && NULL != (range = range->next) );
+
+  //print_byte_array_hex( b, written );
+
+  return written;
+}
+
+//
+//
+void parseRange( char* arg ) {
+  int value = 0;
+  int len = 0;
+  struct range_select** p = &rSel;
+
+  // store last separator
+  char separator = 0;
+
+  do {
+    // get next separator position
+    len   = strcspn( arg, ",-+<>:^" );
+    value = atoi( arg );
+
+    // offset have to be >= 0; in case of the '-' separator
+    value = (0>value)?0:value;
+
+    switch( separator ) {
+    case '-': // include borders
+    	(*p)->length = value - (*p)->offset + 1;
+    	break;
+
+    case ':': // length modifier
+    case '+': // length modifier
+    	(*p)->length = value;
+    	break;
+
+    case '[': // exclude right border
+    case '<': // exclude right border
+    	(*p)->length = value - (*p)->offset;
+    	break;
+
+    case ']': // exclude left borders
+    case '>': // exclude left borders
+    	(*p)->length = value - (*p)->offset;
+    	(*p)->offset += 1;
+    	break;
+
+    case '^': // exclude borders
+    	(*p)->offset += 1;
+    	(*p)->length = value - (*p)->offset;
+    	break;
+
+    case ',':
+    default:
+        *p = (struct range_select*) malloc( sizeof(struct range_select) );
+
+        (*p)->offset = value;
+        (*p)->length = 0==len?0:1;
+        (*p)->next   = NULL;
+    	break;
+    }
+
+    // length have to be >= 0; in case of the range separators
+    if( 0 > (*p)->length ) (*p)->length = 0;
+
+    separator = arg[len];
+    arg += len;
+
+    // set next element
+    if( ',' == separator ) p = &(*p)->next;
+
+  }
+  while( '\0' != *arg++ ); // until end of string is reached
+
+  //print_selection_offsets( rSel );
+
+  return;
+}
+
 //
 //
 uint32_t calcHashValue_BOB( uint8_t *dataBuffer, uint16_t dataBufferLength )
@@ -289,27 +508,35 @@ uint32_t calcHashValue_TWMXRSHash(uint8_t *dataBuffer, uint16_t dataBufferLength
 	uint32_t result;
    	result = TWMXHash(dataBuffer,dataBufferLength, initval);
    	return result;
-}	
+}
 
 
-void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers, uint8_t *ttl)
-    {
+uint8_t getTTL( const uint8_t *packet, uint16_t packetLength, int16_t offset, netProt_t nettype )
+{
+	if( N_IP == nettype ) return packet[offset + 8];
+	else return 0;
+}
+
+
+void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers )
+{
     unsigned short offs = headerOffset[L_NET];
     int net_type = 0;
     int proto = 0;
     // printf("IPv4 Packet \n", headerOffset[L_NET]);
-    headerOffset[L_TRANS] = -1;  // the offset will be -1.
+    headerOffset[L_TRANS]   = -1;  // the offset will be -1.
     headerOffset[L_PAYLOAD] = -1;
 
-   		   // get the type of this layer from the IP version
+    // get the type of this layer from the IP version
 	if ((packet[headerOffset[L_NET]] & 0xf0) == (6<<4)) {
 		net_type = 0x86DD;  // IPv6
-
-	} else if ((packet[headerOffset[L_NET]] & 0xf0) == (4<<4)) {
+	}
+	else if ((packet[headerOffset[L_NET]] & 0xf0) == (4<<4)) {
 		net_type = 0x0800;
-
-	} else {
-		mlogf(1,"***NO IPV4/IPv6 packet ***\n");
+	}
+	else {
+		// todo: global constant header file
+		mlogf( WARNING ,"***NO IPV4/IPv6 packet ***\n");
 		net_type = 0; // neither v4 nor v6, should not happen for raw IP link type
 	}
 
@@ -320,7 +547,6 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
         offs += ((packet[headerOffset[L_NET]] & 0x0F) << 2);  // IHL -> bits 4-7 schow length in 32 bits values
         proto = packet[headerOffset[L_NET] + 9];
         layers[L_NET] = N_IP;
-        *ttl = packet[headerOffset[L_NET]+ 8];
         break;
     case 0x86DD:
     	layers[L_NET] = N_IP6;
@@ -329,8 +555,12 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
         proto = packet[headerOffset[L_NET] + 6];
         // IPv6 skip options
         // FIXME currenty ESP is not supported
-        while ((proto == IP6HDR_HOP) || (proto == IP6HDR_ROUTE) || (proto == IP6HDR_FRAG) ||
-              (proto == IP6HDR_AH) || (proto == IP6HDR_DEST)) {
+        while (	   (proto == IP6HDR_HOP)
+        		|| (proto == IP6HDR_ROUTE)
+        		|| (proto == IP6HDR_FRAG)
+        		|| (proto == IP6HDR_AH)
+        		|| (proto == IP6HDR_DEST) )
+        {
             if (proto != IP6HDR_AH) {
                 offs += packet[headerOffset[L_NET] + offs + 1] * 8 + 8;
             } else {
@@ -421,12 +651,12 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
 
 
 
-         
-			
 
 
 
-    
+
+
+
 
 
 

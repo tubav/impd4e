@@ -1,0 +1,10 @@
+.settings/*
+impd4e
+.cproject
+.project
+config.h
+Makefile
+*.log
+*.status
+*.o
+Debug/*

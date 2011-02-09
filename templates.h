@@ -17,6 +17,12 @@
 #ifndef TEMPLATES_H_
 #define TEMPLATES_H_
 
+/* help macros */
+#define IPFIX_MAKE_TEMPLATE(handle,template,fields) \
+	ipfix_make_template(handle, &(template), fields, sizeof(fields) / sizeof(export_fields_t) )
+
+
+
 #include "ipfix.h"
 #include "ipfix_def.h"
 #include "ipfix_def_fokus.h"
@@ -26,12 +32,22 @@
  * RFC5101 - http://tools.ietf.org/html/rfc5101
  *
  * for an overview of available IPFIX fields and
- * their meaning see 
+ * their meaning see
  * RFC5102 - http://tools.ietf.org/html/rfc5102
  * (or in more himan readable form:
  * http://www.iana.org/assignments/ipfix/ipfix.xhtml)
  */
 
+
+/*
+ * when invoked with "-t ts" the following fields are exported
+ * in each IPFIX data record:
+ */
+
+export_fields_t export_fields_ts[] = {
+                { 0, IPFIX_FT_OBSERVATIONTIMEMICROSECONDS, 8 },
+                { 0, IPFIX_FT_DIGESTHASHVALUE, 4 },
+};
 
 /*
  * when invoked with "-t min" the following fields are exported
@@ -58,16 +74,37 @@ export_fields_t export_fields_ts_ttl_proto[] = {
                 { 0, IPFIX_FT_IPVERSION, 1}
 };
 
-export_fields_t export_sampling_parameters[] = {
+export_fields_t export_fields_interface_stats[] = {
+				{ 0,  IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
 				{ 0, IPFIX_FT_SAMPLINGSIZE, 4 },
-				{ 0, IPFIX_FT_PACKETTOTALCOUNT, 8}
+				{ 0, IPFIX_FT_PACKETDELTACOUNT, 8},
+				{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PCAPSTAT_RECV,            4}, /* PFIX_CODING_UINT, "pcap_recv",  "number of packets received by pcap" }, */
+				{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PCAPSTAT_DROP,            4}, /* PFIX_CODING_UINT, "pcap_drop",  "number of packets dropped by pcap" }, */
+				{ IPFIX_ENO_FOKUS, IPFIX_FT_PT_INTERFACE_NAME, 65535 },
+				{ IPFIX_ENO_FOKUS, IPFIX_FT_PT_INTERFACE_DESCRIPTION, 65535 },
+
+
 };
 
-export_fields_t export_resource_load[] = {
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_IDLE, 2},
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_CPU_PROCESS, 2},
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_PROCESS, 4},
-		{IPFIX_ENO_FOKUS, IPFIX_FT_PT_RAM_UNUSED, 4}
+export_fields_t export_fields_probe_stats[] = {
+		{ 0              ,  IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_SYSTEM_CPU_IDLE,          4}, /* IPFIX_CODING_FLOAT, "sys_cpu_idle",  "PT system CPU idle %" }, */
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_SYSTEM_MEM_FREE,          8}, /* IPFIX_CODING_UINT, "sys_mem_free",  "PT system free memory in kilobytes" }, */
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROCESS_CPU_USER,         4}, /* IPFIX_CODING_FLOAT, "proc_cpu_user",  "PT percentage of CPU used in user level (application) " }, */
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROCESS_CPU_SYS,          4}, /* PFIX_CODING_FLOAT, "proc_cpu_sys",  "PT percentage of CPU used in system level (kernel) " }, */
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROCESS_MEM_VZS,          8}, /* PFIX_CODING_UINT, "proc_mem_vzs",  "PT the process virtual memory used in kilobytes" }, */
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROCESS_MEM_RSS,          8}, /* PFIX_CODING_UINT, "proc_mem_rss",  "PT the process resident set size in kilobytes" }, */
 };
+
+export_fields_t export_fields_sync[] = {
+		{ 0,  IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_MESSAGE_ID, 4},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_MESSAGE_VALUE, 4},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_MESSAGE, 65535},
+};
+
+
+
+
 
 #endif

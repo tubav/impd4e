@@ -82,6 +82,49 @@ struct {
 } events;
 
 
+#define CONFIG_FCT_SIZE 10
+cfg_fct_t configuration_fct[CONFIG_FCT_SIZE];
+int config_fct_length = 0;
+
+// -----------------------------------------------------------------------------
+// Prototypes
+// -----------------------------------------------------------------------------
+
+void register_configuration_fct( char cmd, set_cfg_fct_t fct )
+{
+  if( CONFIG_FCT_SIZE > config_fct_length )
+  {
+    configuration_fct[config_fct_length].cmd = cmd;
+    configuration_fct[config_fct_length].fct = fct;
+    ++config_fct_length;
+  }
+  else
+  {
+    LOGGER_warn("configuration function table is full - check size - should not happen");
+  }
+}
+
+// dummy function to prevent segmentation fault
+int unknown_cmd_fct( unsigned long id, char* msg )
+{
+  LOGGER_warn("unknown command received: id=%lu, msg=%s", id, msg);
+  return NETCON_CMD_UNKNOWN;
+}
+
+set_cfg_fct_t getFunction(char cmd)
+{
+  int i = 0;
+  for( i = 0; i < config_fct_length; ++i )
+  {
+    if( cmd == configuration_fct[i].cmd ) {
+      return configuration_fct[i].fct;
+    }
+  }
+  LOGGER_warn("unknown command received: cmd=%c", cmd);
+  return unknown_cmd_fct;
+}
+
+
 /**
  * Call back for SIGINT (Ctrl-C).
  * It breaks all loops and leads to shutdown.
@@ -179,7 +222,18 @@ void event_setup_netcon(struct ev_loop *loop) {
 		LOGGER_error("could not initialize netcon: host: %s, port: %d ", host,
 				port);
 	}
+
+	// register available configuration functions
+	// to the config function array
+	register_configuration_fct( '?', configuration_help );
+	register_configuration_fct( 'h', configuration_help );
+	register_configuration_fct( 'r', configuration_set_ratio );
+	register_configuration_fct( 'f', configuration_set_filter );
+
+	// register runtime configuration callback to netcon
+	netcon_register(runtime_configuration_cb);
 	netcon_register(netcom_cmd_set_ratio);
+	//netcon_register(netcom_cmd_set_filter);
 }
 
 
@@ -542,6 +596,128 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 #endif
 
 /**
+ * initial cb function; 
+ * selection of runtime configuration commands
+ * command: "mid: <id> -<cmd> <value>
+ * @param cmd string
+ *
+ * returns: 1 consumed, 0 otherwise
+ */
+int runtime_configuration_cb(char* conf_msg)
+{
+  unsigned long mID = 0; // session id
+  int matches;
+
+  LOGGER_debug("configuration message received: '%s'", conf_msg);
+  // check prefix: "mid: <id>"
+  matches = sscanf(conf_msg, "mid: %lu ", &mID);
+  if (1 == matches) {
+    LOGGER_debug("Message ID: %lu", mID);
+
+    // fetch command from string starting with hyphen '-'
+    char cmd = '?';
+    int  length = strlen( conf_msg );
+
+    int i = 0;
+    for( i = 0; i < length; ++i, ++conf_msg ) {
+      if( '-' == *conf_msg ) {
+	++conf_msg;
+	cmd = *conf_msg;
+	++conf_msg;
+	// execute command
+	LOGGER_debug("configuration command '%c': %s", cmd, conf_msg);
+	return (*getFunction(cmd))(mID, conf_msg);
+      }
+    }
+  }
+
+  return NETCON_CMD_UNKNOWN;
+}
+
+/**
+ * send available command
+ * command: h,?
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_help(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+  int i;
+  char response[256];
+  snprintf(response, 256, "INFO: -h this help\n" 
+			  "INFO: -? this help\n"
+			  "INFO: -r capturing ratio in %%\n"
+			  "INFO: -f bpf filter expression\n"
+			  );
+  for (i = 0; i < g_options.number_interfaces; i++) {
+    LOGGER_debug("==> %s", response);
+    export_data_sync( &if_devices[i]
+		    , ev_now(events.loop) * 1000
+		    , mid
+		    , 0
+		    , response );
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+/**
+ * command: f <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_filter(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+  /* currently sampling ratio is equal for all devices */
+  if (-1 == set_all_filter(msg) ) {
+    LOGGER_error("error setting filter: %s", msg);
+  }
+  else {
+    int i;
+    char response[256];
+    snprintf(response, 256, "INFO: new filter expression set: %s"
+			  , msg );
+    for (i = 0; i < g_options.number_interfaces; i++) {
+      LOGGER_debug("==> %s", response);
+      export_data_sync( &if_devices[i]
+                      , ev_now(events.loop) * 1000
+		      , mid
+		      , 0
+		      , response );
+    }
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+
+/**
+ * command: r <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_ratio(unsigned long mid, char *msg) {
+  double sampling_ratio = strtod( msg, (char**)NULL);
+  LOGGER_debug("Message ID: %lu", mid);
+  /* currently sampling ratio is equal for all devices */
+  if (-1 == sampling_set_ratio(&g_options, sampling_ratio) ) {
+    LOGGER_error("error setting sampling ration: %f", sampling_ratio);
+  }
+  else {
+    int i;
+    char response[256];
+    snprintf(response, 256, "INFO: new sampling ratio set: %.3f"
+			  , sampling_ratio );
+    for (i = 0; i < g_options.number_interfaces; i++) {
+      LOGGER_debug("==> %s", response);
+      export_data_sync( &if_devices[i]
+                      , ev_now(events.loop) * 1000
+		      , mid
+		      , 0
+		      , response );
+    }
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+
+/**
+ * command: "mid: <id> -r <value>
  * returns: 1 consumed, 0 otherwise
  */
 int netcom_cmd_set_ratio(char *msg) {
@@ -558,8 +734,8 @@ int netcom_cmd_set_ratio(char *msg) {
 		else {
 			int i;
 			for (i = 0; i < g_options.number_interfaces; i++) {
-				char response[255];
-				snprintf(response, 255, "INFO: new sampling ratio: %.3f",
+				char response[256];
+				snprintf(response, 256, "INFO: new sampling ratio: %.3f",
 						sampling_ratio);
 				LOGGER_debug("==> %s", response);
 				export_data_sync(&if_devices[i], ev_now(events.loop) * 1000,
@@ -583,6 +759,43 @@ int netcom_cmd_set_ratio(char *msg) {
 	//	}
 	return NETCON_CMD_UNKNOWN;
 }
+
+
+/**
+ * set filter expression
+ * command: "mid: <id> -f <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int netcom_cmd_set_filter(char *msg) {
+	unsigned long messageId = 0; // session id
+	int matches;
+
+	char filter_expression[128];
+
+	matches = sscanf(msg, "mid: %lu -f %s", &messageId, filter_expression);
+	if (2 == matches) {
+		LOGGER_debug("id: %lu", messageId);
+		/* currently sampling ratio is equal for all devices */
+		if (-1 == set_all_filter(filter_expression) ) {
+			LOGGER_error("error setting filter: %s", filter_expression);
+		}
+		else {
+			int i;
+			for (i = 0; i < g_options.number_interfaces; i++) {
+				char response[256];
+				snprintf(response, 256, "INFO: new filter expression: %s",
+						filter_expression );
+				LOGGER_debug("==> %s", response);
+				export_data_sync( &if_devices[i]
+						, ev_now(events.loop) * 1000
+						, messageId, 0, response);
+			}
+		}
+		return NETCON_CMD_MATCHED;
+	}
+	return NETCON_CMD_UNKNOWN;
+}
+
 
 /*-----------------------------------------------------------------------------
  Export

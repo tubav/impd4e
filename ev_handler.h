@@ -48,12 +48,24 @@ typedef struct collector_node_sync {
 	int   fd;    /* open socket */
 } ipfix_collector_sync_t;
 
-
 typedef void (*timer_cb_t)(EV_P_ ev_timer *w, int revents);
+
+
+typedef int (*set_cfg_fct_t)(unsigned long mid, char* cmd_msg); 
+
+typedef struct {
+  char cmd;
+  set_cfg_fct_t fct;
+}
+cfg_fct_t;
 
 // -----------------------------------------------------------------------------
 // Prototypes
 // -----------------------------------------------------------------------------
+
+void register_configuration_fct( char cmd, set_cfg_fct_t cfg_fct );
+
+set_cfg_fct_t getFunction(char cmd);
 
 /* -- signals --*/
 void sigint_cb (EV_P_ ev_signal *w, int revents);
@@ -95,7 +107,12 @@ ev_timer* event_register_timer(EV_P_ ev_tstamp tstamp, timer_cb_t* cb );
 void event_setup_pcapdev(struct ev_loop *loop);
 void event_setup_netcon(struct ev_loop *loop);
 
+int runtime_configuration_cb(char*);
+int configuration_help(unsigned long mid, char *msg);
+int configuration_set_filter(unsigned long mid, char *msg);
+int configuration_set_ratio(unsigned long mid, char *msg);
 int netcom_cmd_set_ratio(char *msg);
+int netcom_cmd_set_filter(char *msg);
 
 /* -- netcon / resync  -- */
 void resync_timer_cb (EV_P_ ev_timer *w, int revents);

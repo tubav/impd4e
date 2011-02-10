@@ -29,6 +29,7 @@
 
 #include <netdb.h>
 #include <stddef.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,12 +128,17 @@ static void connection_close( EV_P_ struct connection * conn){
 	free(conn);
 }
 static void connection_read( struct connection * conn ){
-	char msg[conn->in_pos.wr  - conn->in_pos.rd+1];
-	int len = conn->in_pos.wr  - conn->in_pos.rd;
+	int    len = conn->in_pos.wr  - conn->in_pos.rd;
+	char   msg[len + 1];
 	struct registry **reg;
-	int res = NETCON_CMD_UNKNOWN;
+	int    res = NETCON_CMD_UNKNOWN;
+
 	strncpy(msg,conn->in_buf, len );
-	msg[len]='\0';
+
+	// exchange trailing control charater from string with \0 (mainly \r and \n)
+	do{ 
+	  msg[len]='\0'; 
+	}while(iscntrl(msg[--len]));
 
 	LOGGER_debug("cmd: %s",msg);
 	conn->in_pos.rd=0;
@@ -140,7 +146,7 @@ static void connection_read( struct connection * conn ){
 
 	/* execute cmd callbacks until msg consumed */
 	for(reg=&netcon.reg;*reg!=NULL && res!=NETCON_CMD_MATCHED; reg=&(*reg)->next ){
-		res = (*(*reg)->cmd)( msg);
+		res = (*(*reg)->cmd)( msg );
 	}
 
 	if(!res){
@@ -227,6 +233,8 @@ static void accept_cb(EV_P_ struct ev_io *w, int revents) {
 void netcon_register(int(*cmd)(char *msg )){
 	struct registry **reg;
 	if(cmd==NULL){
+		// TODO: change log level to debug
+		// null commands should just be ignored
 		LOGGER_warn("command must not be null, ignored.");
 		return;
 	}

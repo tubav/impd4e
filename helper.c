@@ -44,6 +44,7 @@
 #ifdef PFRING
 #include <netinet/ip.h>
 #include <net/ethernet.h>     /* the L2 protocols */
+#include <pf_plugin_impd4e.h>
 #endif
 
 #include "mlog.h"
@@ -51,7 +52,6 @@
 #include "helper.h"
 #include "constants.h"
 
-#include <pf_plugin_impd4e.h>
 
 uint32_t getIPv4AddressFromDevice(char* dev_name) {
 
@@ -618,6 +618,38 @@ void determineLinkType(device_dev_t* pcap_device) {
 #endif
 
 #ifndef PFRING
+int  set_all_filter( const char* bpf ) {
+  int i = 0;
+  
+  for( i = 0; i < g_options.number_interfaces; ++i )
+  {
+    set_filter( &if_devices[i], bpf);
+  }
+  return 0;
+}
+
+int set_filter(device_dev_t* pd, const char* bpf) {
+	/* apply filter */
+	struct bpf_program fp;
+
+	if (bpf) {
+		if (-1 == pcap_compile(pd->device_handle.pcap, &fp,
+				bpf, 0, 0)) {
+			mlogf(ALWAYS, "Couldn't parse filter %s: %s\n"
+				    , bpf
+				    , pcap_geterr(pd->device_handle.pcap));
+		    return -1;
+		}
+		if (-1 == pcap_setfilter(pd->device_handle.pcap, &fp)) {
+			mlogf(ALWAYS, "Couldn't install filter %s: %s\n"
+				    , bpf
+				    , pcap_geterr(pd->device_handle.pcap));
+		    return -1;
+		}
+	}
+	return 0;
+}
+
 void setFilter(device_dev_t* pcap_device) {
 	/* apply filter */
 	struct bpf_program fp;

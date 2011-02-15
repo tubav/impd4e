@@ -582,7 +582,6 @@ void parse_cmdline(int argc, char **argv) {
     #else
     char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:";
     #endif
-	char *endptr;
 	errno = 0;
 
 	options->number_interfaces = 0;
@@ -680,26 +679,13 @@ void parse_cmdline(int argc, char **argv) {
 			parseTemplate(optarg, options);
 			break;
 		case 'm':
-			options->sel_range_min = strtoll(optarg, &endptr, 0);
-			if ((*endptr != '\0') || (errno == ERANGE
-					&& (options->sel_range_min == LONG_MAX
-							|| options->sel_range_min == LONG_MIN)) || (errno
-					!= 0 && options->sel_range_min == 0)) {
-				mlogf(ALWAYS,
-						"error parsing selection_miminum_range - needs to be (uint32_t) \n");
-				exit(1);
-			}
+			set_sampling_lowerbound(options, optarg);
 			break;
 		case 'M':
-			options->sel_range_max = strtoll(optarg, NULL, 0);
-			if ((*endptr != '\0') || (errno == ERANGE
-					&& (options->sel_range_max == LONG_MAX
-							|| options->sel_range_max == LONG_MIN)) || (errno
-					!= 0 && options->sel_range_max == 0)) {
-				mlogf(ALWAYS,
-						"error parsing selection_maximum_range - needs to be (uint32_t) \n");
-				exit(1);
-			}
+			set_sampling_upperbound(options, optarg);
+			break;
+		case 'r': 
+			set_sampling_ratio(options, optarg);
 			break;
 		case 's':
 		case 'S':
@@ -724,12 +710,6 @@ void parse_cmdline(int argc, char **argv) {
 		case 'l':
 			options->snapLength = atoi(optarg);
 			break;
-		case 'r': {
-			double sampling_ratio;
-			sscanf(optarg, "%lf", &sampling_ratio);
-			sampling_set_ratio(options, sampling_ratio);
-			break;
-		}
 		case 'u':
 			options->use_oid_first_interface=1;
 			break;

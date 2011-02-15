@@ -94,7 +94,78 @@ char *htoa(uint32_t ipaddr) {
 /**
  * Set sampling ratio, returns -1 in case of failure.
  */
-int sampling_set_ratio(options_t *options, double sampling_ratio) {
+int set_sampling_lowerbound(options_t *options, char* s) {
+  errno = 0;
+  long long int value = strtoll(s, NULL, 0);
+
+  if ( UINT32_MAX < value )
+  {
+    LOGGER_warn("selection range minimum 'out of range (UINT32_MAX)' used to be (uint32_t)");
+    options->sel_range_min = UINT32_MAX;
+  }
+  else if ( 0 > value )
+  {
+    LOGGER_warn("selection range minimum 'out of range (ZERO)' used to be (uint32_t)");
+    options->sel_range_min = 0;
+  }
+  else
+  {
+    options->sel_range_min = (uint32_t) value;
+  }
+  LOGGER_debug("selection range (lowerbound): %#08x (%d)", options->sel_range_min, options->sel_range_min);
+
+  // check if upper bound is greater than lowerbound
+  if(options->sel_range_max < options->sel_range_min)
+  {
+    LOGGER_warn( "lower bound (%#08x) > upper bound (%#08x); adjust upper bound"
+               , options->sel_range_min
+	       , options->sel_range_max );
+    options->sel_range_max = options->sel_range_min;
+  }
+  
+  return options->sel_range_min;
+}
+
+/**
+ * Set sampling ratio, returns -1 in case of failure.
+ */
+int set_sampling_upperbound(options_t *options, char* s) {
+  errno = 0;
+  long long int value = strtoll(s, NULL, 0);
+
+  if ( UINT32_MAX < value )
+  {
+    LOGGER_warn("selection range maximum 'out of range (UINT32_MAX)' used to be (uint32_t)");
+    options->sel_range_max = UINT32_MAX;
+  }
+  else if ( 0 > value )
+  {
+    LOGGER_warn("selection range maximum 'out of range (ZERO)' used to be (uint32_t)");
+    options->sel_range_max = 0;
+  }
+  else
+  {
+    options->sel_range_max = (uint32_t) value;
+  }
+  LOGGER_debug("selection range (uppperbound): %#08x (%d)", options->sel_range_max, options->sel_range_max);
+
+  // check if upper bound is greater than lowerbound
+  if(options->sel_range_max < options->sel_range_min)
+  {
+    LOGGER_warn( "lower bound (%#08x) > upper bound (%#08x); adjust lower bound"
+               , options->sel_range_min
+	       , options->sel_range_max );
+    options->sel_range_min = options->sel_range_max;
+  }
+  
+  return options->sel_range_max;
+}
+
+/**
+ * Set sampling ratio, returns -1 in case of failure.
+ */
+int set_sampling_ratio(options_t *options, char* value) {
+	double sampling_ratio = strtod( value, NULL);
 	LOGGER_debug("sampling ratio: %lf", sampling_ratio);
 	/*
 	 * for the sampling ratio we do not like values at the edge, therefore we use values beginning at the 10% slice.

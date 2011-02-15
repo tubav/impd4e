@@ -228,11 +228,12 @@ void event_setup_netcon(struct ev_loop *loop) {
 	register_configuration_fct( '?', configuration_help );
 	register_configuration_fct( 'h', configuration_help );
 	register_configuration_fct( 'r', configuration_set_ratio );
+	register_configuration_fct( 'm', configuration_set_min_selection );
+	register_configuration_fct( 'M', configuration_set_max_selection );
 	register_configuration_fct( 'f', configuration_set_filter );
 
 	// register runtime configuration callback to netcon
 	netcon_register(runtime_configuration_cb);
-	netcon_register(netcom_cmd_set_ratio);
 	//netcon_register(netcom_cmd_set_filter);
 }
 
@@ -645,6 +646,8 @@ int configuration_help(unsigned long mid, char *msg) {
   char response[256];
   snprintf(response, 256, "INFO: -h this help\n" 
 			  "INFO: -? this help\n"
+			  "INFO: -m capturing selection range min (hex|int)\n"
+			  "INFO: -M capturing selection range max (hex|int)\n"
 			  "INFO: -r capturing ratio in %%\n"
 			  "INFO: -f bpf filter expression\n"
 			  );
@@ -665,7 +668,7 @@ int configuration_help(unsigned long mid, char *msg) {
  */
 int configuration_set_filter(unsigned long mid, char *msg) {
   LOGGER_debug("Message ID: %lu", mid);
-  /* currently sampling ratio is equal for all devices */
+
   if (-1 == set_all_filter(msg) ) {
     LOGGER_error("error setting filter: %s", msg);
   }
@@ -688,21 +691,69 @@ int configuration_set_filter(unsigned long mid, char *msg) {
 
 
 /**
+ * command: m <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_min_selection(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+
+  uint32_t value = set_sampling_lowerbound(&g_options, msg);
+  int i;
+  char response[256];
+  snprintf(response, 256, "INFO: minimum selection range set: %d"
+			, value );
+  for (i = 0; i < g_options.number_interfaces; i++) {
+    LOGGER_debug("==> %s", response);
+    export_data_sync( &if_devices[i]
+		    , ev_now(events.loop) * 1000
+		    , mid
+		    , 0
+		    , response );
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+
+/**
+ * command: M <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_max_selection(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+
+  uint32_t value = set_sampling_upperbound(&g_options, msg);
+  int i;
+  char response[256];
+  snprintf(response, 256, "INFO: maximum selection range set: %d"
+			, value );
+  for (i = 0; i < g_options.number_interfaces; i++) {
+    LOGGER_debug("==> %s", response);
+    export_data_sync( &if_devices[i]
+		    , ev_now(events.loop) * 1000
+		    , mid
+		    , 0
+		    , response );
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+
+/**
  * command: r <value>
  * returns: 1 consumed, 0 otherwise
  */
 int configuration_set_ratio(unsigned long mid, char *msg) {
-  double sampling_ratio = strtod( msg, (char**)NULL);
   LOGGER_debug("Message ID: %lu", mid);
+
   /* currently sampling ratio is equal for all devices */
-  if (-1 == sampling_set_ratio(&g_options, sampling_ratio) ) {
-    LOGGER_error("error setting sampling ration: %f", sampling_ratio);
+  if (-1 == set_sampling_ratio(&g_options, msg) ) {
+    LOGGER_error("error setting sampling ration: %s", msg);
   }
   else {
     int i;
     char response[256];
-    snprintf(response, 256, "INFO: new sampling ratio set: %.3f"
-			  , sampling_ratio );
+    snprintf(response, 256, "INFO: new sampling ratio set: %s"
+			  , msg );
     for (i = 0; i < g_options.number_interfaces; i++) {
       LOGGER_debug("==> %s", response);
       export_data_sync( &if_devices[i]
@@ -712,38 +763,6 @@ int configuration_set_ratio(unsigned long mid, char *msg) {
 		      , response );
     }
   }
-  return NETCON_CMD_MATCHED;
-}
-
-
-/**
- * command: "mid: <id> -r <value>
- * returns: 1 consumed, 0 otherwise
- */
-int netcom_cmd_set_ratio(char *msg) {
-	double sampling_ratio;
-	unsigned long messageId = 0; // session id
-	int matches;
-	matches = sscanf(msg, "mid: %lu -r %lf ", &messageId, &sampling_ratio);
-	if (2 == matches) {
-		LOGGER_debug("id: %lu", messageId);
-		/* currently sampling ratio is equal for all devices */
-		if (-1 == sampling_set_ratio(&g_options, sampling_ratio) ) {
-			LOGGER_error("error setting sampling ration: %f", sampling_ratio);
-		}
-		else {
-			int i;
-			for (i = 0; i < g_options.number_interfaces; i++) {
-				char response[256];
-				snprintf(response, 256, "INFO: new sampling ratio: %.3f",
-						sampling_ratio);
-				LOGGER_debug("==> %s", response);
-				export_data_sync(&if_devices[i], ev_now(events.loop) * 1000,
-						messageId, 0, response);
-			}
-		}
-		return NETCON_CMD_MATCHED;
-	}
 	//	if( messageId > 0 ){
 	//		char response[255];
 	//		snprintf(response,255,"ERROR: invalid command: %s",msg);
@@ -757,7 +776,7 @@ int netcom_cmd_set_ratio(char *msg) {
 	//					response);
 	//		}
 	//	}
-	return NETCON_CMD_UNKNOWN;
+  return NETCON_CMD_MATCHED;
 }
 
 

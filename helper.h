@@ -23,6 +23,8 @@
 #define HELPER_H_
 
 #include <stdint.h>
+#include <limits.h>
+#include <errno.h>
 #include <sys/types.h>
 
 #include "constants.h"
@@ -49,7 +51,9 @@ uint32_t getIPv4AddressFromDevice(char* dev_name);
 
 char* htoa(uint32_t ipaddr);
 
-int sampling_set_ratio(options_t *options, double sampling_ratio);
+int set_sampling_ratio(options_t *options, char* value);
+int set_sampling_lowerbound(options_t *options, char* value);
+int set_sampling_upperbound(options_t *options, char* value);
 
 #ifndef PFRING
 void setNONBlocking( device_dev_t* pDevice );

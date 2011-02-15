@@ -110,8 +110,9 @@ void event_setup_netcon(struct ev_loop *loop);
 int runtime_configuration_cb(char*);
 int configuration_help(unsigned long mid, char *msg);
 int configuration_set_filter(unsigned long mid, char *msg);
+int configuration_set_min_selection(unsigned long mid, char *msg);
+int configuration_set_max_selection(unsigned long mid, char *msg);
 int configuration_set_ratio(unsigned long mid, char *msg);
-int netcom_cmd_set_ratio(char *msg);
 int netcom_cmd_set_filter(char *msg);
 
 /* -- netcon / resync  -- */

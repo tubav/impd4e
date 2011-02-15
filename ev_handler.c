@@ -230,7 +230,7 @@ void event_setup_netcon(struct ev_loop *loop) {
 	// to the config function array
 	register_configuration_fct( '?', configuration_help, "INFO: -? this help\n" );
 	register_configuration_fct( 'h', configuration_help, "INFO: -h this help\n" );
-	register_configuration_fct( 'r', configuration_set_ratio, "INFO: -r capturing ratio in %%\n" );
+	register_configuration_fct( 'r', configuration_set_ratio, "INFO: -r capturing ratio in %\n" );
 	register_configuration_fct( 'm', configuration_set_min_selection, "INFO: -m capturing selection range min (hex|int)\n" );
 	register_configuration_fct( 'M', configuration_set_max_selection, "INFO: -M capturing selection range max (hex|int)\n" );
 	register_configuration_fct( 'f', configuration_set_filter, "INFO: -f bpf filter expression\n" );
@@ -241,7 +241,6 @@ void event_setup_netcon(struct ev_loop *loop) {
 
 	// register runtime configuration callback to netcon
 	netcon_register(runtime_configuration_cb);
-	//netcon_register(netcom_cmd_set_filter);
 }
 
 
@@ -918,42 +917,6 @@ int configuration_set_ratio(unsigned long mid, char *msg) {
 	//		}
 	//	}
   return NETCON_CMD_MATCHED;
-}
-
-
-/**
- * set filter expression
- * command: "mid: <id> -f <value>
- * returns: 1 consumed, 0 otherwise
- */
-int netcom_cmd_set_filter(char *msg) {
-	unsigned long messageId = 0; // session id
-	int matches;
-
-	char filter_expression[128];
-
-	matches = sscanf(msg, "mid: %lu -f %s", &messageId, filter_expression);
-	if (2 == matches) {
-		LOGGER_debug("id: %lu", messageId);
-		/* currently sampling ratio is equal for all devices */
-		if (-1 == set_all_filter(filter_expression) ) {
-			LOGGER_error("error setting filter: %s", filter_expression);
-		}
-		else {
-			int i;
-			for (i = 0; i < g_options.number_interfaces; i++) {
-				char response[256];
-				snprintf(response, 256, "INFO: new filter expression: %s",
-						filter_expression );
-				LOGGER_debug("==> %s", response);
-				export_data_sync( &if_devices[i]
-						, ev_now(events.loop) * 1000
-						, messageId, 0, response);
-			}
-		}
-		return NETCON_CMD_MATCHED;
-	}
-	return NETCON_CMD_UNKNOWN;
 }
 
 

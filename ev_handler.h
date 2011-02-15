@@ -103,12 +103,13 @@ void export_data_sync(device_dev_t *dev,
 		u_int32_t messageValue, char * message);
 
 
-/* -- event loop --*/
+/* -- event loop -- */
 void event_loop();
 ev_timer* event_register_timer(EV_P_ ev_tstamp tstamp, timer_cb_t* cb );
 void event_setup_pcapdev(struct ev_loop *loop);
 void event_setup_netcon(struct ev_loop *loop);
 
+/* -- runtime configuration -- */
 int runtime_configuration_cb(char*);
 int configuration_help(unsigned long mid, char *msg);
 int configuration_set_template(unsigned long mid, char *msg);
@@ -119,7 +120,6 @@ int configuration_set_export_to_pktid(unsigned long mid, char *msg);
 int configuration_set_min_selection(unsigned long mid, char *msg);
 int configuration_set_max_selection(unsigned long mid, char *msg);
 int configuration_set_ratio(unsigned long mid, char *msg);
-int netcom_cmd_set_filter(char *msg);
 
 /* -- netcon / resync  -- */
 void resync_timer_cb (EV_P_ ev_timer *w, int revents);

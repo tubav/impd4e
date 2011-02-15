@@ -21,6 +21,7 @@
  */
 
 #include <inttypes.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -314,7 +315,7 @@ void parseSelFunction(char *arg_string, options_t *options) {
 /**
  * Parse command line template
  */
-void parseTemplate(char *arg_string, options_t *options) {
+ int parseTemplate(char *arg_string, options_t *options) {
 	int k;
 	struct templateDef {
 		char *hstring;
@@ -322,12 +323,14 @@ void parseTemplate(char *arg_string, options_t *options) {
 	} templates[] = { { MIN_NAME, MINT_ID }, { TS_TTL_RROTO_NAME,
 			TS_TTL_PROTO_ID }, { TS_NAME, TS_ID } };
 
+	while( isspace(*arg_string) ) ++arg_string;
 	for (k = 0; k < (sizeof(templates) / sizeof(struct templateDef)); k++) {
 		if (strncasecmp(arg_string, templates[k].hstring, strlen(
 				templates[k].hstring)) == 0) {
-			options->templateID = templates[k].templateID;
+			return options->templateID = templates[k].templateID;
 		}
 	}
+	return -1;
 }
 
 #ifdef PFRING

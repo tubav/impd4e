@@ -21,6 +21,7 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <string.h>
 #include <limits.h>
@@ -231,6 +232,7 @@ void event_setup_netcon(struct ev_loop *loop) {
 	register_configuration_fct( 'm', configuration_set_min_selection );
 	register_configuration_fct( 'M', configuration_set_max_selection );
 	register_configuration_fct( 'f', configuration_set_filter );
+	register_configuration_fct( 't', configuration_set_template );
 
 	// register runtime configuration callback to netcon
 	netcon_register(runtime_configuration_cb);
@@ -508,8 +510,8 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 	//mlogf( ALL, "hash result: 0x%04X\n", hash_result );
 
 	// hash result must be in the chosen selection range to count
-	if ((g_options.sel_range_min < hash_result)
-			&& (g_options.sel_range_max > hash_result))
+	if ((g_options.sel_range_min <= hash_result)
+			&& (g_options.sel_range_max >= hash_result))
 	{
 		if_device->export_packet_count++;
 		if_device->sampling_size++;
@@ -622,9 +624,14 @@ int runtime_configuration_cb(char* conf_msg)
     int i = 0;
     for( i = 0; i < length; ++i, ++conf_msg ) {
       if( '-' == *conf_msg ) {
+	// get command
 	++conf_msg;
 	cmd = *conf_msg;
 	++conf_msg;
+
+	// remove leading whitespaces
+	while( isspace(*conf_msg) ) ++conf_msg;
+
 	// execute command
 	LOGGER_debug("configuration command '%c': %s", cmd, conf_msg);
 	return (*getFunction(cmd))(mID, conf_msg);
@@ -658,6 +665,38 @@ int configuration_help(unsigned long mid, char *msg) {
 		    , mid
 		    , 0
 		    , response );
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+// TODO: there used to be an include, but not main.h
+int parseTemplate(char *arg_string, options_t *options);
+
+/**
+ * command: t <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_template(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+
+  if( -1 == parseTemplate(msg, &g_options) )
+  {
+    LOGGER_warn("unknown template: %s", msg);
+  }
+  else
+  {
+    int i;
+    char response[256];
+    snprintf(response, 256, "INFO: new template set: %s"
+			  , msg );
+    for (i = 0; i < g_options.number_interfaces; i++) {
+      LOGGER_debug("==> %s", response);
+      export_data_sync( &if_devices[i]
+		      , ev_now(events.loop) * 1000
+		      , mid
+		      , 0
+		      , response );
+    }
   }
   return NETCON_CMD_MATCHED;
 }

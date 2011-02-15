@@ -54,8 +54,10 @@ typedef void (*timer_cb_t)(EV_P_ ev_timer *w, int revents);
 typedef int (*set_cfg_fct_t)(unsigned long mid, char* cmd_msg); 
 
 typedef struct {
-  char cmd;
   set_cfg_fct_t fct;
+  const char* desc;
+  int desc_length;
+  char cmd;
 }
 cfg_fct_t;
 
@@ -63,7 +65,7 @@ cfg_fct_t;
 // Prototypes
 // -----------------------------------------------------------------------------
 
-void register_configuration_fct( char cmd, set_cfg_fct_t cfg_fct );
+void register_configuration_fct( char cmd, set_cfg_fct_t cfg_fct, const char* desc );
 
 set_cfg_fct_t getFunction(char cmd);
 
@@ -111,6 +113,9 @@ int runtime_configuration_cb(char*);
 int configuration_help(unsigned long mid, char *msg);
 int configuration_set_template(unsigned long mid, char *msg);
 int configuration_set_filter(unsigned long mid, char *msg);
+int configuration_set_export_to_probestats(unsigned long mid, char *msg);
+int configuration_set_export_to_ifstats(unsigned long mid, char *msg);
+int configuration_set_export_to_pktid(unsigned long mid, char *msg);
 int configuration_set_min_selection(unsigned long mid, char *msg);
 int configuration_set_max_selection(unsigned long mid, char *msg);
 int configuration_set_ratio(unsigned long mid, char *msg);

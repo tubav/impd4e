@@ -91,12 +91,14 @@ int config_fct_length = 0;
 // Prototypes
 // -----------------------------------------------------------------------------
 
-void register_configuration_fct( char cmd, set_cfg_fct_t fct )
+void register_configuration_fct( char cmd, set_cfg_fct_t fct, const char* desc )
 {
   if( CONFIG_FCT_SIZE > config_fct_length )
   {
     configuration_fct[config_fct_length].cmd = cmd;
     configuration_fct[config_fct_length].fct = fct;
+    configuration_fct[config_fct_length].desc = desc;
+    configuration_fct[config_fct_length].desc_length = strlen(desc);
     ++config_fct_length;
   }
   else
@@ -226,13 +228,16 @@ void event_setup_netcon(struct ev_loop *loop) {
 
 	// register available configuration functions
 	// to the config function array
-	register_configuration_fct( '?', configuration_help );
-	register_configuration_fct( 'h', configuration_help );
-	register_configuration_fct( 'r', configuration_set_ratio );
-	register_configuration_fct( 'm', configuration_set_min_selection );
-	register_configuration_fct( 'M', configuration_set_max_selection );
-	register_configuration_fct( 'f', configuration_set_filter );
-	register_configuration_fct( 't', configuration_set_template );
+	register_configuration_fct( '?', configuration_help, "INFO: -? this help\n" );
+	register_configuration_fct( 'h', configuration_help, "INFO: -h this help\n" );
+	register_configuration_fct( 'r', configuration_set_ratio, "INFO: -r capturing ratio in %%\n" );
+	register_configuration_fct( 'm', configuration_set_min_selection, "INFO: -m capturing selection range min (hex|int)\n" );
+	register_configuration_fct( 'M', configuration_set_max_selection, "INFO: -M capturing selection range max (hex|int)\n" );
+	register_configuration_fct( 'f', configuration_set_filter, "INFO: -f bpf filter expression\n" );
+	register_configuration_fct( 't', configuration_set_template, "INFO: -t template (ts|min|lp)\n" );
+	register_configuration_fct( 'I', configuration_set_export_to_pktid, "INFO: -I pktid export interval (s)\n" );
+	register_configuration_fct( 'J', configuration_set_export_to_probestats, "INFO: -J porbe stats export interval (s)\n" );
+	register_configuration_fct( 'K', configuration_set_export_to_ifstats, "INFO: -K interface stats export interval (s)\n" );
 
 	// register runtime configuration callback to netcon
 	netcon_register(runtime_configuration_cb);
@@ -650,16 +655,23 @@ int runtime_configuration_cb(char* conf_msg)
 int configuration_help(unsigned long mid, char *msg) {
   LOGGER_debug("Message ID: %lu", mid);
   int i;
-  char response[256];
-  snprintf(response, 256, "INFO: -h this help\n" 
-			  "INFO: -? this help\n"
-			  "INFO: -m capturing selection range min (hex|int)\n"
-			  "INFO: -M capturing selection range max (hex|int)\n"
-			  "INFO: -r capturing ratio in %%\n"
-			  "INFO: -f bpf filter expression\n"
-			  );
+
+  int size = 1;
+  for( i = 0; i < config_fct_length; ++i )
+  {
+    size += configuration_fct[i].desc_length;
+  }
+
+  char response[size];
+  char* tmp = response;
+  for( i = 0; i < config_fct_length; ++i )
+  {
+    strcpy( tmp, configuration_fct[i].desc);
+    tmp += configuration_fct[i].desc_length;
+  }
+
   for (i = 0; i < g_options.number_interfaces; i++) {
-    LOGGER_debug("==> %s", response);
+    LOGGER_debug("==> '%s'", response);
     export_data_sync( &if_devices[i]
 		    , ev_now(events.loop) * 1000
 		    , mid
@@ -715,6 +727,96 @@ int configuration_set_filter(unsigned long mid, char *msg) {
     int i;
     char response[256];
     snprintf(response, 256, "INFO: new filter expression set: %s"
+			  , msg );
+    for (i = 0; i < g_options.number_interfaces; i++) {
+      LOGGER_debug("==> %s", response);
+      export_data_sync( &if_devices[i]
+                      , ev_now(events.loop) * 1000
+		      , mid
+		      , 0
+		      , response );
+    }
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+
+/**
+ * command: J <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_export_to_probestats(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+
+  int new_timeout = strtol( msg, NULL, 0 );
+  if( 0 <= new_timeout )
+  {
+    events.export_timer_stats.repeat  = new_timeout;
+    ev_timer_again (events.loop, &events.export_timer_stats);
+
+    int i;
+    char response[256];
+    snprintf(response, 256, "INFO: new probestats export timeout set: %s"
+			  , msg );
+    for (i = 0; i < g_options.number_interfaces; i++) {
+      LOGGER_debug("==> %s", response);
+      export_data_sync( &if_devices[i]
+                      , ev_now(events.loop) * 1000
+		      , mid
+		      , 0
+		      , response );
+    }
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+
+/**
+ * command: K <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_export_to_ifstats(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+
+  int new_timeout = strtol( msg, NULL, 0 );
+  if( 0 <= new_timeout )
+  {
+    events.export_timer_sampling.repeat  = new_timeout;
+    ev_timer_again (events.loop, &events.export_timer_sampling);
+
+    int i;
+    char response[256];
+    snprintf(response, 256, "INFO: new ifstats export timeout set: %s"
+			  , msg );
+    for (i = 0; i < g_options.number_interfaces; i++) {
+      LOGGER_debug("==> %s", response);
+      export_data_sync( &if_devices[i]
+                      , ev_now(events.loop) * 1000
+		      , mid
+		      , 0
+		      , response );
+    }
+  }
+  return NETCON_CMD_MATCHED;
+}
+
+
+/**
+ * command: I <value>
+ * returns: 1 consumed, 0 otherwise
+ */
+int configuration_set_export_to_pktid(unsigned long mid, char *msg) {
+  LOGGER_debug("Message ID: %lu", mid);
+
+  int new_timeout = strtol( msg, NULL, 0 );
+  if( 0 <= new_timeout )
+  {
+    events.export_timer_pkid.repeat  = new_timeout;
+    ev_timer_again (events.loop, &events.export_timer_pkid);
+
+    int i;
+    char response[256];
+    snprintf(response, 256, "INFO: new packet export timeout set: %s"
 			  , msg );
     for (i = 0; i < g_options.number_interfaces; i++) {
       LOGGER_debug("==> %s", response);

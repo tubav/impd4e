@@ -43,9 +43,9 @@ INCLS = -I.
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 TARGETS = impd4e
-OBJS = bobhash.o hash.o hsieh.o main.o twmx.o logger.o stats.o netcon.o ev_handler.o helper.o pfring_filter.o
+OBJS = settings.o bobhash.o hash.o hsieh.o main.o twmx.o logger.o stats.o netcon.o ev_handler.o helper.o pfring_filter.o
 PFOBJ = $(OBJS) pfring_filter.o
-DEPHDR = bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h netcon.h ev_handler.h helper.h constants.h pfring_filter.h
+DEPHDR = settings.h bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h netcon.h ev_handler.h helper.h constants.h pfring_filter.h
 CLEANFILES = $(OBJS) $(TARGETS) 
 
 all: $(TARGETS)

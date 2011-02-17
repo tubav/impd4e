@@ -5,7 +5,7 @@
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
+ * under the terms of the GNU General Public License as published by the Free
  * Software Foundation either version 3 of the License, or (at your option) any
  * later version.
 
@@ -62,38 +62,6 @@ typedef struct {
 	const uint32_t max_len;
 }
 buffer_t;
-
-typedef struct options
-{	char     basedir[100];
-	uint8_t  number_interfaces;
-	uint32_t templateID;
-	char     collectorIP[256];
-	int16_t  collectorPort;
-	char*    bpf; // berkley packet filter
-    #ifdef PFRING
-    filtering_rule rules[MAX_RULES];
-    uint16_t rules_in_list;
-    int8_t   filter_policy;
-    #endif // PFRING
-	uint32_t          observationDomainID;
-	hashFunction      hash_function;
-	hashFunction      pktid_function;
-	selectionFunction selection_function;
-	uint32_t sel_range_min;
-	uint32_t sel_range_max;
-	uint16_t snapLength;
-	uint8_t  verbosity;
-	uint32_t export_packet_count;
-	uint32_t export_interval;
-	double sampling_ratio;
-	bool   samplingResultExport;
-	bool   resourceConsumptionExport;
-	double export_pktid_interval;
-	double export_sampling_interval;
-	double export_stats_interval;
-	int hashAsPacketID;
-	int use_oid_first_interface;
-} options_t;
 
 typedef union device {
     #ifndef PFRING
@@ -180,8 +148,6 @@ typedef struct export_data {
 } export_data_t;
 
 // hash functions for parsing
-
-
 #define HASH_FUNCTION_BOB   "BOB"
 #define HASH_FUNCTION_OAAT  "OAAT"
 #define HASH_FUNCTION_TWMX  "TWMX"
@@ -236,15 +202,8 @@ enum {
 	, DEBUG
 	, ALL
 };
-//#define ALWAYS   0
-//#define ERROR    1
-//#define CRITICAL 1
-//#define WARNING  2
-//#define INFO     3
-//#define DEBUG    4
-//#define ALL      5
 
-extern options_t     g_options;
+// todo: use getter instead
 extern device_dev_t  if_devices[];
 #ifndef PFRING
 extern char pcap_errbuf[PCAP_ERRBUF_SIZE];

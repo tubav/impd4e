@@ -6,7 +6,7 @@
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
+ * under the terms of the GNU General Public License as published by the Free
  * Software Foundation either version 3 of the License, or (at your option) any
  * later version.
 
@@ -22,16 +22,62 @@
 #ifndef SETTINGS_H_
 #define SETTINGS_H_
 
-//#include <stdint.h>
-//#include <limits.h>
-//#include <errno.h>
-//#include <sys/types.h>
+#include <stdint.h>
 
-//#include "constants.h"
+#include "constants.h"
+
+// -----------------------------------------------------------------------------
+// Type definitions
+// -----------------------------------------------------------------------------
+typedef struct options
+{	char     basedir[100];
+	uint8_t  number_interfaces;
+	uint32_t templateID;
+	char     collectorIP[256];
+	int16_t  collectorPort;
+	char*    bpf; // berkley packet filter
+    #ifdef PFRING
+    filtering_rule rules[MAX_RULES];
+    uint16_t rules_in_list;
+    int8_t   filter_policy;
+    #endif // PFRING
+	uint32_t          observationDomainID;
+	hashFunction      hash_function;
+	hashFunction      pktid_function;
+	selectionFunction selection_function;
+	uint32_t sel_range_min;
+	uint32_t sel_range_max;
+	uint16_t snapLength;
+	uint8_t  verbosity;
+	uint32_t export_packet_count;
+	uint32_t export_interval;
+	double sampling_ratio;
+	bool   samplingResultExport;
+	bool   resourceConsumptionExport;
+	double export_pktid_interval;
+	double export_sampling_interval;
+	double export_stats_interval;
+	int hashAsPacketID;
+	int use_oid_first_interface;
+} options_t;
 
 
 
+// -----------------------------------------------------------------------------
+// Prototypes
+// -----------------------------------------------------------------------------
+inline options_t* getOptions();
 
+int set_sampling_ratio(options_t *options, char* value);
+int set_sampling_lowerbound(options_t *options, char* value);
+int set_sampling_upperbound(options_t *options, char* value);
+
+int parseTemplate(char *arg_string, options_t *options);
+void parseSelFunction(char *arg_string, options_t *options);
+hashFunction parseFunction(char *arg_string);
+
+// todo: use getter instead
+extern options_t     g_options;
 
 #endif /* SETTINGS_H_ */
 

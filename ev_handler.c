@@ -6,7 +6,7 @@
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
+ * under the terms of the GNU General Public License as published by the Free
  * Software Foundation either version 3 of the License, or (at your option) any
  * later version.
 
@@ -60,6 +60,8 @@
 
 #include "helper.h"
 #include "constants.h"
+
+#include "settings.h"
 
 /* ---------------------------------------------------------------------------
  * Constants
@@ -603,7 +605,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 #endif
 
 /**
- * initial cb function; 
+ * initial cb function;
  * selection of runtime configuration commands
  * command: "mid: <id> -<cmd> <value>
  * @param cmd string
@@ -962,7 +964,7 @@ void export_data_interface_stats(device_dev_t *dev,
     #else
     if ( TYPE_PFRING == dev->device_type ) {
         if (pfring_stats(dev->device_handle.pfring, &pfringStat) < 0) {
-            LOGGER_error("Error DeviceNo  %s: Failed to get statistics\n", 
+            LOGGER_error("Error DeviceNo  %s: Failed to get statistics\n",
                         dev->device_name);
         }
     } else {

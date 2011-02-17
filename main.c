@@ -7,7 +7,7 @@
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
+ * under the terms of the GNU General Public License as published by the Free
  * Software Foundation either version 3 of the License, or (at your option) any
  * later version.
 
@@ -20,16 +20,16 @@
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <inttypes.h>
-#include <ctype.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <unistd.h> // getopt()
 #include <string.h>
-#include <limits.h>
-#include <stdio.h>
-#include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
+//#include <inttypes.h>
+//#include <ctype.h>
+//#include <limits.h>
+//#include <stdio.h>
+//#include <errno.h>
+//#include <signal.h>
+//#include <fcntl.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -45,25 +45,32 @@
 #ifndef PFRING
 #include <pcap.h>
 #endif
-// event loop
-#include <ev.h>
+
+//// event loop
+//#include <ev.h>
 #include "ev_handler.h"
-
+//
 #include "main.h"
 
-#include "templates.h"
-#include "constants.h"
-#include "main.h"
-#include "hash.h"
+//#include "constants.h"
+//#include "hash.h"
 #include "mlog.h"
+
+// ipfix staff
 #include "ipfix.h"
+#include "ipfix_def.h"
+#include "ipfix_def_fokus.h"
 #include "ipfix_fields_fokus.h"
-#include "stats.h"
+#include "templates.h"
+
+//#include "stats.h"
 
 // Custom logger
 #include "logger.h"
 #include "helper.h"
-#include "netcon.h"
+//#include "netcon.h"
+
+#include "settings.h"
 
 // Are we building impd4e for Openwrt
 #ifdef OPENWRT_BUILD
@@ -89,7 +96,6 @@ char pcap_errbuf[PCAP_ERRBUF_SIZE];
 char errbuf[PCAP_ERRBUF_SIZE];
 #endif
 
-options_t     g_options;
 device_dev_t  if_devices[MAX_INTERFACES];
 
 char* hashfunctionname[] = {
@@ -257,84 +263,8 @@ void set_defaults_device(device_dev_t* dev) {
 }
 
 
-/**
- * Parse command line hash function
- */
-hashFunction parseFunction(char *arg_string, options_t *options) {
-	int k;
-	int j = 0;
-	struct hashfunction {
-		char *hstring;
-		hashFunction function;
-	} hashfunctions[] = { { HASH_FUNCTION_BOB, calcHashValue_BOB }
-						, { HASH_FUNCTION_TWMX, calcHashValue_TWMXRSHash }
-						, { HASH_FUNCTION_HSIEH, calcHashValue_Hsieh }
-						, { HASH_FUNCTION_OAAT, calcHashValue_OAAT } };
-
-	for (k = 0; k < (sizeof(hashfunctions) / sizeof(struct hashfunction)); k++) {
-		if (strncasecmp(arg_string, hashfunctions[k].hstring
-				, strlen(hashfunctions[k].hstring)) == 0)
-		{
-			j = k;
-			LOGGER_info("using %s as hashFunction \n", hashfunctions[k].hstring);
-
-		}
-	}
-	return hashfunctions[j].function;
-}
-/**
- * Parse command line selection function
- */
-void parseSelFunction(char *arg_string, options_t *options) {
-	int k;
-	struct selfunction {
-		char *hstring;
-		selectionFunction selfunction;
-	} selfunctions[] = 	{ { HASH_INPUT_REC8,   copyFields_Rec }
-						, { HASH_INPUT_IP,     copyFields_Only_Net }
-						, { HASH_INPUT_IPTP,   copyFields_U_TCP_and_Net }
-						, { HASH_INPUT_PACKET, copyFields_Packet }
-						, { HASH_INPUT_RAW,    copyFields_Raw }
-						, { HASH_INPUT_LINK,   copyFields_Link }
-						, { HASH_INPUT_NET,    copyFields_Net }
-						, { HASH_INPUT_TRANS,  copyFields_Trans }
-						, { HASH_INPUT_PAYLOAD,copyFields_Payload }
-						, { HASH_INPUT_SELECT, copyFields_Raw } };
-
-	for (k = 0; k < (sizeof(selfunctions) / sizeof(struct selfunction)); k++) {
-		if (strncasecmp(arg_string, selfunctions[k].hstring
-				, strlen(selfunctions[k].hstring)) == 0)
-		{
-			options->selection_function = selfunctions[k].selfunction;
-
-			// needed for RAW, LINK, NET, TRANS, PAYLOAD
-			parseRange( arg_string+strlen(selfunctions[k].hstring) );
-		}
-	}
-}
-/**
- * Parse command line template
- */
- int parseTemplate(char *arg_string, options_t *options) {
-	int k;
-	struct templateDef {
-		char *hstring;
-		int templateID;
-	} templates[] = { { MIN_NAME, MINT_ID }, { TS_TTL_RROTO_NAME,
-			TS_TTL_PROTO_ID }, { TS_NAME, TS_ID } };
-
-	while( isspace(*arg_string) ) ++arg_string;
-	for (k = 0; k < (sizeof(templates) / sizeof(struct templateDef)); k++) {
-		if (strncasecmp(arg_string, templates[k].hstring, strlen(
-				templates[k].hstring)) == 0) {
-			return options->templateID = templates[k].templateID;
-		}
-	}
-	return -1;
-}
-
 #ifdef PFRING
-/** 
+/**
  * Parse one pfring filter arg
  */
 void parse_pfring_filter_arg(char* arg_string, options_t* options,
@@ -522,8 +452,8 @@ void parse_pfring_filter_arg(char* arg_string, options_t* options,
 	printf("\n");
 }
 
-/** 
- * Parse pfring filter expressions 
+/**
+ * Parse pfring filter expressions
  */
 void parse_pfring_filter(char* arg_string, options_t* options) {
 	//int i = 0;
@@ -687,7 +617,7 @@ void parse_cmdline(int argc, char **argv) {
 		case 'M':
 			set_sampling_upperbound(options, optarg);
 			break;
-		case 'r': 
+		case 'r':
 			set_sampling_ratio(options, optarg);
 			break;
 		case 's':
@@ -695,10 +625,10 @@ void parse_cmdline(int argc, char **argv) {
 			parseSelFunction(optarg, options);
 			break;
 		case 'F':
-			options->hash_function = parseFunction(optarg, options);
+			options->hash_function = parseFunction(optarg);
 			break;
 		case 'p':
-			options->pktid_function = parseFunction(optarg, options);
+			options->pktid_function = parseFunction(optarg);
 			options->hashAsPacketID = 0;
 			break;
 		case 'P':
@@ -834,8 +764,8 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 void open_pfring(device_dev_t* if_dev, options_t *options) {
 	mlogf(ALWAYS, "selected PF_RING\n");
 	mlogf(ALWAYS, "device_name: %s\n", if_dev->device_name);
-	if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1, 
-			options->snapLength, 0);	
+	if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1,
+			options->snapLength, 0);
 	if (NULL == if_dev->device_handle.pfring) {
 		mlogf(ALWAYS, "Failed to set up PF_RING-device\n");
 		exit(1);

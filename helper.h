@@ -6,7 +6,7 @@
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
+ * under the terms of the GNU General Public License as published by the Free
  * Software Foundation either version 3 of the License, or (at your option) any
  * later version.
 
@@ -28,6 +28,7 @@
 #include <sys/types.h>
 
 #include "constants.h"
+//#include "settings.h"
 
 #ifdef PFRING
 /*
@@ -50,10 +51,6 @@
 uint32_t getIPv4AddressFromDevice(char* dev_name);
 
 char* htoa(uint32_t ipaddr);
-
-int set_sampling_ratio(options_t *options, char* value);
-int set_sampling_lowerbound(options_t *options, char* value);
-int set_sampling_upperbound(options_t *options, char* value);
 
 #ifndef PFRING
 void setNONBlocking( device_dev_t* pDevice );

@@ -5,11 +5,11 @@
  *                     & TU-Berlin (Christian Henke)
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
- * Code within #ifdef verbose [..] #endif: 
+ * Code within #ifdef verbose [..] #endif:
  *                                   (c) 2005-10 - Luca Deri <deri@ntop.org>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
+ * under the terms of the GNU General Public License as published by the Free
  * Software Foundation either version 3 of the License, or (at your option) any
  * later version.
 
@@ -52,6 +52,7 @@
 #include "helper.h"
 #include "constants.h"
 
+#include "settings.h"
 
 uint32_t getIPv4AddressFromDevice(char* dev_name) {
 
@@ -90,100 +91,6 @@ char *htoa(uint32_t ipaddr) {
 	sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 	return addrstr;
 }
-
-/**
- * Set sampling ratio, returns -1 in case of failure.
- */
-int set_sampling_lowerbound(options_t *options, char* s) {
-  errno = 0;
-  long long int value = strtoll(s, NULL, 0);
-
-  if ( UINT32_MAX < value )
-  {
-    LOGGER_warn("selection range minimum 'out of range (UINT32_MAX)' used to be (uint32_t)");
-    options->sel_range_min = UINT32_MAX;
-  }
-  else if ( 0 > value )
-  {
-    LOGGER_warn("selection range minimum 'out of range (ZERO)' used to be (uint32_t)");
-    options->sel_range_min = 0;
-  }
-  else
-  {
-    options->sel_range_min = (uint32_t) value;
-  }
-  LOGGER_debug("selection range (lowerbound): %#08x (%d)", options->sel_range_min, options->sel_range_min);
-
-  // check if upper bound is greater than lowerbound
-  if(options->sel_range_max < options->sel_range_min)
-  {
-    LOGGER_warn( "lower bound (%#08x) > upper bound (%#08x); adjust upper bound"
-               , options->sel_range_min
-	       , options->sel_range_max );
-    options->sel_range_max = options->sel_range_min;
-  }
-  
-  return options->sel_range_min;
-}
-
-/**
- * Set sampling ratio, returns -1 in case of failure.
- */
-int set_sampling_upperbound(options_t *options, char* s) {
-  errno = 0;
-  long long int value = strtoll(s, NULL, 0);
-
-  if ( UINT32_MAX < value )
-  {
-    LOGGER_warn("selection range maximum 'out of range (UINT32_MAX)' used to be (uint32_t)");
-    options->sel_range_max = UINT32_MAX;
-  }
-  else if ( 0 > value )
-  {
-    LOGGER_warn("selection range maximum 'out of range (ZERO)' used to be (uint32_t)");
-    options->sel_range_max = 0;
-  }
-  else
-  {
-    options->sel_range_max = (uint32_t) value;
-  }
-  LOGGER_debug("selection range (uppperbound): %#08x (%d)", options->sel_range_max, options->sel_range_max);
-
-  // check if upper bound is greater than lowerbound
-  if(options->sel_range_max < options->sel_range_min)
-  {
-    LOGGER_warn( "lower bound (%#08x) > upper bound (%#08x); adjust lower bound"
-               , options->sel_range_min
-	       , options->sel_range_max );
-    options->sel_range_min = options->sel_range_max;
-  }
-  
-  return options->sel_range_max;
-}
-
-/**
- * Set sampling ratio, returns -1 in case of failure.
- */
-int set_sampling_ratio(options_t *options, char* value) {
-	double sampling_ratio = strtod( value, NULL);
-	LOGGER_debug("sampling ratio: %lf", sampling_ratio);
-	/*
-	 * for the sampling ratio we do not like values at the edge, therefore we use values beginning at the 10% slice.
-	 */
-	options->sel_range_min = 0x19999999;
-	options->sel_range_max = (double) UINT32_MAX / 100 * sampling_ratio;
-
-	if (UINT32_MAX - options->sel_range_max > options->sel_range_min) {
-		options->sel_range_min = 0x19999999;
-		options->sel_range_max += options->sel_range_min;
-	} else {
-		/* more than 90% therefore use also values from first 10% slice */
-		options->sel_range_min = UINT32_MAX - options->sel_range_max;
-		options->sel_range_max = UINT32_MAX;
-	}
-	return 0;
-}
-
 
 #ifndef PFRING
 void setNONBlocking( device_dev_t* pDevice )
@@ -547,7 +454,7 @@ void print_stats( device_dev_t* dev ) {
 
 /* *************************************** */
 
-int pfring_dispatch(pfring* pd, int max_packets, 
+int pfring_dispatch(pfring* pd, int max_packets,
 					void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*),
 					u_char* user_args)
 {
@@ -691,7 +598,7 @@ void determineLinkType(device_dev_t* pcap_device) {
 #ifndef PFRING
 int  set_all_filter( const char* bpf ) {
   int i = 0;
-  
+
   for( i = 0; i < g_options.number_interfaces; ++i )
   {
     set_filter( &if_devices[i], bpf);
@@ -803,8 +710,8 @@ int8_t setPFRingFilterPolicy(device_dev_t* pfring_device) {
 	// check if user supplied filtering policy and if not, set it to ACCEPT
 	if( g_options.filter_policy == -1 )
 		g_options.filter_policy = 1;
-	
-	if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring, 
+
+	if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring,
 			g_options.filter_policy) < 0) {
 		mlogf(ALWAYS, "setPFRingFilterPolicy(%d) failed\n", g_options.filter_policy);
 		return -1;

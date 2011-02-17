@@ -7,7 +7,7 @@
  * Copyright (c) 2010, Robert Wuttke <flash@jpod.cc>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
+ * under the terms of the GNU General Public License as published by the Free
  * Software Foundation either version 3 of the License, or (at your option) any
  * later version.
 
@@ -31,9 +31,9 @@
 #endif
 #include <string.h>
 
-
 #include <arpa/inet.h>
-#include "mlog.h"
+
+#include "logger.h"
 #include "constants.h"
 #include "helper.h"
 
@@ -93,8 +93,8 @@ struct range_select* rSel = &baseSelection;
 void print_selection_offsets( struct range_select* p ) {
   do
   {
-	mlogf( INFO, "offset: %d\n", p->offset );
-	mlogf( INFO, "length: %d\n", p->length );
+	LOGGER_info( "offset: %d", p->offset );
+	LOGGER_info( "length: %d", p->length );
   }
   while( NULL != (p = p->next) );
 }
@@ -282,7 +282,7 @@ uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Raw(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	LOGGER_debug( "copyFields_Raw(): pL=%d, bL=%d", packetLength, outBufferLength);
 
 	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
 }
@@ -291,7 +291,7 @@ uint16_t copyFields_Link(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Link(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	LOGGER_debug( "copyFields_Link(): pL=%d, bL=%d", packetLength, outBufferLength);
 
 	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
 }
@@ -301,8 +301,8 @@ uint16_t copyFields_Net(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Net(): pL=%d, bL=%d\n", packetLength, outBufferLength);
-	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	LOGGER_debug( "copyFields_Net(): pL=%d, bL=%d", packetLength, outBufferLength);
+	LOGGER_error( "copyFields_Select(): not yet implemented");
 	// TODO:
 	return 0; // length;
 }
@@ -312,8 +312,8 @@ uint16_t copyFields_Trans(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Trans(): pL=%d, bL=%d\n", packetLength, outBufferLength);
-	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	LOGGER_debug( "copyFields_Trans(): pL=%d, bL=%d", packetLength, outBufferLength);
+	LOGGER_error( "copyFields_Select(): not yet implemented");
 	// TODO:
 	return 0; // length;
 }
@@ -323,8 +323,8 @@ uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG, "copyFields_Payload(): pL=%d, bL=%d\n", packetLength, outBufferLength);
-	mlogf( ALWAYS,"copyFields_Select(): not yet implemented\n");
+	LOGGER_debug(  "copyFields_Payload(): pL=%d, bL=%d", packetLength, outBufferLength);
+	LOGGER_error( "copyFields_Select(): not yet implemented");
 	// TODO:
 	return 0; // length;
 }
@@ -338,7 +338,7 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
 
   do
   {
-	mlogf( WARNING, "sizes: pL=%d, bL=%d, oS=%d, oL=%d\n"
+	LOGGER_info(  "sizes: pL=%d, bL=%d, oS=%d, oL=%d"
 					, packetLength, bLen, range->offset, range->length );
 
 	  // calculate copy range, prevent segmentation faults
@@ -352,15 +352,15 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
         write = (0==range->length)?write:hash_min(write,range->length);
         write = hash_min(write, bLen);
         #endif
-		mlogf( DEBUG, "-> write: %d\n", write );
+		LOGGER_debug( "-> write: %d", write );
 
 		memcpy( b+written, packet+range->offset, write );
 		written += write;
 		bLen    -= write;
 	}
 	else {
-		mlogf( WARNING, "range selection out of range: pL=%d, oS=%d, oL=%d\n"
-					  , packetLength, range->offset, range->length );
+		LOGGER_info(  "range selection out of range: pL=%d, oS=%d, oL=%d"
+					, packetLength, range->offset, range->length );
 	}
   }
   while(0 < bLen && NULL != (range = range->next) );
@@ -582,7 +582,7 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
 	}
 	else {
 		// todo: global constant header file
-		mlogf( WARNING ,"***NO IPV4/IPv6 packet ***\n");
+		LOGGER_info( "***NO IPV4/IPv6 packet ***");
 		net_type = 0; // neither v4 nor v6, should not happen for raw IP link type
 	}
 

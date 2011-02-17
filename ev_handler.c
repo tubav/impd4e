@@ -47,7 +47,6 @@
 
 //#include "templates.h"
 #include "hash.h"
-#include "mlog.h"
 #include "ipfix.h"
 #include "ipfix_def.h"
 #include "ipfix_def_fokus.h"
@@ -295,7 +294,7 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 							, packet_pcap_cb
 							, (u_char*) pcap_dev_ptr) )
 		{
-			LOGGER_error( "Error DeviceNo  %s: %s\n"
+			LOGGER_error( "Error DeviceNo  %s: %s"
 					, pcap_dev_ptr->device_name
 					, pcap_geterr( pcap_dev_ptr->device_handle.pcap) );
 		}
@@ -309,7 +308,7 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 							, packet_pcap_cb
 							, (u_char*) pcap_dev_ptr) )
 		{
-			LOGGER_error( "Error DeviceNo  %s: %s\n"
+			LOGGER_error( "Error DeviceNo  %s: %s"
 					, pcap_dev_ptr->device_name, "" );
 
 		}
@@ -321,7 +320,7 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 							, packet_pfring_cb
 							, (u_char*) pcap_dev_ptr) )
 		{
-			LOGGER_error( "Error DeviceNo  %s: %s\n"
+			LOGGER_error( "Error DeviceNo  %s: %s"
 				, pcap_dev_ptr->device_name, "" );
 		}
 		break;
@@ -406,7 +405,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
 
             if (0 > ipfix_export_array(if_device->ipfixhandle,
                     if_device->ipfixtmpl_min, 3, fields, lengths)) {
-                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
                 exit(1);
             }
             break;
@@ -418,7 +417,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
 
             if (0 > ipfix_export_array(if_device->ipfixhandle,
                     if_device->ipfixtmpl_ts, 2, fields, lengths)) {
-                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
                 exit(1);
             }
             break;
@@ -434,7 +433,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
                 length = ntohs(*((uint16_t*)
                                     (&packet[if_device->offset[L_NET] + 4])));
             } else {
-                mlogf(ALWAYS, "cannot parse packet length \n");
+                LOGGER_fatal( "cannot parse packet length");
                 length = 0;
             }
 
@@ -449,7 +448,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
 
             if (0 > ipfix_export_array(if_device->ipfixhandle,
                     if_device->ipfixtmpl_ts_ttl, 6, fields, lengths)) {
-                mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+                LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
                 exit(1);
             }
         break;
@@ -482,13 +481,13 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 	if_device->sampling_delta_count++;
 	if_device->totalpacketcount++;
 
-	if(0){//if( INFO <= mlog_vlevel ) {
+	if(0){
 		int i = 0;
 		for (i = 0; i < header->caplen; ++i) {
-			mlogf(INFO, "%02x ", packet[i]);
+			LOGGER_info( "%02x ", packet[i]);
 			//fprintf(stderr, "%c", packet[i]);
 		}
-		mlogf(INFO, "\n");
+		LOGGER_info(" ");
 	}
 
 	// selection of viable fields of the packet - depend on the selection function choosen
@@ -501,19 +500,19 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 	if (0 == copiedbytes) {
 
-		mlogf(ALL, "Warning: packet does not contain Selection\n");
+		LOGGER_trace( "Warning: packet does not contain Selection");
 		// todo: ?alternative selection function
 		// todo: ?for the whole configuration
 		// todo: ????drop????
 		return;
 	}
 	//	else {
-	//		mlogf( WARNING, "Warnig: packet contain Selection (%d)\n", copiedbytes);
+	//		LOGGER_warn( "Warnig: packet contain Selection (%d)", copiedbytes);
 	//	}
 
 	// hash the chosen packet data
 	hash_result = g_options.hash_function(if_device->outbuffer, copiedbytes);
-	//mlogf( ALL, "hash result: 0x%04X\n", hash_result );
+	//LOGGER_trace( "hash result: 0x%04X", hash_result );
 
 	// hash result must be in the chosen selection range to count
 	if ((g_options.sel_range_min <= hash_result)
@@ -545,7 +544,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 			if (0 > ipfix_export_array(if_device->ipfixhandle,
 					if_device->ipfixtmpl_min, 3, fields, lengths)) {
-				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+				LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
 				exit(1);
 			}
 			break;
@@ -557,7 +556,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 			if (0 > ipfix_export_array(if_device->ipfixhandle,
 					if_device->ipfixtmpl_ts, 2, fields, lengths)) {
-				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+				LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
 				exit(1);
 			}
 			break;
@@ -571,7 +570,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 			} else if (layers[L_NET] == N_IP6) {
 				length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 4])));
 			} else {
-				mlogf(ALWAYS, "cannot parse packet length \n");
+				LOGGER_fatal( "cannot parse packet length" );
 				length = 0;
 			}
 
@@ -580,7 +579,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 			if (0 > ipfix_export_array(if_device->ipfixhandle,
 					if_device->ipfixtmpl_ts_ttl, 6, fields, lengths)) {
-				mlogf(ALWAYS, "ipfix_export() failed: %s\n", strerror(errno));
+				LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
 				exit(1);
 			}
 			break;
@@ -599,7 +598,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
 	} // if((options.sel_range_min < hash_result) && (options.sel_range_max > hash_result))
 //	else {
-//		mlogf(INFO, "INFO: drop packet; hash not in selection range\n");
+//		LOGGER_info( "INFO: drop packet; hash not in selection range");
 //	}
 }
 #endif
@@ -954,7 +953,7 @@ void export_data_interface_stats(device_dev_t *dev,
 	/* Get pcap statistics in case of live capture */
 	if ( TYPE_PCAP == dev->device_type ) {
 		if (pcap_stats(dev->device_handle.pcap, &pcapStat) < 0) {
-			LOGGER_error("Error DeviceNo  %s: %s\n", dev->device_name
+			LOGGER_error("Error DeviceNo  %s: %s", dev->device_name
 						, pcap_geterr(dev->device_handle.pcap));
 		}
 	} else {
@@ -964,7 +963,7 @@ void export_data_interface_stats(device_dev_t *dev,
     #else
     if ( TYPE_PFRING == dev->device_type ) {
         if (pfring_stats(dev->device_handle.pfring, &pfringStat) < 0) {
-            LOGGER_error("Error DeviceNo  %s: Failed to get statistics\n",
+            LOGGER_error("Error DeviceNo  %s: Failed to get statistics",
                         dev->device_name);
         }
     } else {

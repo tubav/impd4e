@@ -47,7 +47,6 @@
 #include <pf_plugin_impd4e.h>
 #endif
 
-#include "mlog.h"
 #include "logger.h"
 #include "helper.h"
 #include "constants.h"
@@ -99,7 +98,7 @@ void setNONBlocking( device_dev_t* pDevice )
 	case TYPE_PCAP_FILE:
 	case TYPE_PCAP:
 		if (pcap_setnonblock(pDevice->device_handle.pcap, 1, errbuf) < 0) {
-			mlogf(ALWAYS, "pcap_setnonblock: %s: %s"
+			LOGGER_fatal( "pcap_setnonblock: %s: %s"
 						, pDevice->device_name, errbuf);
 			LOGGER_error( "pcap_setnonblock: %s: %s"
 					, pDevice->device_name, errbuf );
@@ -112,14 +111,12 @@ void setNONBlocking( device_dev_t* pDevice )
 		int flags = 0;
 		if ((flags = fcntl(pDevice->device_handle.socket, F_GETFL, 0)) < 0) {
 			// todo: handle error
-			mlogf(ALWAYS, "fcntl (F_GETFL) fails\n");
-			LOGGER_error( "fcntl (F_GETFL) fails");
+			LOGGER_fatal( "fcntl (F_GETFL) fails");
 		}
 
 		if (fcntl(pDevice->device_handle.socket, F_SETFL, flags | O_NONBLOCK) < 0) {
 			// todo: handle error
-			mlogf(ALWAYS, "fcntl (F_SETFL - _NONBLOCK) fails\n");
-			LOGGER_error( "fcntl (F_SETFL - _NONBLOCK) fails\n");
+			LOGGER_fatal( "fcntl (F_SETFL - _NONBLOCK) fails");
 		}
 
 		break;
@@ -180,7 +177,7 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
 		}
 		else
 		{
-			mlogf( WARNING, "socket_dispatch: snaplan exceed Buffer size (%d); "
+			LOGGER_warn( "socket_dispatch: snaplan exceed Buffer size (%d); "
 							"use Buffersize instead.\n", BUFFER_SIZE );
 		}
 
@@ -474,7 +471,7 @@ int pfring_dispatch(pfring* pd, int max_packets,
 		}
 		else
 		{
-			mlogf( WARNING, "socket_dispatch: snaplan exceed Buffer size (%d); "
+			LOGGER_warn( "socket_dispatch: snaplan exceed Buffer size (%d); "
 							"use Buffersize instead.\n", BUFFER_SIZE );
 		}
 		switch(recv_ret =  pfring_recv(pd, (char*)buffer, sizeof(buffer), &hdr
@@ -587,7 +584,7 @@ void determineLinkType(device_dev_t* pcap_device) {
 		LOGGER_info("dltype: DLT_RAW");
 		break;
 	default:
-		mlogf(ALWAYS, "Link Type (%d) not supported - default to DLT_RAW \n",
+		LOGGER_fatal( "Link Type (%d) not supported - default to DLT_RAW",
 				pcap_device->link_type);
 		pcap_device->offset[L_NET] = 0;
 		break;
@@ -613,13 +610,13 @@ int set_filter(device_dev_t* pd, const char* bpf) {
 	if (bpf) {
 		if (-1 == pcap_compile(pd->device_handle.pcap, &fp,
 				bpf, 0, 0)) {
-			mlogf(ALWAYS, "Couldn't parse filter %s: %s\n"
+			LOGGER_fatal( "Couldn't parse filter %s: %s"
 				    , bpf
 				    , pcap_geterr(pd->device_handle.pcap));
 		    return -1;
 		}
 		if (-1 == pcap_setfilter(pd->device_handle.pcap, &fp)) {
-			mlogf(ALWAYS, "Couldn't install filter %s: %s\n"
+			LOGGER_fatal( "Couldn't install filter %s: %s"
 				    , bpf
 				    , pcap_geterr(pd->device_handle.pcap));
 		    return -1;
@@ -635,11 +632,11 @@ void setFilter(device_dev_t* pcap_device) {
 	if (g_options.bpf) {
 		if (-1 == pcap_compile(pcap_device->device_handle.pcap, &fp,
 				g_options.bpf, 0, 0)) {
-			mlogf(ALWAYS, "Couldn't parse filter %s: %s\n", g_options.bpf,
+			LOGGER_fatal( "Couldn't parse filter %s: %s", g_options.bpf,
 					pcap_geterr(pcap_device->device_handle.pcap));
 		}
 		if (-1 == pcap_setfilter(pcap_device->device_handle.pcap, &fp)) {
-			mlogf(ALWAYS, "Couldn't install filter %s: %s\n", g_options.bpf,
+			LOGGER_fatal( "Couldn't install filter %s: %s", g_options.bpf,
 					pcap_geterr(pcap_device->device_handle.pcap));
 		}
 	}
@@ -697,10 +694,10 @@ int setPFRingFilter(device_dev_t* pfring_device) {
 
 		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
 										 &g_options.rules[i]) < 0) {
-			mlogf(ALWAYS, "setPFRingFilter(%d) failed\n", i);
+			LOGGER_fatal( "setPFRingFilter(%d) failed", i);
 			return -1;
 		}
-		mlogf(ALWAYS, "setPFRingFilter(%d) succeeded\n", i);
+		LOGGER_fatal( "setPFRingFilter(%d) succeeded", i);
 	}
 	return 0;
 }
@@ -713,10 +710,10 @@ int8_t setPFRingFilterPolicy(device_dev_t* pfring_device) {
 
 	if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring,
 			g_options.filter_policy) < 0) {
-		mlogf(ALWAYS, "setPFRingFilterPolicy(%d) failed\n", g_options.filter_policy);
+		LOGGER_fatal( "setPFRingFilterPolicy(%d) failed", g_options.filter_policy);
 		return -1;
 	}
-	mlogf(ALWAYS, "setPFRingFilterPolicy(%d) succeeded\n", g_options.filter_policy);
+	LOGGER_fatal( "setPFRingFilterPolicy(%d) succeeded", g_options.filter_policy);
 	return 0;
 }
 #endif //PFRING

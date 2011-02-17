@@ -24,36 +24,35 @@
 
 
 #include <stdlib.h>
-//#include <stdint.h>
-//#include <unistd.h>
 #include <errno.h>
 #include <ctype.h>
-//
+#include <string.h>
+//#include <stdint.h>
+//#include <unistd.h>
+
 //#include <sys/types.h>
 //#include <sys/socket.h>
 //#include <sys/ioctl.h>
 //#include <fcntl.h>
 //#include <linux/if.h>
 //#include <netinet/in.h>
-//
+
 //#ifndef PFRING
 //#include <pcap.h>
 //#endif
-//
-#include <string.h>
-//
+
+
 //#ifdef PFRING
 //#include <netinet/ip.h>
 //#include <net/ethernet.h>     /* the L2 protocols */
 //#include <pf_plugin_impd4e.h>
 //#endif
-//
-//#include "mlog.h"
+
 #include "logger.h"
+#include "settings.h"
 //#include "helper.h"
 //#include "constants.h"
 
-#include "settings.h"
 
 // -----------------------------------------------------------------------------
 // Global Variables

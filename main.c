@@ -54,7 +54,6 @@
 
 //#include "constants.h"
 //#include "hash.h"
-#include "mlog.h"
 
 // ipfix staff
 #include "ipfix.h"
@@ -548,13 +547,13 @@ void parse_cmdline(int argc, char **argv) {
 		case 'i': {
 			uint8_t if_idx = options->number_interfaces; // shorter for better reading
 			if (MAX_INTERFACES == options->number_interfaces) {
-				mlogf(ALWAYS, "specify at most %d interfaces with -i\n", MAX_INTERFACES);
+				LOGGER_fatal( "specify at most %d interfaces with -i", MAX_INTERFACES);
 				break;
 			}
 			if (':' != optarg[1]) {
-				mlogf(ALWAYS, "specify interface type with -i\n");
-				mlogf(ALWAYS, "use [i,f,p,s,u]: as prefix - see help\n");
-				mlogf(ALWAYS, "for compatibility reason, assume ethernet as 'i:' is given!\n");
+				LOGGER_fatal( "specify interface type with -i");
+				LOGGER_fatal( "use [i,f,p,s,u]: as prefix - see help");
+				LOGGER_fatal( "for compatibility reason, assume ethernet as 'i:' is given!");
 				if_devices[if_idx].device_type = TYPE_PCAP;
 				if_devices[if_idx].device_name = strdup(optarg);
 			}
@@ -584,8 +583,8 @@ void parse_cmdline(int argc, char **argv) {
 					if_devices[if_idx].device_type = TYPE_UNKNOWN;
 					break;
 				default:
-					mlogf(ALWAYS, "unknown interface type with -i\n");
-					mlogf(ALWAYS, "use [i,f,p,s,u]: as prefix - see help\n");
+					LOGGER_fatal( "unknown interface type with -i");
+					LOGGER_fatal( "use [i,f,p,s,u]: as prefix - see help");
 					break;
 				}
 				// skip prefix
@@ -633,12 +632,12 @@ void parse_cmdline(int argc, char **argv) {
 			break;
 		case 'P':
 			if ((options->collectorPort = atoi(optarg)) < 0) {
-				mlogf(ALWAYS, "Invalid -p argument!\n");
+				LOGGER_fatal( "Invalid -P argument!");
 				exit(1);
 			}
 			break;
 		case 'v':
-			mlog_set_vlevel(++options->verbosity);
+			++options->verbosity;
 			break;
 		case 'l':
 			options->snapLength = atoi(optarg);
@@ -669,7 +668,7 @@ void open_pcap_file(device_dev_t* if_dev, options_t *options) {
 
 	if_dev->device_handle.pcap = pcap_open_offline(if_dev->device_name, errbuf);
 	if (NULL == if_dev->device_handle.pcap) {
-		mlogf(ALWAYS, "%s \n", errbuf);
+		LOGGER_fatal( "%s", errbuf);
 	}
 	determineLinkType(if_dev);
 	setFilter(if_dev);
@@ -680,7 +679,7 @@ void open_pcap(device_dev_t* if_dev, options_t *options) {
 	if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
 			options->snapLength, 1, 1000, errbuf);
 	if (NULL == if_dev->device_handle.pcap) {
-		mlogf(ALWAYS, "%s \n", errbuf);
+		LOGGER_fatal( "%s", errbuf);
 		exit(1);
 	}
 
@@ -695,7 +694,7 @@ void open_pcap(device_dev_t* if_dev, options_t *options) {
 	if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
 
 	/* display result */
-	mlogf(ALWAYS, "Device %s has IP %s \n", if_dev->device_name, htoa(
+	LOGGER_fatal( "Device %s has IP %s", if_dev->device_name, htoa(
 			if_dev->IPv4address));
 
 	determineLinkType(if_dev);
@@ -716,19 +715,19 @@ void open_pcap(device_dev_t* if_dev, options_t *options) {
 	//			fgets(IPAddress, LINE_LENGTH, fp);
 	//			struct in_addr inp;
 	//			if (inet_aton(IPAddress, &inp) < 0) {
-	//				mlogf(ALWAYS, "read wrong IP format of Interface %s \n",
+	//				LOGGER_fatal( "read wrong IP format of Interface %s ",
 	//						options->if_names[i]);
 	//				exit(1);
 	//			}
 	//			if_devices[i].IPv4address = ntohl((uint32_t) inp.s_addr);
-	//			mlogf(INFO, "Device %s has IP %s \n", options->if_names[i], htoa(
+	//			LOGGER_info( "Device %s has IP %s", options->if_names[i], htoa(
 	//					if_devices[i].IPv4address));
 	//			pclose(fp);
 
 }
 
 void open_socket_inet(device_dev_t* if_device, options_t *options) {
-	mlogf(ALWAYS, "open_socket_inet():not yet implemented!\n");
+	LOGGER_fatal( "open_socket_inet():not yet implemented!");
 }
 
 void open_socket_unix(device_dev_t* if_device, options_t *options) {
@@ -762,17 +761,17 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
 
 #ifdef PFRING
 void open_pfring(device_dev_t* if_dev, options_t *options) {
-	mlogf(ALWAYS, "selected PF_RING\n");
-	mlogf(ALWAYS, "device_name: %s\n", if_dev->device_name);
+	LOGGER_fatal( "selected PF_RING");
+	LOGGER_fatal( "device_name: %s", if_dev->device_name);
 	if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1,
 			options->snapLength, 0);
 	if (NULL == if_dev->device_handle.pfring) {
-		mlogf(ALWAYS, "Failed to set up PF_RING-device\n");
+		LOGGER_fatal( "Failed to set up PF_RING-device");
 		exit(1);
 	}
 
 	if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
-	mlogf(ALWAYS, "Device %s has IP %s \n", if_dev->device_name, htoa(
+	LOGGER_fatal( "Device %s has IP %s", if_dev->device_name, htoa(
 			if_dev->IPv4address));
 
 	// pfring only supports ethernet
@@ -787,7 +786,7 @@ void open_pfring(device_dev_t* if_dev, options_t *options) {
 void open_device(device_dev_t* if_device, options_t *options) {
 	// parameter check
 	if (NULL == if_device || NULL == options) {
-		mlogf(ALWAYS, "Parameter are NULL!\n");
+		LOGGER_fatal( "Parameter are NULL!");
 		return;
 	}
 
@@ -795,7 +794,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
     #ifndef PFRING
 	// file as interface to listen
 	case TYPE_FILE:
-		mlogf(ALWAYS, "open_file(): not yet implemented!\n");
+		LOGGER_fatal( "open_file(): not yet implemented!");
 		break;
 
 	case TYPE_PCAP_FILE:
@@ -807,7 +806,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 		break;
 
 	case TYPE_SOCKET_INET:
-		mlogf(ALWAYS, "open_socket_inet():not yet implemented!\n");
+		LOGGER_fatal( "open_socket_inet():not yet implemented!");
 		//open_socket_inet(if_device, options);
 		break;
 
@@ -823,7 +822,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 
 	case TYPE_UNKNOWN:
 	default:
-		mlogf(ALWAYS, "not yet implemented!\n");
+		LOGGER_fatal( "not yet implemented!");
 		break;
 	}
 
@@ -835,7 +834,7 @@ void open_device(device_dev_t* if_device, options_t *options) {
 
 void libipfix_init() {
 	if (ipfix_init() < 0) {
-		mlogf(ALWAYS, "cannot init ipfix module: %s\n", strerror(errno));
+		LOGGER_fatal( "cannot init ipfix module: %s", strerror(errno));
 
 	}
 	if (ipfix_add_vendor_information_elements(ipfix_ft_fokus) < 0) {
@@ -861,7 +860,7 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 	}
 
 	if (ipfix_open(&(if_device->ipfixhandle), odid, IPFIX_VERSION) < 0) {
-		mlogf(ALWAYS, "ipfix_open() failed: %s\n", strerror(errno));
+		LOGGER_fatal( "ipfix_open() failed: %s", strerror(errno));
 
 	}
 
@@ -903,7 +902,7 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 	if (ipfix_add_collector(if_device->ipfixhandle,
 			options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
 			< 0) {
-		LOGGER_error("ipfix_add_collector(%s,%d) failed: %s\n",
+		LOGGER_error("ipfix_add_collector(%s,%d) failed: %s",
 				options->collectorIP, options->collectorPort, strerror(
 						errno));
 	}
@@ -940,11 +939,11 @@ int main(int argc, char *argv[]) {
 
 	// set defaults options
 	set_defaults_options(&g_options);
-	mlogf(INFO, "set_defaults() okay \n");
+	LOGGER_info( "set_defaults() okay");
 
 	// parse commandline; set global parameter options
 	parse_cmdline(argc, argv);
-	mlogf(INFO, "parse_cmdline() okay \n");
+	LOGGER_info( "parse_cmdline() okay");
 
 	logger_setlevel(g_options.verbosity);
 
@@ -961,11 +960,11 @@ int main(int argc, char *argv[]) {
 
 		// open pcap interfaces with filter
 		open_device(&if_devices[i], &g_options);
-		mlogf(INFO, "open_device(%d)\n", i);
+		LOGGER_info( "open_device(%d)", i);
 
 		// setup ipfix_exporter for each device
 		libipfix_open(&if_devices[i], &g_options);
-		mlogf(INFO, "open_ipfix_export(%d)\n", i);
+		LOGGER_info( "open_ipfix_export(%d)", i);
 	}
 
 	/* ---- main event loop  ---- */

@@ -155,9 +155,7 @@ impd4e (1.0-1ubuntu1) lucid; urgency=low
   * exchange mlog with logger
   * correction: add settings to Makefile.in
 
-  [ Ramon Masek ]
-
- -- Ramon Masek <rma@bomar>  Mon, 21 Feb 2011 12:42:49 +0100
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Mon, 21 Feb 2011 12:57:01 +0100
 
 impd4e (1.0-1) unstable; urgency=low
 

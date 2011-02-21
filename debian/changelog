@@ -1,4 +1,4 @@
-impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
+impd4e (1.0-1ubuntu1) lucid; urgency=low
 
   [ Carsten Schmoll ]
   * added two more wish items
@@ -17,8 +17,6 @@ impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
   [ Christian Henke ]
   * IPAddress read by script
   * minor adjustements
-  * minor
-  * minor
 
   [ NET-User ]
   * bug fixes
@@ -33,16 +31,11 @@ impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
 
   [ Robert Wuttke ]
   * added debug-msgs to main.c
-  * added debug-msgs to main.c
-  * added debug-msgs to main.c
 
   [ Christian Henke ]
   * race condition ipfix_flush fix
 
   [ Robert Wuttke ]
-  * timestamp debugging
-  * timestamp debugging
-  * timestamp debugging
   * timestamp debugging
 
   [ PRISM User ]
@@ -65,7 +58,6 @@ impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
   * - added simple logger
   * - doxygen
   * - logger update
-  * node info (on going)
   * node info (on going)
   * - using libev for handling events
   * stats export (on going)
@@ -109,9 +101,7 @@ impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
   [ Robert Wuttke ]
   * added -lm to Makefile.in
   * added -D_GNU_SOURCE to Makefile.in
-  * added -D_GNU_SOURCE to Makefile.in
   * added -DOPENWRT_BUILD to Makefile.in
-  * added -D_GNU_SOURCE to Makefile.in
 
   [ Ramón Masek ]
   * add selection function to select bytes for hashing
@@ -132,9 +122,42 @@ impd4e (1.0-1ubuntu1) UNRELEASED; urgency=low
   * add targets to Makefile:
   * add debian directory for package building
 
+  [ Robert Wuttke ]
+  * [PF_RING] added preliminary PF_RING support
+  * [pfring] added optional, regular stats-printing - enable via #ifdef
+    PFRING_STATS
+  * [pfring] added pfring_filter.c and pfring_filter.h
+  * [Makefile.in] added target: impd4e_pf
+  * [TMP] OpenWrt test0
+  * [pfring] added filtering support
+  * [pfring] added filtering support
+  * [pfring] moved pfring-filter stuff from helper to pfring_filter
+  * [pfring] moved pfring-filter-init stuff from pfring_filter helper
+  * corrected copyright statements in all files
+  * [pfring] removed all libpcap-foo if compiling for PF_RING
+  * [configure] added --with-pcap=no functionality to disable linking
+    pcap in
+  * [pfring] worked on filtering
+  * [pfring] cleaned up and added some comments
+  * [gitignore] added vim-swap-files, autom4te.cache/
+  * [pfring] added pf_ring parameter passing tests
+  * [pfring] implementation v0-rc0
+
+  [ Ramón Masek ]
+  * add targets for package building using git-buildpackage
+  * refactor runtime configuration; add filter configuration
+  * [runtime config] add selection range
+  * [runtime config] add set template
+  * [runtime config] add change export timeouts I,J,K
+  * cleanup comment correction
+  * add settings.h/.c holding configuration member
+  * move configuration data/functions to setting.h/.c; minor cosmetic
+  * exchange mlog with logger
+  * correction: add settings to Makefile.in
+
   [ Ramon Masek ]
 
- -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Thu, 27 Jan 2011 16:22:08 +0100
+ -- Ramon Masek <rma@bomar>  Mon, 21 Feb 2011 12:42:49 +0100
 
 impd4e (1.0-1) unstable; urgency=low
 

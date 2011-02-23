@@ -201,7 +201,10 @@ void print_help() {
 			"\n"
 			"   -v                             verbose-level; use multiple times to increase output \n"
 			"   -h                             print this help \n"
-			"\n");
+			"\n"
+			"EXAMPLES for usage: \n"
+			"sudo impd4e -i i:interface -C collectorIP -r 1 -t min \n"
+			"sudo impd4e -i i:interface -o observationDomainID -S 20,34-45 -C collectorIP \n");
 
 	#ifdef PFRING
 		printf("Possible PF_RING filter keywords include: ");

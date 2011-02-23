@@ -27,6 +27,8 @@
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+For Installation Instruction please refer to INSTALL
+
 
 /** @mainpage impd4e - Internet Measurement Probe for Embedded Devices
 
@@ -38,9 +40,9 @@ In case the hash value falls into a predefined selection range the packet is sel
 In case selection range, hash function, and the inout for the hash function is the same, the selection
 on every node will be the same.  
 
-The measurement probe exports packet IDs and relevant information viai the standardized IPFIX protocol. 
+The measurement probe exports packet IDs and relevant information via the standardized IPFIX protocol. 
  
-The impd4e tool exports the following fields via IPFIX depending on the
+The impd4e tool exports the fields via IPFIX depending on the
 use of the -t parameter. See templates.h for details.
 
 This package makes use of the Fraunhofer FOKUS "libipfix" library which

@@ -1,8 +1,8 @@
 
 prerequisites:
 - libpcap (including libpcap-dev package)
-- libipfix (get it from https://sourceforge.net/projects/libipfix/)
-- libev (http://software.schmorp.de/pkg/libev.html)
+- libipfix (get it from https://sourceforge.net/projects/libipfix/ - make sure to use the impd4e Version)
+- libev (http://dist.schmorp.de/libev/)
 
 To build impd4e, run "./configure" (a shell script). The configure
 script will determine your system attributes and generate
@@ -13,6 +13,7 @@ example:
           ./configure --prefix=/usr/local
           make
           make install
+          sudo make install   (this will install impd4e to /usr/local/bin/ by default)
 
 example usage:
 
@@ -21,5 +22,12 @@ example usage:
 	  to run an IPFIX collector start ipfix_collector from the collector subdir of libipfix
 
 	  to run the impd4e execute for example 
-		./ipmd4e -h
-		./impd4e -i eth0 -C collector_host -P collector_port -f <bpf-filter> -F BOB -r 10
+		ipmd4e -h
+		impd4e -i eth0 -C collector_host -P collector_port -f <bpf-filter> -F BOB -r 10
+
+To listen to the ethernet interface you will probably need to be root, run "sudo su" before starting the impd4e tool.
+
+Make sure that the user root has /usr/local/lib in his library path. For bash set it with
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH$:/usr/local/lib
+before starting impd4e
+

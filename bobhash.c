@@ -1,23 +1,9 @@
-/*
- * impd4e - a small network probe which allows to monitor and sample datagrams
- * from the network and exports hash-based packet IDs over IPFIX
- *
- * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll) &
- *                     TU-Berlin (Christian Henke)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free 
- * Software Foundation either version 3 of the License, or (at your option) any
- * later version.
-
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
- * details.
-
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- */
+/* By Bob Jenkins, 1996.  bob_jenkins@burtleburtle.net.  You may use
+   this code any way you wish, private, educational, or commercial.
+   It's free.  See http://burtleburtle.net/bob/hash/evahash.html.
+   Use for hash table lookup, or anything where one collision in 2^^32
+   is acceptable.  Do NOT use for cryptographic purposes.
+*/
 
 #include "bobhash.h"
 #include <stdio.h>

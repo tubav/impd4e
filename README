@@ -1,27 +1,58 @@
-/**
-@file
-*/
+/*
+ * impd4e - a small network probe which allows to monitor and sample datagrams 
+ * from the network based on hash-based packet selection. 
+ * 
+ * Copyright (c) 2011
+ *
+ * Fraunhofer FOKUS  
+ * www.fokus.fraunhofer.de
+ *
+ * in cooperation with
+ *
+ * Technical University Berlin
+ * www.av.tu-berlin.de
+ *
+ * For questions/comments contact packettracking@fokus.fraunhofer.de
+ *
+ * This program is free software; you can redistribute it and/or modify it under the 
+ * terms of the GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with 
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
 
 /** @mainpage impd4e - Internet Measurement Probe for Embedded Devices
 
 This package contains a small network probe which allows to monitor and 
-sample datagrams from the network and exports hash-based packet IDs over
-the IPFIX protocol.
+sample datagrams from the network. Based on the hash-based selection algorithm (cf. [RFC5475])
+the selected datagrams will be the same on every point in the network.
+Hash-based packet selection takes parts of the packet as the input for a hash function. 
+In case the hash value falls into a predefined selection range the packet is selected. 
+In case selection range, hash function, and the inout for the hash function is the same, the selection
+on every node will be the same.  
 
-This package makes use of the Fraunhofer FOKUS "libipfix" library which
-must be installed prior to compilation of impd4e.
-
-This package also requires libev, which can be downloaded from
-http://software.schmorp.de/pkg/libev.html
-
+The measurement probe exports packet IDs and relevant information viai the standardized IPFIX protocol. 
+ 
 The impd4e tool exports the following fields via IPFIX depending on the
 use of the -t parameter. See templates.h for details.
 
-You can download the current version of libipfix from: 
-https://sourceforge.net/projects/libipfix/
+This package makes use of the Fraunhofer FOKUS "libipfix" library which
+must be installed prior to compilation of impd4e.
+https://sourceforge.net/projects/libipfix/ (make sure to use the impd4e version)
+
+This package also requires libev, which can be downloaded from
+http://dist.schmorp.de/libev/
 
 You can download the latest version of impd4e from:
 https://sourceforge.net/projects/impd4e/
-Please send inquiries/comments/reports to openimp@fokus.fraunhofer.de
 
+
+Please send inquiries/comments/reports to packettracking@fokus.fraunhofer.de
 */

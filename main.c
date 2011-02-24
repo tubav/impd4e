@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -14,16 +14,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -556,13 +556,13 @@ void parse_cmdline(int argc, char **argv) {
 		case 'i': {
 			uint8_t if_idx = options->number_interfaces; // shorter for better reading
 			if (MAX_INTERFACES == options->number_interfaces) {
-				LOGGER_fatal( "specify at most %d interfaces with -i", MAX_INTERFACES);
+				fprintf( stderr, "specify at most %d interfaces with -i\n", MAX_INTERFACES);
 				break;
 			}
 			if (':' != optarg[1]) {
-				LOGGER_fatal( "specify interface type with -i");
-				LOGGER_fatal( "use [i,f,p,s,u]: as prefix - see help");
-				LOGGER_fatal( "for compatibility reason, assume ethernet as 'i:' is given!");
+				fprintf( stderr, "specify interface type with -i\n");
+				fprintf( stderr, "use [i,f,p,s,u]: as prefix - see help\n");
+				fprintf( stderr, "for compatibility reason, assume ethernet as 'i:' is given!\n");
 				if_devices[if_idx].device_type = TYPE_PCAP;
 				if_devices[if_idx].device_name = strdup(optarg);
 			}
@@ -703,8 +703,9 @@ void open_pcap(device_dev_t* if_dev, options_t *options) {
 	if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
 
 	/* display result */
-	LOGGER_fatal( "Device %s has IP %s", if_dev->device_name, htoa(
-			if_dev->IPv4address));
+	fprintf( stderr , "Device %s has IP %s\n"
+					, if_dev->device_name
+					, htoa(if_dev->IPv4address));
 
 	determineLinkType(if_dev);
 	setFilter(if_dev);

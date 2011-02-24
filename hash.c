@@ -1,30 +1,46 @@
-/* impd4e - a small network probe which allows to monitor and sample datagrams
- * from the network and exports hash-based packet IDs over IPFIX
- * Copyright (c) 2010, Fraunhofer FOKUS (Carsten Schmoll) & TU-Berlin (Christian Henke)
- * This program is free software; you can redistribute it and/or modify it under the
+/*
+ * impd4e - a small network probe which allows to monitor and sample datagrams 
+ * from the network based on hash-based packet selection. 
+ * 
+ * Copyright (c) 2011
+ *
+ * Fraunhofer FOKUS  
+ * www.fokus.fraunhofer.de
+ *
+ * in cooperation with
+ *
+ * Technical University Berlin
+ * www.av.tu-berlin.de
+ *
+ * For questions/comments contact packettracking@fokus.fraunhofer.de
+ *
+ * This program is free software; you can redistribute it and/or modify it under the 
  * terms of the GNU General Public License as published by the Free Software Foundation;
- *  either version 3 of the License, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
-
- * You should have received a copy of the GNU General Public License along with
+ *
+ * You should have received a copy of the GNU General Public License along with 
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <inttypes.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 #include <math.h>
+#ifndef PFRING
 #include <pcap.h>
+#endif
 #include <string.h>
 
-
 #include <arpa/inet.h>
-#include "mlog.h"
+
+#include "logger.h"
 #include "constants.h"
 #include "helper.h"
 
@@ -34,13 +50,18 @@
 #include "twmx.h"
 
 
-
-
+// PFRING also defines min(x,y)
+#ifndef PFRING
 #define min(X, Y)                \
 ({ typeof (X) x_ = (X);          \
    typeof (Y) y_ = (Y);          \
    (x_ < y_) ? x_ : y_; })
-
+#else
+#define hash_min(X, Y)                \
+({ typeof (X) x_ = (X);          \
+   typeof (Y) y_ = (Y);          \
+   (x_ < y_) ? x_ : y_; })
+#endif
 
 const uint32_t initval=0x32545;
 
@@ -79,8 +100,8 @@ struct range_select* rSel = &baseSelection;
 void print_selection_offsets( struct range_select* p ) {
   do
   {
-	mlogf( INFO, "offset: %d\n", p->offset );
-	mlogf( INFO, "length: %d\n", p->length );
+	LOGGER_info( "offset: %d", p->offset );
+	LOGGER_info( "length: %d", p->length );
   }
   while( NULL != (p = p->next) );
 }
@@ -121,8 +142,12 @@ uint16_t copyFields_Rec( const uint8_t *packet,   uint16_t packetLength
 
 	uint16_t copiedbytes=0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    #ifndef PFRING
 	// find headers of the IP STACK
 	findHeaders(packet, packetLength, headerOffset, layers);
+    #endif
 
 	if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
 		if (layers[L_NET] == N_IP) {
@@ -167,11 +192,14 @@ uint16_t copyFields_Only_Net( const uint8_t *packet, uint16_t packetLength,
 
 	uint16_t copiedbytes = 0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    #ifndef PFRING
 	// find headers of the IP STACK
 	// todo: probably not needed here; just case for IP which used to be known already
 	// todo: or it can be simplified
 	findHeaders(packet, packetLength, headerOffset, layers);
-
+    #endif
 	copiedbytes = copy_NetFields( packet,       packetLength
 			                    , outBuffer,    outBufferLength
 			                    , headerOffset, layers);
@@ -189,9 +217,12 @@ uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
 	uint16_t  copiedbytes=0;
 	int 	  piece_length = 0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    //#ifndef PFRING
 	// find headers of the IP STACK
 	findHeaders(packet, packetLength, headerOffset, layers);
-
+    //#endif
 	copiedbytes = copy_NetFields( packet,       packetLength
 			                    , outBuffer,    outBufferLength
 			                    , headerOffset, layers);
@@ -199,12 +230,20 @@ uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
 	// check if there is a transport layer included in the packet
 	if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
 		if ( (layers[L_TRANS] == T_TCP) || (layers[L_TRANS] == T_ICMP) || (layers[L_TRANS] == T_ICMP6) ) {
+            #ifndef PFRING
 		    piece_length = min(20,packetLength-(headerOffset[L_TRANS]));
+            #else
+            piece_length = hash_min(20,packetLength-(headerOffset[L_TRANS]));
+            #endif
 		    memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS],piece_length);
 		    copiedbytes += piece_length;
 		}
 		if (layers[L_TRANS] == T_UDP) {
+            #ifndef PFRING
 			piece_length = min(8,packetLength-(headerOffset[L_TRANS]));
+            #else
+            piece_length = hash_min(8,packetLength-(headerOffset[L_TRANS]));
+            #endif
 			memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS],piece_length);
 			copiedbytes += piece_length;
 		}
@@ -226,14 +265,21 @@ uint16_t copyFields_Packet( const uint8_t *packet, uint16_t packetLength,
 	uint16_t copiedbytes = 0;
 	int piecelength      = 0;
 
+    // with PF_RING header information is passed from kernel to userspace
+    // so there is no need to parse the packet again
+    #ifndef PFRING
 	// find headers of the IP STACK
 	findHeaders(packet, packetLength, headerOffset, layers);
-
+    #endif
 	copiedbytes = copy_NetFields( packet,       packetLength
 			                    , outBuffer,    outBufferLength
 			                    , headerOffset, layers);
 
+    #ifndef PFRING
 	piecelength = min(packetLength-20, 50);
+    #else
+    piecelength = hash_min(packetLength-20, 50);
+    #endif
 	memcpy(outBuffer+copiedbytes,packet+headerOffset[L_NET]+20,piecelength);
 
 	return (copiedbytes+packetLength-20);
@@ -243,7 +289,7 @@ uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Raw(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	LOGGER_debug( "copyFields_Raw(): pL=%d, bL=%d", packetLength, outBufferLength);
 
 	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
 }
@@ -252,7 +298,7 @@ uint16_t copyFields_Link(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Link(): pL=%d, bL=%d\n", packetLength, outBufferLength);
+	LOGGER_debug( "copyFields_Link(): pL=%d, bL=%d", packetLength, outBufferLength);
 
 	return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
 }
@@ -262,8 +308,8 @@ uint16_t copyFields_Net(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Net(): pL=%d, bL=%d\n", packetLength, outBufferLength);
-	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	LOGGER_debug( "copyFields_Net(): pL=%d, bL=%d", packetLength, outBufferLength);
+	LOGGER_error( "copyFields_Select(): not yet implemented");
 	// TODO:
 	return 0; // length;
 }
@@ -273,8 +319,8 @@ uint16_t copyFields_Trans(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG ,"copyFields_Trans(): pL=%d, bL=%d\n", packetLength, outBufferLength);
-	mlogf( ALWAYS ,"copyFields_Select(): not yet implemented\n");
+	LOGGER_debug( "copyFields_Trans(): pL=%d, bL=%d", packetLength, outBufferLength);
+	LOGGER_error( "copyFields_Select(): not yet implemented");
 	// TODO:
 	return 0; // length;
 }
@@ -284,8 +330,8 @@ uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
 			 uint8_t *outBuffer, uint16_t outBufferLength,
 			 int16_t headerOffset[4], uint8_t layers[4])
 {
-	mlogf( DEBUG, "copyFields_Payload(): pL=%d, bL=%d\n", packetLength, outBufferLength);
-	mlogf( ALWAYS,"copyFields_Select(): not yet implemented\n");
+	LOGGER_debug(  "copyFields_Payload(): pL=%d, bL=%d", packetLength, outBufferLength);
+	LOGGER_error( "copyFields_Select(): not yet implemented");
 	// TODO:
 	return 0; // length;
 }
@@ -299,24 +345,29 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
 
   do
   {
-	mlogf( WARNING, "sizes: pL=%d, bL=%d, oS=%d, oL=%d\n"
+	LOGGER_info(  "sizes: pL=%d, bL=%d, oS=%d, oL=%d"
 					, packetLength, bLen, range->offset, range->length );
 
 	  // calculate copy range, prevent segmentation faults
 	int write = packetLength - range->offset;
 	if( 0 < write ) {
 //		write = min((0==range->length)?write:range->length, bLen);
+        #ifndef PFRING
 		write = (0==range->length)?write:min(write,range->length);
 		write = min(write, bLen);
-		mlogf( DEBUG, "-> write: %d\n", write );
+        #else
+        write = (0==range->length)?write:hash_min(write,range->length);
+        write = hash_min(write, bLen);
+        #endif
+		LOGGER_debug( "-> write: %d", write );
 
 		memcpy( b+written, packet+range->offset, write );
 		written += write;
 		bLen    -= write;
 	}
 	else {
-		mlogf( WARNING, "range selection out of range: pL=%d, oS=%d, oL=%d\n"
-					  , packetLength, range->offset, range->length );
+		LOGGER_info(  "range selection out of range: pL=%d, oS=%d, oL=%d"
+					, packetLength, range->offset, range->length );
 	}
   }
   while(0 < bLen && NULL != (range = range->next) );
@@ -517,7 +568,9 @@ uint8_t getTTL( const uint8_t *packet, uint16_t packetLength, int16_t offset, ne
 	else return 0;
 }
 
-
+// with PF_RING header information is passed from kernel to userspace
+// so there is no need to parse the packet again
+//#ifndef PFRING
 void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers )
 {
     unsigned short offs = headerOffset[L_NET];
@@ -536,7 +589,7 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
 	}
 	else {
 		// todo: global constant header file
-		mlogf( WARNING ,"***NO IPV4/IPv6 packet ***\n");
+		LOGGER_info( "***NO IPV4/IPv6 packet ***");
 		net_type = 0; // neither v4 nor v6, should not happen for raw IP link type
 	}
 
@@ -615,6 +668,8 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerO
    		return;
     }
 }
+//#endif // PFRING
+
 //
 // /** is the packet inside the hash selection range? */
 //

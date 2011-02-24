@@ -1,4 +1,3 @@
-#$$LIC$$
 #
 # $Id: Makefile.in 996 2009-03-19 18:14:44Z csc $
 # 
@@ -37,13 +36,15 @@ DEFS = @DEFS@
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc -lev -lm
+PFLIBS = $(LIBS) -lpfring
 CCOPT = -Wall -g
 INCLS = -I.
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 TARGETS = impd4e
-OBJS = bobhash.o hash.o hsieh.o main.o twmx.o logger.o stats.o netcon.o ev_handler.o helper.o
-DEPHDR = bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h netcon.h ev_handler.h helper.h constants.h
+OBJS = settings.o bobhash.o hash.o hsieh.o main.o twmx.o logger.o stats.o netcon.o ev_handler.o helper.o pfring_filter.o
+PFOBJ = $(OBJS) pfring_filter.o
+DEPHDR = settings.h bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h netcon.h ev_handler.h helper.h constants.h pfring_filter.h
 CLEANFILES = $(OBJS) $(TARGETS) 
 
 all: $(TARGETS)
@@ -54,13 +55,38 @@ clean:
 distclean:
 	rm -f $(CLEANFILES) $(DHPARAMS) Makefile
 
+tar:
+	rm -rf $(PACKAGE)-$(VERSION)
+	mkdir $(PACKAGE)-$(VERSION)
+	cp -r *.c *.h config/ configure configure.ac config.h.in Makefile.in $(PACKAGE)-$(VERSION)
+	tar -czvf $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
+
+binary-package:
+	mkdir -p ./package/usr/bin
+	cp $(PACKAGE) ./package/usr/bin
+	dpkg -b package $(PACKAGE)_$(VERSION)_all.deb
+
+pkg:
+	git-buildpackage --git-ignore-new
+
+snapshot:
+	git-dch --snapshot --auto --id-length=7 --git-author
+	git-buildpackage --git-ignore-new
+
+release:
+	git-dch --release --auto --id-length=7 --git-author
+	git-buildpackage
+
 install:
-	@[ -d ${bindir} ] || (mkdir -p ${bindir}; chmod 755 ${bindir})
-	$(INSTALL_DATA) impd4e ${bindir}/
-	chmod 755 ${bindir}/impd4e
+	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
+	$(INSTALL_DATA) impd4e $(DESTDIR)/${bindir}/
+	chmod 755 $(DESTDIR)${bindir}/impd4e
 
 impd4e: $(OBJS)
-	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -DOPENWRT_BUILD -D_GNU_SOURCE
+	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
+
+impd4e_pf: $(OBJS)
+	$(CC) -o impd4e_pf $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DOPENWRT_BUILD -D_GNU_SOURCE -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<

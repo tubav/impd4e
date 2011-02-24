@@ -1,25 +1,61 @@
 
 prerequisites:
 - libpcap (including libpcap-dev package)
-- libipfix (get it from https://sourceforge.net/projects/libipfix/)
-- libev (http://software.schmorp.de/pkg/libev.html)
+- libipfix (get it from https://sourceforge.net/projects/libipfix/ - make sure to use the impd4e Version)
+- libev (http://dist.schmorp.de/libev/)
 
-To build impd4e, run "./configure" (a shell script). The configure
-script will determine your system attributes and generate
-appropriate makefiles from Makefile.in. Next run "make". If everything
-goes well you can run "make install". 
 
-example:
-          ./configure --prefix=/usr/local
-          make
-          make install
+0. install libpcap
 
-example usage:
+on a debian or Ubuntu system for example simply run
 
-	  at first compile the libipfix, including make install
+sudo apt-get install libpcap-dev
 
-	  to run an IPFIX collector start ipfix_collector from the collector subdir of libipfix
+1. build libev
 
-	  to run the impd4e execute for example 
-		./ipmd4e -h
-		./impd4e -i eth0 -C collector_host -P collector_port -f <bpf-filter> -F BOB -r 10
+get libev tarball from http://dist.schmorp.de/libev/ 
+
+tar xvzf libev....tgz
+./configure
+make
+sudo make install
+
+2. build libipfix
+
+get the libipfix tar archive (the impd4e Version) from https://sourceforge.net/projects/libipfix/
+unpack, compile and install it
+tar xvzf libipfix-impd4e.tgz
+./configure
+make
+sudo make install
+
+3. build impd4e
+
+in your local impd4e folder run
+./configure
+make
+sudo make install   (this will install impd4e to /usr/local/bin/ by default)
+
+4. quick test run of impd4e
+
+cd libipfix/configure
+./ipfix_collector
+
+in another shell run the probe:
+sudo impd4e -i eth0 
+
+To listen to the ethernet interface you will probably need to be root, run "sudo su" before starting the impd4e tool.
+
+If starting impd4e results in an error like this:
+"impd4e: error while loading shared libraries: libev.so.4: cannot open shared object file: No such file or directory"
+then you need to add /usr/local/lib to your library path, e.g. if your shell is bash then edit ~/.bashrc and add
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH$:/usr/local/lib
+
+at the end of it. (for running impd4e as user root make sure to edit root's .bashrc file!)
+
+5. Usage
+
+Use the help option: ipmd4e -h
+  
+

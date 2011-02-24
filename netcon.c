@@ -1,3 +1,33 @@
+/*
+ * impd4e - a small network probe which allows to monitor and sample datagrams 
+ * from the network based on hash-based packet selection. 
+ * 
+ * Copyright (c) 2011
+ *
+ * Fraunhofer FOKUS  
+ * www.fokus.fraunhofer.de
+ *
+ * in cooperation with
+ *
+ * Technical University Berlin
+ * www.av.tu-berlin.de
+ *
+ * For questions/comments contact packettracking@fokus.fraunhofer.de
+ *
+ * This program is free software; you can redistribute it and/or modify it under the 
+ * terms of the GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with 
+ * this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+
 /**
  * Network console
  *
@@ -9,6 +39,7 @@
 
 #include <netdb.h>
 #include <stddef.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -107,12 +138,17 @@ static void connection_close( EV_P_ struct connection * conn){
 	free(conn);
 }
 static void connection_read( struct connection * conn ){
-	char msg[conn->in_pos.wr  - conn->in_pos.rd+1];
-	int len = conn->in_pos.wr  - conn->in_pos.rd;
+	int    len = conn->in_pos.wr  - conn->in_pos.rd;
+	char   msg[len + 1];
 	struct registry **reg;
-	int res = NETCON_CMD_UNKNOWN;
+	int    res = NETCON_CMD_UNKNOWN;
+
 	strncpy(msg,conn->in_buf, len );
-	msg[len]='\0';
+
+	// exchange trailing control charater from string with \0 (mainly \r and \n)
+	do{ 
+	  msg[len]='\0'; 
+	}while(iscntrl(msg[--len]));
 
 	LOGGER_debug("cmd: %s",msg);
 	conn->in_pos.rd=0;
@@ -120,7 +156,7 @@ static void connection_read( struct connection * conn ){
 
 	/* execute cmd callbacks until msg consumed */
 	for(reg=&netcon.reg;*reg!=NULL && res!=NETCON_CMD_MATCHED; reg=&(*reg)->next ){
-		res = (*(*reg)->cmd)( msg);
+		res = (*(*reg)->cmd)( msg );
 	}
 
 	if(!res){
@@ -207,6 +243,8 @@ static void accept_cb(EV_P_ struct ev_io *w, int revents) {
 void netcon_register(int(*cmd)(char *msg )){
 	struct registry **reg;
 	if(cmd==NULL){
+		// TODO: change log level to debug
+		// null commands should just be ignored
 		LOGGER_warn("command must not be null, ignored.");
 		return;
 	}

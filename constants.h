@@ -1,8 +1,30 @@
 /*
- * constants.h
+ * impd4e - a small network probe which allows to monitor and sample datagrams 
+ * from the network based on hash-based packet selection. 
+ * 
+ * Copyright (c) 2011
  *
- *  Created on: 26.08.2010
- *      Author: Ramon Masek
+ * Fraunhofer FOKUS  
+ * www.fokus.fraunhofer.de
+ *
+ * in cooperation with
+ *
+ * Technical University Berlin
+ * www.av.tu-berlin.de
+ *
+ * For questions/comments contact packettracking@fokus.fraunhofer.de
+ *
+ * This program is free software; you can redistribute it and/or modify it under the 
+ * terms of the GNU General Public License as published by the Free Software Foundation;
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with 
+ * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef CONSTANTS_H_
@@ -12,8 +34,15 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#ifndef PFRING
 #include <pcap.h>
+#endif
+
 #include <ipfix.h>
+
+#ifdef PFRING
+#include <pfring.h>
+#endif
 
 #include "hash.h" // todo:
 
@@ -25,6 +54,10 @@
 #define PCAP_DISPATCH_PACKET_COUNT 10 /*!< max number of packets to be processed on each dispatch */
 
 #define BUFFER_SIZE 1024
+
+#ifdef PFRING
+#define MAX_RULES 256
+#endif // PFRING
 
 typedef uint32_t (*hashFunction)(uint8_t*,uint16_t);
 typedef uint16_t (*selectionFunction) (const uint8_t *, uint16_t , uint8_t *, uint16_t, int16_t *, uint8_t*);
@@ -39,37 +72,15 @@ typedef struct {
 }
 buffer_t;
 
-typedef struct options
-{	char     basedir[100];
-	uint8_t  number_interfaces;
-	uint32_t templateID;
-	char     collectorIP[256];
-	int16_t  collectorPort;
-	char*    bpf; // berkley packet filter
-	uint32_t          observationDomainID;
-	hashFunction      hash_function;
-	hashFunction      pktid_function;
-	selectionFunction selection_function;
-	uint32_t sel_range_min;
-	uint32_t sel_range_max;
-	uint16_t snapLength;
-	uint8_t  verbosity;
-	uint32_t export_packet_count;
-	uint32_t export_interval;
-	double sampling_ratio;
-	bool   samplingResultExport;
-	bool   resourceConsumptionExport;
-	double export_pktid_interval;
-	double export_sampling_interval;
-	double export_stats_interval;
-	int hashAsPacketID;
-	int use_oid_first_interface;
-} options_t;
-
 typedef union device {
+    #ifndef PFRING
 	pcap_t* pcap;
+    #endif
 	char*   pcap_file;
 	int     socket;
+	#ifdef PFRING
+	pfring* pfring;
+	#endif
 } device_t;
 
 typedef enum {
@@ -80,6 +91,9 @@ typedef enum {
 	, TYPE_SOCKET_INET
 	, TYPE_FILE
 	, TYPE_testtype
+	#ifdef PFRING
+	, TYPE_PFRING
+	#endif
 } device_type_t;
 
 typedef struct device_desc {
@@ -98,8 +112,13 @@ typedef struct device_dev {
 	device_type_t     device_type;
 	char*             device_name;	// network adapter; file-name; socket-name; depends on device type
 	device_t          device_handle;
+    #ifndef PFRING
 	bpf_u_int32       IPv4address;
 	bpf_u_int32       mask;
+    #else
+    uint32_t          IPv4address;
+    uint32_t          mask;
+    #endif
 	int               link_type;
 	ipfix_t*          ipfixhandle;
 //	ipfix_template_t* ipfixtemplate;
@@ -138,8 +157,6 @@ typedef struct export_data {
 } export_data_t;
 
 // hash functions for parsing
-
-
 #define HASH_FUNCTION_BOB   "BOB"
 #define HASH_FUNCTION_OAAT  "OAAT"
 #define HASH_FUNCTION_TWMX  "TWMX"
@@ -194,19 +211,13 @@ enum {
 	, DEBUG
 	, ALL
 };
-//#define ALWAYS   0
-//#define ERROR    1
-//#define CRITICAL 1
-//#define WARNING  2
-//#define INFO     3
-//#define DEBUG    4
-//#define ALL      5
 
-extern options_t     g_options;
+// todo: use getter instead
 extern device_dev_t  if_devices[];
+#ifndef PFRING
 extern char pcap_errbuf[PCAP_ERRBUF_SIZE];
 extern char errbuf[PCAP_ERRBUF_SIZE];
-
+#endif
 
 
 #endif /* CONSTANTS_H_ */

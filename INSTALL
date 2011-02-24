@@ -13,8 +13,7 @@ sudo apt-get install libpcap-dev
 
 1. build libev
 
-get libev tarball from xxx
-untar the libev tarball, compile and install it
+get libev tarball from http://dist.schmorp.de/libev/ 
 
 tar xvzf libev....tgz
 ./configure
@@ -23,7 +22,7 @@ sudo make install
 
 2. build libipfix
 
-get the libipfix tar archive from https://sourceforge.net/projects/libipfix/
+get the libipfix tar archive (the impd4e Version) from https://sourceforge.net/projects/libipfix/
 unpack, compile and install it
 tar xvzf libipfix-impd4e.tgz
 ./configure

@@ -12,6 +12,12 @@
  * Technical University Berlin
  * www.av.tu-berlin.de
  *
+ * authors:
+ * Ramon Masek <ramon.masek@fokus.fraunhofer.de>
+ * Christian Henke <c.henke@tu-berlin.de>
+ * Robert Wuttke <flash@jpod.cc>
+ * Carsten Schmoll <carsten.schmoll@fokus.fraunhofer.de>
+ *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
  * This program is free software; you can redistribute it and/or modify it under the

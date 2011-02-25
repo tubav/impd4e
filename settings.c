@@ -3,9 +3,27 @@
  * 
  * impd4e - configuration and getter/setter functions
  * 
- * Copyright (c) 2011, Fraunhofer FOKUS (Carsten Schmoll, Ramon Masek) \
- *                     & TU-Berlin (Christian Henke)
- * Copyright (c) 2011, Robert Wuttke <flash@jpod.cc>
+ * impd4e - a small network probe which allows to monitor and sample datagrams 
+ * from the network based on hash-based packet selection. 
+ * 
+ * Copyright (c) 2011
+ *
+ * Fraunhofer FOKUS  
+ * www.fokus.fraunhofer.de
+ *
+ * in cooperation with
+ *
+ * Technical University Berlin
+ * www.av.tu-berlin.de
+ *
+ * authors:
+ * Robert Wuttke <flash@jpod.cc>
+ * Ramon Masek <ramon.masek@fokus.fraunhofer.de>
+ * Christian Henke <c.henke@tu-berlin.de>
+ * Carsten Schmoll <carsten.schmoll@fokus.fraunhofer.de>
+ *
+ * For questions/comments contact packettracking@fokus.fraunhofer.de
+ *
  *
  * Code within #ifdef verbose [..] #endif:
  *                                   (c) 2005-10 - Luca Deri <deri@ntop.org>

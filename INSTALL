@@ -11,7 +11,9 @@ on a debian or Ubuntu system for example simply run
 
 sudo apt-get install libpcap-dev
 
-1. build libev
+1. get or build libev
+
+either install "libev-dev" using your distribution's packet manager or 
 
 get libev tarball from http://dist.schmorp.de/libev/ 
 
@@ -38,7 +40,7 @@ sudo make install   (this will install impd4e to /usr/local/bin/ by default)
 
 4. quick test run of impd4e
 
-cd libipfix/configure
+cd libipfix/collector
 ./ipfix_collector
 
 in another shell run the probe:

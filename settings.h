@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -19,16 +19,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -64,12 +64,15 @@ typedef struct options
 	uint8_t  verbosity;
 	uint32_t export_packet_count;
 	uint32_t export_interval;
+	char*  s_latitude;
+	char*  s_longitude;
 	double sampling_ratio;
 	bool   samplingResultExport;
 	bool   resourceConsumptionExport;
 	double export_pktid_interval;
 	double export_sampling_interval;
 	double export_stats_interval;
+	double export_location_interval;
 	int hashAsPacketID;
 	int use_oid_first_interface;
 } options_t;

@@ -166,6 +166,9 @@ void print_help() {
 			"   -K  <interval>                 interface stats export interval in seconds. \n"
 			"                                  Use -K 0 for disabling this export.\n"
 			"                                  Default: 10.0 \n"
+			"   -O  <interval>                 interface stats export interval in seconds. \n"
+			"                                  Use -O 0 for disabling this export.\n"
+			"                                  Default: 60.0 \n"
 			"\n"
 			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
@@ -204,6 +207,9 @@ void print_help() {
 			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\"\n"
 			"                                  Default: \"min\"\n"
 			"   -u                             use only one oid from the first interface \n"
+			"\n"
+			"   -l                             geo location (double): latitude\n"
+			"   -L                             geo location (double): longitude\n"
 			"\n"
 			"   -v                             verbose-level; use multiple times to increase output \n"
 			"   -h                             print this help \n"
@@ -254,10 +260,14 @@ void set_defaults_options(options_t *options) {
 	options->sel_range_max       = 0x33333333; // (2^32 / 5)
 	options->snapLength          = 80;
 
+	options->s_latitude  = "unknown";
+	options->s_longitude = "unknown";
+
 	options->export_packet_count      = 1000;
 	options->export_pktid_interval    =  3.0; /* seconds */
 	options->export_sampling_interval = 10.0; /* seconds */
 	options->export_stats_interval    = 30.0; /* seconds */
+	options->export_location_interval = 60.0; /* seconds */
 
 	options->hashAsPacketID          = 1;
 	options->use_oid_first_interface = 0;
@@ -525,9 +535,9 @@ void parse_cmdline(int argc, char **argv) {
 	options_t* options = &g_options;
 	int c;
     #ifdef PFRING
-   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:";
+   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:O:";
     #else
-    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:";
+    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:O:";
     #endif
 	errno = 0;
 
@@ -618,6 +628,9 @@ void parse_cmdline(int argc, char **argv) {
 		case 'K':
 			options->export_sampling_interval = atof(optarg);
 			break;
+		case 'O':
+			options->export_location_interval = atof(optarg);
+			break;
 
 		case 'o':
 			options->observationDomainID = atoi(optarg);
@@ -655,8 +668,15 @@ void parse_cmdline(int argc, char **argv) {
 			++options->verbosity;
 			break;
 		case 'l':
-			options->snapLength = atoi(optarg);
+			options->s_latitude = optarg;
 			break;
+		case 'L':
+			options->s_longitude = optarg;
+			break;
+//		TODO: check for free letter
+//		case '':
+//			options->snapLength = atoi(optarg);
+//			break;
 		case 'u':
 			options->use_oid_first_interface=1;
 			break;
@@ -911,6 +931,11 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 	}
 	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
 			if_device->ipfixtmpl_sync, export_fields_sync) < 0) {
+		LOGGER_fatal("template initialization failed: %s", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
+			if_device->ipfixtmpl_location, export_fields_location) < 0) {
 		LOGGER_fatal("template initialization failed: %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}

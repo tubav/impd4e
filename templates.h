@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -19,16 +19,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -112,6 +112,12 @@ export_fields_t export_fields_probe_stats[] = {
 		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROCESS_CPU_SYS,          4}, /* PFIX_CODING_FLOAT, "proc_cpu_sys",  "PT percentage of CPU used in system level (kernel) " }, */
 		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROCESS_MEM_VZS,          8}, /* PFIX_CODING_UINT, "proc_mem_vzs",  "PT the process virtual memory used in kilobytes" }, */
 		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROCESS_MEM_RSS,          8}, /* PFIX_CODING_UINT, "proc_mem_rss",  "PT the process resident set size in kilobytes" }, */
+};
+
+export_fields_t export_fields_location[] = {
+		{ 0,  IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_GEO_LATITUDE, 65535},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_GEO_LONGITUDE, 65535},
 };
 
 export_fields_t export_fields_sync[] = {

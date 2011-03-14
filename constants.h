@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -19,16 +19,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -133,7 +133,8 @@ typedef struct device_dev {
 	ipfix_template_t *ipfixtmpl_interface_stats;
 	ipfix_template_t *ipfixtmpl_probe_stats;
 	ipfix_template_t *ipfixtmpl_sync;
-	ipfix_template_t* sampling_export_template;
+	ipfix_template_t *ipfixtmpl_location;
+	ipfix_template_t *sampling_export_template;
 	int16_t           offset[4];
 	uint8_t*          outbuffer;
 	uint16_t          outbufferLength;

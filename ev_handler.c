@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -19,16 +19,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -92,6 +92,7 @@ struct {
 	ev_timer  export_timer_pkid;
 	ev_timer  export_timer_sampling;
 	ev_timer  export_timer_stats;
+	ev_timer  export_timer_location;
 	ev_timer  resync_timer;
 	ev_io     packet_watchers[MAX_INTERFACES];
 } events;
@@ -211,6 +212,12 @@ void event_loop() {
 		events.export_timer_stats.repeat  = g_options.export_stats_interval;
 		ev_timer_again (loop, &events.export_timer_stats);
 	}
+	/* export system location */
+	ev_init (&events.export_timer_location, export_timer_location_cb );
+//	if( g_options.export_location_interval > 0 ) {
+		events.export_timer_location.repeat  = g_options.export_location_interval;
+		ev_timer_again (loop, &events.export_timer_location);
+//	}
 
 	/*  packet watchers */
 	event_setup_pcapdev(loop);
@@ -1035,6 +1042,26 @@ void export_data_probe_stats(device_dev_t *dev) {
 
 }
 
+void export_data_location(device_dev_t *dev, int64_t observationTimeMilliseconds) {
+	static uint16_t lengths[] = { 8, 0, 0 };
+	lengths[1] = strlen(getOptions()->s_latitude);
+	lengths[2] = strlen(getOptions()->s_longitude);
+	void *fields[] = { &observationTimeMilliseconds
+					, &getOptions()->s_latitude
+					, &getOptions()->s_longitude };
+	LOGGER_debug("export data location");
+	//LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
+	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, 3,
+			fields, lengths) < 0) {
+		LOGGER_error("ipfix export failed: %s", strerror(errno));
+		return;
+	}
+	if (ipfix_export_flush(dev->ipfixhandle) < 0) {
+		LOGGER_error("Could not export IPFIX (flush) ");
+	}
+
+}
+
 /**
  * This causes libipfix to send cached messages to
  * the registered collectors.
@@ -1104,6 +1131,21 @@ void export_timer_stats_cb (EV_P_ ev_timer *w, int revents) {
 	/* using ipfix handle from first interface */
 	export_data_probe_stats(&if_devices[0] );
 	export_flush();
+}
+
+/**
+ * Peridically called
+ */
+void export_timer_location_cb (EV_P_ ev_timer *w, int revents) {
+	int i;
+	uint64_t observationTimeMilliseconds;
+	LOGGER_trace("export timer location call back");
+	observationTimeMilliseconds = (uint64_t)ev_now(events.loop) * 1000;
+	for (i = 0; i < g_options.number_interfaces ; i++) {
+		device_dev_t *dev = &if_devices[i];
+		export_data_location(dev, observationTimeMilliseconds);
+	}
+	//export_flush();
 }
 
 /**

@@ -166,7 +166,7 @@ void print_help() {
 			"   -K  <interval>                 interface stats export interval in seconds. \n"
 			"                                  Use -K 0 for disabling this export.\n"
 			"                                  Default: 10.0 \n"
-			"   -O  <interval>                 interface stats export interval in seconds. \n"
+			"   -G  <interval>                 interface stats export interval in seconds. \n"
 			"                                  Use -O 0 for disabling this export.\n"
 			"                                  Default: 60.0 \n"
 			"\n"
@@ -535,9 +535,9 @@ void parse_cmdline(int argc, char **argv) {
 	options_t* options = &g_options;
 	int c;
     #ifdef PFRING
-   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:O:";
+   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:";
     #else
-    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:O:";
+    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:";
     #endif
 	errno = 0;
 
@@ -628,7 +628,7 @@ void parse_cmdline(int argc, char **argv) {
 		case 'K':
 			options->export_sampling_interval = atof(optarg);
 			break;
-		case 'O':
+		case 'G':
 			options->export_location_interval = atof(optarg);
 			break;
 

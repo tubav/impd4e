@@ -1047,8 +1047,8 @@ void export_data_location(device_dev_t *dev, int64_t observationTimeMilliseconds
 	lengths[1] = strlen(getOptions()->s_latitude);
 	lengths[2] = strlen(getOptions()->s_longitude);
 	void *fields[] = { &observationTimeMilliseconds
-					, &getOptions()->s_latitude
-					, &getOptions()->s_longitude };
+					, getOptions()->s_latitude
+					, getOptions()->s_longitude };
 	LOGGER_debug("export data location");
 	//LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
 	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, 3,

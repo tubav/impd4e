@@ -1,3 +1,35 @@
+impd4e (1.0-1ubuntu2) lucid; urgency=low
+
+  [ Carsten Schmoll ]
+  * core not needed anymore
+
+  [ Christian ]
+  * fixed license in each file
+
+  [ Christian Henke ]
+  * usage updated
+  * updated INSTALL instructions
+  * minor changes INSTALL description
+
+  [ Ramón Masek ]
+  * correct info text
+
+  [ Carsten Schmoll ]
+  * reverted to correct license text
+  * fixed license in this file
+  * added list of code authors
+  * added authors
+  * small fix in INSTALL help
+
+  [ Ramón Masek ]
+  * add WISHLIST entry
+  * add geo location export
+  * error correction
+  * some tweaks for geo location parameter; some correction; comments
+  * change debian control information
+
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Tue, 15 Mar 2011 17:28:41 +0100
+
 impd4e (1.0-1ubuntu1) lucid; urgency=low
 
   [ Carsten Schmoll ]

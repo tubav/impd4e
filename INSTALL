@@ -37,8 +37,7 @@ sudo make install
 
 3. build impd4e
 
-it's possible to get impd4e as debian-package from http://sourceforge.net/projects/impd4e/
-after getting it go in your local impd4e folder and run
+in your local impd4e folder run
 ./configure
 make
 sudo make install   (this will install impd4e to /usr/local/bin/ by default)

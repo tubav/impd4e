@@ -199,7 +199,7 @@ void print_help() {
 			"   -p  <hash function>            use different hash_function for packetID generation:\n"
 			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
 			"\n"
-			"   -o  <observation domain id>    unique identifier for probe "
+			"   -o  <observation domain id>    unique identifier for probe \n"
 			"                                  Default: IP address of the interface\n"
 			"\n"
 			"   -C  <Collector IP>             an IPFIX collector address\n"

@@ -23,9 +23,12 @@ cd libev-4.04
 ./configure
 make
 sudo make install
+cd ..
+
+echo ***** installing git ... *****
+sudo apt-get install git-core
 
 echo ***** downloading libipfix ... *****
-cd ..
 git clone git://libipfix.git.sourceforge.net/gitroot/libipfix/libipfix
 cd libipfix
 
@@ -33,10 +36,7 @@ echo ***** installing libipfix ... *****
 ./configure
 make
 sudo make install
-
-echo ***** installing git ... *****
 cd ..
-sudo apt-get install git-core
 
 echo ***** downloading impd4e ... *****
 git clone git://impd4e.git.sourceforge.net/gitroot/impd4e/impd4e
@@ -46,9 +46,9 @@ cd impd4e
 ./configure
 make
 sudo make install
+cd ..
 
 echo ***** deleting temporary folder *****
-cd ..
 cd ..
 rm -rf impd4e-installation/
 

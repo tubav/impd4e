@@ -1,9 +1,13 @@
-
 prerequisites:
 - libpcap (including libpcap-dev package)
 - libipfix (get it from https://sourceforge.net/projects/libipfix/ - make sure to use the impd4e Version)
 - libev (http://dist.schmorp.de/libev/)
 
+********************************************************
+To install impd4e simply run install.sh
+
+if there are any problems, follow the instructions below
+********************************************************
 
 0. install libpcap
 

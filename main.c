@@ -36,8 +36,8 @@
 #include <stdlib.h>
 #include <unistd.h> // getopt()
 #include <string.h>
+#include <ctype.h>
 //#include <inttypes.h>
-//#include <ctype.h>
 //#include <limits.h>
 //#include <stdio.h>
 //#include <errno.h>
@@ -151,13 +151,16 @@ void print_help() {
                 "\t\t\t\t  filtering policy (valid for all filters).\n"
                 "\t\t\t\t  It can be used multiple times.\n"
             #endif // PFRING
-			"   -l  <snaplength>               setup max capturing size in bytes Default: 80 \n"
+			"   -N  <snaplength>               setup max capturing size in bytes\n"
+			"                                  Default: 80 \n"
 			"\n"
             #ifndef PFRING
-			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. tcp udp icmp)\n\n"
+			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. tcp udp icmp)\n"
+			"\n"
             #endif
-			"   -I  <interval>                 pktid export interval in seconds. Use 0 for \n"
-			"                                  disabling pkid export. Ex. -I 1.5  \n\n"
+			"   -I  <interval>                 pktid export interval in seconds. (e.g. 1.5)\n"
+			"                                  Use -I 0 for disabling this export.\n"
+			"                                  Default: 3.0 \n"
 			"   -J  <interval>                 probe stats export interval in seconds. \n"
 			"                                  Measurement is done at each elapsed interval. \n"
 			"                                  Use -J 0 for disabling this export.\n"
@@ -166,12 +169,12 @@ void print_help() {
 			"   -K  <interval>                 interface stats export interval in seconds. \n"
 			"                                  Use -K 0 for disabling this export.\n"
 			"                                  Default: 10.0 \n"
-			"   -G  <interval>                 interface stats export interval in seconds. \n"
-			"                                  Use -O 0 for disabling this export.\n"
+			"   -G  <interval>                 location export interval in seconds. \n"
+			"                                  Use -G 0 for exporting once at startup.\n"
 			"                                  Default: 60.0 \n"
 			"\n"
-			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
+			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
 			"   -r  <sampling ratio>           in %% (double)\n"
 			"\n"
 			"   -s  <selection function>       which parts of the packet used for hashing (presets)\n"
@@ -196,7 +199,8 @@ void print_help() {
 			"   -p  <hash function>            use different hash_function for packetID generation:\n"
 			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
 			"\n"
-			"   -o  <observation domain id>    unique identifier for probe (default IP address of the interface) \n"
+			"   -o  <observation domain id>    unique identifier for probe "
+			"                                  Default: IP address of the interface\n"
 			"\n"
 			"   -C  <Collector IP>             an IPFIX collector address\n"
 			"                                  Default: localhost\n"
@@ -208,15 +212,17 @@ void print_help() {
 			"                                  Default: \"min\"\n"
 			"   -u                             use only one oid from the first interface \n"
 			"\n"
-			"   -l                             geo location (double): latitude\n"
-			"   -L                             geo location (double): longitude\n"
+			"   -l <latitude>                  geo location (double): latitude\n"
+			"   -l <lat>:<long>:<interval>     short form\n"
+			"   -L <longitude>                 geo location (double): longitude\n"
+			"   -L <long>:<lat>:<interval>     short form\n"
 			"\n"
 			"   -v                             verbose-level; use multiple times to increase output \n"
 			"   -h                             print this help \n"
 			"\n"
 			"EXAMPLES for usage: \n"
-			"sudo impd4e -i i:interface -C collectorIP -r 1 -t min \n"
-			"sudo impd4e -i i:interface -o observationDomainID -S 20,34-45 -C collectorIP \n");
+			"sudo impd4e -i i:eth0 -C 172.20.0.1 -r 1 -t min \n"
+			"sudo impd4e -i i:lo   -C 172.20.0.1 -o <somethingyoulike> -S 20,34-45\n");
 
 	#ifdef PFRING
 		printf("Possible PF_RING filter keywords include: ");
@@ -535,9 +541,9 @@ void parse_cmdline(int argc, char **argv) {
 	options_t* options = &g_options;
 	int c;
     #ifdef PFRING
-   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:";
+   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:";
     #else
-    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:";
+    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:";
     #endif
 	errno = 0;
 
@@ -619,6 +625,7 @@ void parse_cmdline(int argc, char **argv) {
 			++options->number_interfaces;
 			break;
 		}
+
 		case 'I':
 			options->export_pktid_interval = atof(optarg);
 			break;
@@ -667,16 +674,37 @@ void parse_cmdline(int argc, char **argv) {
 		case 'v':
 			++options->verbosity;
 			break;
-		case 'l':
-			options->s_latitude = optarg;
+		case 'l':{
+			char* tok = strtok(optarg, ":");
+			if( NULL != tok ) {
+				options->s_latitude = tok;
+				tok = strtok(NULL, ":");
+				if( NULL != tok ) {
+					options->s_longitude = tok;
+					tok = strtok(NULL, ":");
+					if( NULL != tok && isdigit(*tok) ) {
+						options->export_location_interval = atof(tok);
+					}
+				}
+			}
+		}break;
+		case 'L':{
+			char* tok = strtok(optarg, ":");
+			if( NULL != tok ) {
+				options->s_longitude = tok;
+				tok = strtok(NULL, ":");
+				if( NULL != tok ) {
+					options->s_latitude = tok;
+					tok = strtok(NULL, ":");
+					if( NULL != tok && isdigit(*tok) ) {
+						options->export_location_interval = atof(tok);
+					}
+				}
+			}
+		}break;
+		case 'N':
+			options->snapLength = atoi(optarg);
 			break;
-		case 'L':
-			options->s_longitude = optarg;
-			break;
-//		TODO: check for free letter
-//		case '':
-//			options->snapLength = atoi(optarg);
-//			break;
 		case 'u':
 			options->use_oid_first_interface=1;
 			break;

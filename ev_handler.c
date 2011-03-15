@@ -189,35 +189,45 @@ void event_loop() {
 	ev_signal_start(loop, &events.sigpipe_watcher);
 
 	/* resync  */
-	ev_init(&events.resync_timer, resync_timer_cb);
-	events.resync_timer.repeat = RESYNC_PERIOD;
+	ev_timer_init(&events.resync_timer, resync_timer_cb, 0, RESYNC_PERIOD);
 	ev_timer_again(loop, &events.resync_timer);
 
 	/* export timers */
 	/* export device measurements */
-	ev_init (&events.export_timer_pkid, export_timer_pktid_cb );
-	if(g_options.export_pktid_interval > 0 ){
-		events.export_timer_pkid.repeat  = g_options.export_pktid_interval;
-		ev_timer_again (loop, &events.export_timer_pkid);
-	}
+	ev_timer_init (&events.export_timer_pkid
+			, export_timer_pktid_cb //callback
+			, 0 // after
+			, g_options.export_pktid_interval // repeat
+			);
+	// trigger first after 'repeat'
+	ev_timer_again (loop, &events.export_timer_pkid);
+
 	/* export device sampling stats */
-	ev_init (&events.export_timer_sampling, export_timer_sampling_cb );
-	if(g_options.export_sampling_interval > 0){
-		events.export_timer_sampling.repeat  = g_options.export_sampling_interval;
-		ev_timer_again (loop, &events.export_timer_sampling);
-	}
-	/* export system stats */
-	ev_init (&events.export_timer_stats, export_timer_stats_cb );
-	if( g_options.export_stats_interval > 0 ){
-		events.export_timer_stats.repeat  = g_options.export_stats_interval;
-		ev_timer_again (loop, &events.export_timer_stats);
-	}
-	/* export system location */
-	ev_init (&events.export_timer_location, export_timer_location_cb );
-//	if( g_options.export_location_interval > 0 ) {
-		events.export_timer_location.repeat  = g_options.export_location_interval;
-		ev_timer_again (loop, &events.export_timer_location);
-//	}
+	ev_timer_init (&events.export_timer_sampling
+			, export_timer_sampling_cb // callback
+			, 0 // after, not used for ev_timer_again
+			, g_options.export_sampling_interval // repeat
+			);
+	// trigger first after 'repeat'
+	ev_timer_again (loop, &events.export_timer_sampling);
+
+	/* export system stats - with at least one export*/
+	ev_timer_init (&events.export_timer_stats
+			, export_timer_stats_cb // callback
+			, 0 // after
+			, g_options.export_stats_interval // repeat
+			);
+	// trigger first after 'after' then after 'repeat'
+	ev_timer_start (loop, &events.export_timer_stats);
+
+	/* export system location - with at least one export*/
+	ev_timer_init(&events.export_timer_location
+			, export_timer_location_cb // callback
+			, 0 // after
+			, g_options.export_location_interval // repeat
+			);
+	// trigger first after 'after' then after 'repeat'
+	ev_timer_start (loop, &events.export_timer_location);
 
 	/*  packet watchers */
 	event_setup_pcapdev(loop);

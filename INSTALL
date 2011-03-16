@@ -42,6 +42,8 @@ in your local impd4e folder run
 make
 sudo make install   (this will install impd4e to /usr/local/bin/ by default)
 
+Hint: It's possible to get impd4e as debian-package from http://sourceforge.net/projects/impd4e/
+
 4. quick test run of impd4e
 
 cd libipfix/collector

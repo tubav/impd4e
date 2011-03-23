@@ -1,6 +1,6 @@
 This work was packaged for Debian by:
 
-    Ramon Masek <ramon.masek@fokus.fraunhofer.de> on Thu, 27 Jan 2011 15:57:54 +0100
+    Packettracking <packettracking@fokus.fraunhofer.de>
 
 It was downloaded from:
 
@@ -8,15 +8,15 @@ It was downloaded from:
 
 Upstream Author(s):
 
-    Ramon Masek <ramon.masek@fokus.fraunhofer.de> on Thu, 27 Jan 2011 15:57:54 +0100
     Carsten Schmoll <carsten.schmoll@fokus.fraunhofer.de>
+    Ramon Masek <ramon.masek@fokus.fraunhofer.de>
     Christian Henke <c.henke@tu-berlin.de>
     Robert Wuttke <flash@jpod.cc>
 
 Copyright:
 
-    Copyright (C) 2011 Fraunhofer FOKUS (Carsten Schmoll)
-    Copyright (C) 2011 TU-Berlin (Christian Henke)
+    Copyright (C) 2011 Fraunhofer FOKUS
+    Copyright (C) 2011 TU-Berlin
 
 License:
 
@@ -38,13 +38,7 @@ Public License version 3 can be found in `/usr/share/common-licenses/GPL-3'.
 
 The Debian packaging is:
 
-    Copyright (C) 2011 Ramon Masek <ramon.masek@fokus.fraunhofer.de>
-
-# Please chose a license for your packaging work. If the program you package
-# uses a mainstream license, using the same license is the safest choice.
-# Please avoid to pick license terms that are more restrictive than the
-# packaged work, as it may make Debian's contributions unacceptable upstream.
-# If you just want it to be GPL version 3, leave the following line in.
+    Copyright (C) 2011 Fokus Fraunhofer <packettracking@fokus.fraunhofer.de>
 
 and is licensed under the GPL version 3, see above.
 

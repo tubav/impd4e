@@ -79,8 +79,8 @@ release:
 
 install:
 	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
-	$(INSTALL_DATA) impd4e $(DESTDIR)/${bindir}/
-	chmod 755 $(DESTDIR)${bindir}/impd4e
+	$(INSTALL_DATA) $(TARGETS) $(DESTDIR)/${bindir}/
+	chmod 755 $(DESTDIR)${bindir}/$(TARGETS)
 
 impd4e: $(OBJS)
 	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)

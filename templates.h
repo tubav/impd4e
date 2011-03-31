@@ -116,8 +116,11 @@ export_fields_t export_fields_probe_stats[] = {
 
 export_fields_t export_fields_location[] = {
 		{ 0,  IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
-		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_GEO_LATITUDE, 65535},
-		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_GEO_LONGITUDE, 65535},
+		{ 0,  IPFIX_FT_SOURCEIPV4ADDRESS,	    4},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_GEO_LATITUDE,        65535},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_GEO_LONGITUDE,       65535},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROBE_NAME,    	     65535},
+		{ IPFIX_ENO_FOKUS,  IPFIX_FT_PT_PROBE_LOCATION_NAME, 65535},
 };
 
 export_fields_t export_fields_sync[] = {

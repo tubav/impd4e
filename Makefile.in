@@ -82,10 +82,10 @@ install:
 	$(INSTALL_DATA) $(TARGETS) $(DESTDIR)/${bindir}/
 	chmod 755 $(DESTDIR)${bindir}/$(TARGETS)
 
-impd4e: $(OBJS)
+impd4e: $(OBJS) $(DEPHDR)
 	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
 
-impd4e_pf: $(OBJS)
+impd4e_pf: $(OBJS) $(DEPHDR)
 	$(CC) -o impd4e_pf $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS)
 
 .c.o:

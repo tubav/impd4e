@@ -1053,15 +1053,26 @@ void export_data_probe_stats(device_dev_t *dev) {
 }
 
 void export_data_location(device_dev_t *dev, int64_t observationTimeMilliseconds) {
-	static uint16_t lengths[] = { 8, 0, 0 };
-	lengths[1] = strlen(getOptions()->s_latitude);
-	lengths[2] = strlen(getOptions()->s_longitude);
+
+    uint32_t ipaddr_dummy = 10000000;
+    char     name_dummy[] = "probe name";
+    char     loc_name_dummy[] = "location name";
+
+	uint16_t lengths[] = { 8, 4, 0, 0, 0, 0 };
+	lengths[2] = strlen(getOptions()->s_latitude);
+	lengths[3] = strlen(getOptions()->s_longitude);
+    lengths[4] = strlen(name_dummy);
+    lengths[5] = strlen(loc_name_dummy);
+
 	void *fields[] = { &observationTimeMilliseconds
+                    , &ipaddr_dummy /* replace this with real IP address! */
 					, getOptions()->s_latitude
-					, getOptions()->s_longitude };
+					, getOptions()->s_longitude
+                    , name_dummy
+                    , loc_name_dummy };
 	LOGGER_debug("export data location");
 	//LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
-	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, 3,
+	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, sizeof(lengths)/sizeof(lengths[0]),
 			fields, lengths) < 0) {
 		LOGGER_error("ipfix export failed: %s", strerror(errno));
 		return;

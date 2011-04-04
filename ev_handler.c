@@ -1066,7 +1066,7 @@ void export_data_location(device_dev_t *dev, int64_t observationTimeMilliseconds
 					, getOptions()->s_location_name };
 	LOGGER_debug("export data location");
 	//LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
-	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, 3,
+	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, sizeof(lengths)/sizeof(lengths[0]),
 			fields, lengths) < 0) {
 		LOGGER_error("ipfix export failed: %s", strerror(errno));
 		return;

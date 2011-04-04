@@ -1053,12 +1053,17 @@ void export_data_probe_stats(device_dev_t *dev) {
 }
 
 void export_data_location(device_dev_t *dev, int64_t observationTimeMilliseconds) {
-	static uint16_t lengths[] = { 8, 0, 0 };
-	lengths[1] = strlen(getOptions()->s_latitude);
-	lengths[2] = strlen(getOptions()->s_longitude);
+	static uint16_t lengths[] = { 8, 4, 0, 0, 0, 0 };
+	lengths[2] = strlen(getOptions()->s_latitude);
+	lengths[3] = strlen(getOptions()->s_longitude);
+	lengths[4] = strlen(getOptions()->s_probe_name);
+	lengths[5] = strlen(getOptions()->s_location_name);
 	void *fields[] = { &observationTimeMilliseconds
+					, &getOptions()->ipAddress
 					, getOptions()->s_latitude
-					, getOptions()->s_longitude };
+					, getOptions()->s_longitude
+					, getOptions()->s_probe_name
+					, getOptions()->s_location_name };
 	LOGGER_debug("export data location");
 	//LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
 	if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, 3,

@@ -212,6 +212,8 @@ void print_help() {
 			"                                  Default: \"min\"\n"
 			"   -u                             use only one oid from the first interface \n"
 			"\n"
+			"   -d <probe name>                a probe name\n"
+			"   -D <location name>             a location name\n"
 			"   -l <latitude>                  geo location (double): latitude\n"
 			"   -l <lat>:<long>:<interval>     short form\n"
 			"   -L <longitude>                 geo location (double): longitude\n"
@@ -266,6 +268,9 @@ void set_defaults_options(options_t *options) {
 	options->sel_range_max       = 0x33333333; // (2^32 / 5)
 	options->snapLength          = 80;
 
+	options->ipAddress     = 0x00000000; //0.0.0.0
+	options->s_probe_name  = "";
+	options->s_location_name  = "";
 	options->s_latitude  = "unknown";
 	options->s_longitude = "unknown";
 
@@ -541,9 +546,9 @@ void parse_cmdline(int argc, char **argv) {
 	options_t* options = &g_options;
 	int c;
     #ifdef PFRING
-   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:";
+   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
     #else
-    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:";
+    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
     #endif
 	errno = 0;
 
@@ -673,6 +678,12 @@ void parse_cmdline(int argc, char **argv) {
 			break;
 		case 'v':
 			++options->verbosity;
+			break;
+	        case 'd':
+			options->s_probe_name = optarg;
+			break;
+	        case 'D':
+			options->s_location_name = optarg;
 			break;
 		case 'l':{
 			char* tok = strtok(optarg, ":");
@@ -1035,6 +1046,9 @@ int main(int argc, char *argv[]) {
 		libipfix_open(&if_devices[i], &g_options);
 		LOGGER_info( "open_ipfix_export(%d)", i);
 	}
+
+	// set ipAddress with ipaddress of first device
+	g_options.ipAddress = if_devices[0].IPv4address; 
 
 	/* ---- main event loop  ---- */
 	event_loop(); // todo: refactoring?

@@ -55,6 +55,7 @@ typedef struct options
     int8_t   filter_policy;
     #endif // PFRING
 	uint32_t          observationDomainID;
+	uint32_t          ipAddress;
 	hashFunction      hash_function;
 	hashFunction      pktid_function;
 	selectionFunction selection_function;
@@ -66,6 +67,8 @@ typedef struct options
 	uint32_t export_interval;
 	char*  s_latitude;
 	char*  s_longitude;
+	char*  s_probe_name;
+	char*  s_location_name;
 	double sampling_ratio;
 	bool   samplingResultExport;
 	bool   resourceConsumptionExport;

@@ -50,10 +50,10 @@ CLEANFILES = $(OBJS) $(TARGETS)
 all: $(TARGETS)
 
 impd4e: $(OBJS) $(DEPHDR)
-	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
 impd4e_pf: $(OBJS) $(DEPHDR)
-	$(CC) -o impd4e_pf $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS) -o $@
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@

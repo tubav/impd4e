@@ -49,11 +49,25 @@ CLEANFILES = $(OBJS) $(TARGETS)
 
 all: $(TARGETS)
 
+impd4e: $(OBJS) $(DEPHDR)
+	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
+
+impd4e_pf: $(OBJS) $(DEPHDR)
+	$(CC) -o impd4e_pf $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS)
+
+%.o: %.c
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
 clean:
 	rm -f $(CLEANFILES)
 
 distclean:
 	rm -f $(CLEANFILES) $(DHPARAMS) Makefile
+
+install:
+	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
+	$(INSTALL_DATA) $(TARGETS) $(DESTDIR)/${bindir}/
+	chmod 755 $(DESTDIR)${bindir}/$(TARGETS)
 
 tar:
 	rm -rf $(PACKAGE)-$(VERSION)
@@ -66,27 +80,3 @@ binary-package:
 	cp $(PACKAGE) ./package/usr/bin
 	dpkg -b package $(PACKAGE)_$(VERSION)_all.deb
 
-pkg:
-	git-buildpackage --git-ignore-new
-
-snapshot:
-	git-dch --snapshot --auto --id-length=7 --git-author
-	git-buildpackage --git-ignore-new
-
-release:
-	git-dch --release --auto --id-length=7 --git-author
-	git-buildpackage
-
-install:
-	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
-	$(INSTALL_DATA) $(TARGETS) $(DESTDIR)/${bindir}/
-	chmod 755 $(DESTDIR)${bindir}/$(TARGETS)
-
-impd4e: $(OBJS) $(DEPHDR)
-	$(CC) -o impd4e $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
-
-impd4e_pf: $(OBJS) $(DEPHDR)
-	$(CC) -o impd4e_pf $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS)
-
-.c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<

@@ -55,7 +55,7 @@ typedef struct options
     int8_t   filter_policy;
     #endif // PFRING
 	uint32_t          observationDomainID;
-	uint32_t          ipAddress;
+	uint32_t          ipAddress; // network byte order
 	hashFunction      hash_function;
 	hashFunction      pktid_function;
 	selectionFunction selection_function;

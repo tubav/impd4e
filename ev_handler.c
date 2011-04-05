@@ -958,25 +958,26 @@ void export_data_interface_stats(device_dev_t *dev,
 		uint64_t observationTimeMilliseconds, u_int32_t size,
 		u_int64_t deltaCount) {
 	static uint16_t lengths[] = { 8, 4, 8, 4, 4, 0, 0 };
-	static char interfaceName[255];
-	static char interfaceDescription[255];
+	static char interfaceDescription[16];
     #ifndef PFRING
 	struct pcap_stat pcapStat;
     void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
-                    , &pcapStat.ps_recv, &pcapStat.ps_drop
-                    , interfaceName, interfaceDescription };
+                    , &pcapStat.ps_recv
+                    , &pcapStat.ps_drop
+                    , dev->device_name
+                    , interfaceDescription };
     #else
     pfring_stat pfringStat;
     void*  fields[] = { &observationTimeMilliseconds, &size, &deltaCount
-                    , &pfringStat.recv, &pfringStat.drop
-                    , interfaceName, interfaceDescription };
+                    , &pfringStat.recv
+                    , &pfringStat.drop
+                    , dev->device_name
+                    , interfaceDescription };
     #endif
-    struct in_addr addr;
 
-	snprintf(interfaceName,255, "%s",dev->device_name );
-	addr.s_addr = htonl(dev->IPv4address);
-	snprintf(interfaceDescription,255,"%s",inet_ntoa(addr));
-	lengths[5]=strlen(interfaceName);
+	snprintf(interfaceDescription, sizeof(interfaceDescription)
+			,"%s", ntoa(dev->IPv4address));
+	lengths[5]=strlen(dev->device_name);
 	lengths[6]=strlen(interfaceDescription);
 
     #ifndef PFRING

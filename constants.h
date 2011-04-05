@@ -118,7 +118,7 @@ typedef struct device_dev {
 	char*             device_name;	// network adapter; file-name; socket-name; depends on device type
 	device_t          device_handle;
     #ifndef PFRING
-	bpf_u_int32       IPv4address;
+	bpf_u_int32       IPv4address; // network byte order
 	bpf_u_int32       mask;
     #else
     uint32_t          IPv4address;

@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -19,16 +19,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -67,7 +67,6 @@ uint32_t getIPv4AddressFromDevice(char* dev_name) {
 
 	int fd;
 	struct ifreq ifr;
-	uint32_t IPv4_Address = 0;
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd == -1) {
@@ -81,21 +80,27 @@ uint32_t getIPv4AddressFromDevice(char* dev_name) {
 	/* I want IP address attached to device */
 	strncpy(ifr.ifr_name, dev_name, IFNAMSIZ - 1);
 	ioctl(fd, SIOCGIFADDR, &ifr);
-
-	IPv4_Address = ntohl(
-			((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr);
-
 	close(fd);
 
-	return IPv4_Address;
+	// return IP address in network byte order
+	return ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr;
 }
+
 
 /**
  * Helper for printing out IPv4 address
+ * TODO: use inet_htoa; inet_ntoa instead
  */
 char *htoa(uint32_t ipaddr) {
 	static char addrstr[16];
 	ipaddr = htonl(ipaddr);
+	uint8_t *p = (uint8_t*) &ipaddr;
+	sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+	return addrstr;
+}
+
+char *ntoa(uint32_t ipaddr) {
+	static char addrstr[16];
 	uint8_t *p = (uint8_t*) &ipaddr;
 	sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 	return addrstr;

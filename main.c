@@ -127,9 +127,9 @@ void print_help() {
 	#endif
 	printf(
 			"impd4e - a libpcap based measuring probe which uses hash-based packet\n"
-				"         selection and exports packetIDs via IPFIX to a collector.\n\n"
-				"USAGE: impd4e -i interface [options] \n"
-				"\n");
+			"         selection and exports packetIDs via IPFIX to a collector.\n\n"
+			"USAGE: impd4e -i interface [options] \n"
+			"\n");
 
 	printf(
             #ifndef PFRING
@@ -213,6 +213,7 @@ void print_help() {
 			"   -u                             use only one oid from the first interface \n"
 			"\n"
 			"   -d <probe name>                a probe name\n"
+			"                                  Default: <hostname>\n"
 			"   -D <location name>             a location name\n"
 			"   -l <latitude>                  geo location (double): latitude\n"
 			"   -l <lat>:<long>:<interval>     short form\n"
@@ -268,11 +269,11 @@ void set_defaults_options(options_t *options) {
 	options->sel_range_max       = 0x33333333; // (2^32 / 5)
 	options->snapLength          = 80;
 
-	options->ipAddress     = 0x00000000; //0.0.0.0
-	options->s_probe_name  = "";
-	options->s_location_name  = "";
-	options->s_latitude  = "unknown";
-	options->s_longitude = "unknown";
+	options->s_probe_name     = NULL; // will be set to host name if not given by cmd line
+	options->s_location_name  = "unknown";
+	options->s_latitude       = "unknown";
+	options->s_longitude      = "unknown";
+	options->ipAddress        = 0x00000000; //0.0.0.0
 
 	options->export_packet_count      = 1000;
 	options->export_pktid_interval    =  3.0; /* seconds */
@@ -770,7 +771,7 @@ void open_pcap(device_dev_t* if_dev, options_t *options) {
 	/* display result */
 	fprintf( stderr , "Device %s has IP %s\n"
 					, if_dev->device_name
-					, htoa(if_dev->IPv4address));
+					, ntoa(if_dev->IPv4address));
 
 	determineLinkType(if_dev);
 	setFilter(if_dev);
@@ -1032,6 +1033,16 @@ int main(int argc, char *argv[]) {
 		exit(-1);
 	}
 
+	// set probe name to host name if not set
+	if( NULL == g_options.s_probe_name )
+	{
+		g_options.s_probe_name = (char*) malloc(64);
+		if( gethostname( g_options.s_probe_name
+				, sizeof(g_options.s_probe_name)) ) {
+			g_options.s_probe_name = "";
+		}
+	}
+
 	// init ipfix module
 	libipfix_init();
 
@@ -1048,7 +1059,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// set ipAddress with ipaddress of first device
-	g_options.ipAddress = if_devices[0].IPv4address; 
+	g_options.ipAddress = if_devices[0].IPv4address;
 
 	/* ---- main event loop  ---- */
 	event_loop(); // todo: refactoring?

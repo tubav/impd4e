@@ -3,7 +3,7 @@ Section: net
 Priority: extra
 Maintainer: Packettracking <packettracking@fokus.fraunhofer.de>
 Uploaders: Ramón Masek <ramon.masek@fokus.fraunhofer.de>
-Build-Depends: debhelper (>= 7), autotools-dev, libc6 (>= 2.7), libev3 (>= 3.0), libpcap0.8-dev (>= 0.9.8), libipfix-dev (>= 0.8.1)
+Build-Depends: debhelper (>= 7), autotools-dev, libc6 (>= 2.7), libev-dev (>= 3.0), libpcap0.8-dev (>= 0.9.8), libipfix-dev (>= 0.8.1)
 Standards-Version: 3.8.3
 Homepage: http://www.ip-measurement.org/impd4e
 

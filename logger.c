@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -19,16 +19,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -44,6 +44,10 @@
  *
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include "logger.h"
 #include <stdarg.h>
 #include <sys/time.h>
@@ -58,6 +62,107 @@ static struct  {
 	const char *time_fmt;
 } logger_model ;
 
+typedef struct filter_list filter_list_t;
+struct filter_list{
+	filter_list_t* next;
+	char* value;
+};
+
+static filter_list_t* include_list = NULL;
+static filter_list_t* exclude_list = NULL;
+
+filter_list_t* push_filter( filter_list_t* list, char* value ){
+	if( NULL == list ) {
+		list = (filter_list_t*) malloc( sizeof(filter_list_t) );
+		list->next = NULL;
+		list->value = value;
+		// fprintf( stderr, "%s\n", list->value); // todo: remove when finish
+	}
+	else {
+		// fprintf( stderr, "%s->", list->value); // todo: remove when finish
+		list->next = push_filter( list->next, value );
+	}
+	return list;
+}
+
+void logger_set_filter( char* s_filter ) {
+	char* token;
+	// prevent segmentation fault when there is no string
+	s_filter = s_filter?s_filter:"";
+
+	// read all filter values
+	token = strtok( s_filter, "," );
+	if( NULL != token ) {
+		do {
+			if( '-' == token[0] ) {
+				// add to exclude list
+				exclude_list = push_filter( exclude_list, ++token );
+			}
+			else {
+				// add to include list
+				include_list = push_filter( include_list, token );
+			}
+		}
+		while( NULL != (token = strtok( NULL, "," )) );
+	}
+}
+
+bool is_filter( filter_list_t* list, const char* s ) {
+	// check for end of list
+	if( NULL == list ) return false;
+	// check for matching anything
+	if( 0 == strcmp("*", list->value) ) return true;
+
+	const char* tmp_f = list->value;
+	const char* tmp_s = s;
+	bool  start_with_asterix = '*' == *tmp_f;
+
+	// skip the asterix if needed
+	tmp_f = start_with_asterix?tmp_f+1:tmp_f;
+	do {
+		int i = 0;
+		while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
+			++i;
+		}
+		if( '*'  == tmp_f[i] ) return true;
+		if( tmp_s[i] == tmp_f[i] ) return true;
+		++tmp_s;
+	}
+	while( '\0' != *tmp_s && start_with_asterix); // find start location in string
+//	if( '*' == *tmp_f ) {
+//		++tmp_f; // skip the asterix
+//		while( '\0' != *tmp_s ) {
+//			int i = 0;
+//			while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
+//				++i;
+//			}
+//			if( '*'  == tmp_f[i] ) return true;
+//			if( tmp_s[i] == tmp_f[i] ) return true;
+//			++tmp_s;
+//		}
+//	}
+//	else {
+//		int i = 0;
+//		while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
+//			++i;
+//		}
+//		if( '*'  == tmp_f[i] ) return true;
+//		if( tmp_s[i] == tmp_f[i] ) return true;
+//	}
+
+	return is_filter(list->next, s);
+}
+
+bool is_logging( const char* s ) {
+	// check if function is in include list
+	if( NULL == include_list || is_filter(include_list, s) ){
+		if( NULL != exclude_list && is_filter(exclude_list, s) ) {
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
 
 /**
  * Initialize logger
@@ -88,28 +193,33 @@ void logger ( int level, const char *file, int line, const char *function,  char
 			"DEBUG",
 			"TRACE"
 	};
+
 	// time info
 	char timeBuffer[64];
 	struct timeval tv;
 	time_t curtime;
-	gettimeofday(&tv, NULL);
-	curtime=tv.tv_sec;
-	// varargs
-	va_list args;
 
 	if ( level > logger_model.level ){
 		return;
 	}
-	logger_model.fp=logger_model.fp?logger_model.fp:stderr;
 
-	// processing varargs
-	va_start(args, fmt);
-	(void) vsnprintf( tmpbuf, sizeof(tmpbuf), fmt, args );
-	va_end(args);
-	// creating log string
-	strftime(timeBuffer,30,logger_model.time_fmt, localtime(&curtime));
-	fprintf( logger_model.fp, "%s%ld %s %s (%s(), %s:%d)\n",
-			timeBuffer, tv.tv_usec, strlevel[level],  tmpbuf,function, file, line );
-	fflush( logger_model.fp );
+	if( is_logging(function) ) {
+		logger_model.fp=logger_model.fp?logger_model.fp:stderr;
+
+		gettimeofday(&tv, NULL);
+		curtime=tv.tv_sec;
+		// varargs
+		va_list args;
+
+		// processing varargs
+		va_start(args, fmt);
+		(void) vsnprintf( tmpbuf, sizeof(tmpbuf), fmt, args );
+		va_end(args);
+		// creating log string
+		strftime(timeBuffer,30,logger_model.time_fmt, localtime(&curtime));
+		fprintf( logger_model.fp, "%s%ld %s %s (%s(), %s:%d)\n",
+				timeBuffer, tv.tv_usec, strlevel[level],  tmpbuf,function, file, line );
+		fflush( logger_model.fp );
+	}
 }
 

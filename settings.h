@@ -63,6 +63,7 @@ typedef struct options
 	uint32_t sel_range_max;
 	uint16_t snapLength;
 	uint8_t  verbosity;
+	char*    verbosity_filter_string;
 	uint32_t export_packet_count;
 	uint32_t export_interval;
 	char*  s_latitude;

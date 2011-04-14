@@ -257,6 +257,7 @@ void impd4e_shutdown() {
  */
 void set_defaults_options(options_t *options) {
 	options->verbosity           = 0;
+	options->verbosity_filter_string = "";
 	options->number_interfaces   = 0;
 	options->bpf                 = NULL;
 	options->templateID          = MINT_ID;
@@ -547,9 +548,9 @@ void parse_cmdline(int argc, char **argv) {
 	options_t* options = &g_options;
 	int c;
     #ifdef PFRING
-   	char par[] = "hvnyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
+   	char par[] = "hv::nyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
     #else
-    char par[] = "hvnyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
+    char par[] = "hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
     #endif
 	errno = 0;
 
@@ -679,11 +680,21 @@ void parse_cmdline(int argc, char **argv) {
 			break;
 		case 'v':
 			++options->verbosity;
+			// workaround to use -v as normal (e.g. -vvv) which do not work
+			// with optional parameter
+			if( NULL != optarg ) {
+				while( 'v' == optarg[0] ) {
+					++options->verbosity;
+					++optarg;
+				}
+				options->verbosity_filter_string = optarg;
+			}
+			//fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
 			break;
-	        case 'd':
+		case 'd':
 			options->s_probe_name = optarg;
 			break;
-	        case 'D':
+		case 'D':
 			options->s_location_name = optarg;
 			break;
 		case 'l':{
@@ -1027,6 +1038,7 @@ int main(int argc, char *argv[]) {
 	LOGGER_info( "parse_cmdline() okay");
 
 	logger_setlevel(g_options.verbosity);
+	logger_set_filter(g_options.verbosity_filter_string);
 
 	if (g_options.number_interfaces == 0) {
 		print_help();

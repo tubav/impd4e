@@ -333,7 +333,7 @@ int get_probe_stats(struct probe_stat *stat ){
 	cpu_total = cpu.user + cpu.nice + cpu.system + cpu.idle;
 //			+ cpu.iowait + cpu.irq + cpu.softirq + cpu.steal;
 
-	fprintf(stderr, "(t,i,st,ut) %llu %llu %lu %lu\n"
+	LOGGER_debug("(t,i,st,ut) %llu %llu %lu %lu"
 				, cpu_total, cpu.idle, process.stime, process.utime);
 
 	cpu_total_delta = cpu_total - cpu_total_prev;

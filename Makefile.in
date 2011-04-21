@@ -77,7 +77,7 @@ releasetar:
 # build binary package
 # to build signed package remove -us -uc
 binary-pkg:
-	debuild -us -uc
+	debuild -i -I -us -uc
 
 # build source package; ready for uploading
 # to build signed package remove -us -uc

@@ -1045,7 +1045,7 @@ int main(int argc, char *argv[]) {
 	parse_cmdline(argc, argv);
 	LOGGER_info( "parse_cmdline() okay");
 
-	logger_setlevel(g_options.verbosity);
+	logger_set_level(g_options.verbosity);
 	logger_set_filter(g_options.verbosity_filter_string);
 
 	if (g_options.number_interfaces == 0) {

@@ -172,9 +172,9 @@ void logger_init( int level ){
 	logger_model.fp=NULL;
 	//	logger_model.time_fmt="%m-%d-%Y %T.";
 	logger_model.time_fmt="%T.";
-	logger_setlevel(level);
+	logger_set_level(level);
 }
-void logger_setlevel( int level ){
+void logger_set_level( int level ){
 	logger_model.level=level;
 	logger_model.level=level<0?0:level;
 	logger_model.level=level>LOG_N_LEVELS?LOG_N_LEVELS-1:level;

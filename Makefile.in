@@ -42,19 +42,33 @@ INCLS = -I.
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 TARGETS = impd4e
-OBJS = settings.o bobhash.o hash.o hsieh.o main.o twmx.o logger.o stats.o netcon.o ev_handler.o helper.o pfring_filter.o
+#settings.c bobhash.c hash.c hsieh.c main.c twmx.c logger.c stats.c netcon.c ev_handler.c helper.c pfring_filter.c
+SRCS = $(wildcard *.c) 
+OBJS = $(SRCS:.c=.o)
 PFOBJ = $(OBJS) pfring_filter.o
 DEPHDR = settings.h bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h netcon.h ev_handler.h helper.h constants.h pfring_filter.h
-CLEANFILES = $(OBJS) $(TARGETS) 
+CLEANFILES = $(TARGETS) *.o *.d 
 
+# default target
 all: $(TARGETS)
 
-impd4e: $(OBJS) $(DEPHDR)
+# include rules file for each object file
+-include $(SRCS:.c=.d)
+
+impd4e: $(OBJS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
 impd4e_pf: $(OBJS) $(DEPHDR)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS) -o $@
 
+# generate rules file with all dependencies for each object file
+%.d: %.c
+	@set -e; rm -f $@; \
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+# generate each object file
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
 
@@ -69,11 +83,14 @@ install:
 	$(INSTALL_DATA) $(TARGETS) $(DESTDIR)/${bindir}/
 	chmod 755 $(DESTDIR)${bindir}/$(TARGETS)
 
-tar:
-	rm -rf $(PACKAGE)-$(VERSION)
-	mkdir $(PACKAGE)-$(VERSION)
-	cp -r *.c *.h config/ configure configure.ac config.h.in Makefile.in $(PACKAGE)-$(VERSION)
-	tar -czvf $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
+uninstall:
+	rm -f $(DESTDIR)${bindir}/$(TARGETS)	
+
+releasetar:
+	@cwd=`pwd`; dir=`basename $$cwd`; name=$(PACKAGE)-`cat VERSION`; mkdir $$name; \
+	tar cf - *.c *.h config/ configure configure.ac config.h.in Makefile.in | (cd $$name; tar xf -);\
+	tar -czvf $$name.tar.gz $$name;\
+	rm -rf $$name
 
 binary-package:
 	mkdir -p ./package/usr/bin

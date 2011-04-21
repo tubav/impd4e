@@ -54,8 +54,42 @@ CLEANFILES = $(TARGETS) $(DEPDIR) $(OBJDIR) *.o *.d
 # default target
 all: $(TARGETS)
 
+clean:
+	rm -rf $(CLEANFILES)
+
+distclean:
+	rm -rf $(CLEANFILES) $(DHPARAMS) Makefile config.log config.status
+
+install:
+	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
+	$(INSTALL_DATA) $(TARGETS) $(DESTDIR)/${bindir}/
+	chmod 755 $(DESTDIR)${bindir}/$(TARGETS)
+
+uninstall:
+	rm -f $(DESTDIR)${bindir}/$(TARGETS)	
+
+releasetar:
+	@cwd=`pwd`; dir=`basename $$cwd`; name=$(PACKAGE)-`cat VERSION`; mkdir $$name; \
+	tar cf - *.c *.h config/ configure configure.ac config.h.in Makefile.in | (cd $$name; tar xf -);\
+	tar -czvf $$name.tar.gz $$name;\
+	rm -rf $$name
+
+# build binary package
+# to build signed package remove -us -uc
+binary-pkg:
+	debuild -us -uc
+
+# build source package; ready for uploading
+# to build signed package remove -us -uc
+source-pkg:
+	debuild -i -I -S -sa -us -uc
+
+# -----------------------------------------------------------------------------
+# build rules
+# -----------------------------------------------------------------------------
+
 # include rules file for each object file
-include $(addprefix $(DEPDIR)/,$(SRCS:.c=.d))
+-include $(addprefix $(DEPDIR)/,$(SRCS:.c=.d))
 
 impd4e: $(OBJS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
@@ -79,29 +113,4 @@ $(OBJDIR)/%.o: %.c | $(OBJDIR)
 
 $(OBJDIR):
 	mkdir $@
-
-clean:
-	rm -rf $(CLEANFILES)
-
-distclean:
-	rm -rf $(CLEANFILES) $(DHPARAMS) Makefile
-
-install:
-	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})
-	$(INSTALL_DATA) $(TARGETS) $(DESTDIR)/${bindir}/
-	chmod 755 $(DESTDIR)${bindir}/$(TARGETS)
-
-uninstall:
-	rm -f $(DESTDIR)${bindir}/$(TARGETS)	
-
-releasetar:
-	@cwd=`pwd`; dir=`basename $$cwd`; name=$(PACKAGE)-`cat VERSION`; mkdir $$name; \
-	tar cf - *.c *.h config/ configure configure.ac config.h.in Makefile.in | (cd $$name; tar xf -);\
-	tar -czvf $$name.tar.gz $$name;\
-	rm -rf $$name
-
-binary-package:
-	mkdir -p ./package/usr/bin
-	cp $(PACKAGE) ./package/usr/bin
-	dpkg -b package $(PACKAGE)_$(VERSION)_all.deb
 

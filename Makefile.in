@@ -41,42 +41,50 @@ CCOPT = -Wall -g
 INCLS = -I.
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
+DEPDIR = .depend
+OBJDIR = .object
+
 TARGETS = impd4e
-#settings.c bobhash.c hash.c hsieh.c main.c twmx.c logger.c stats.c netcon.c ev_handler.c helper.c pfring_filter.c
+# get all source files
 SRCS = $(wildcard *.c) 
-OBJS = $(SRCS:.c=.o)
-PFOBJ = $(OBJS) pfring_filter.o
-DEPHDR = settings.h bobhash.h hash.h hsieh.h main.h templates.h twmx.h logger.h stats.h netcon.h ev_handler.h helper.h constants.h pfring_filter.h
-CLEANFILES = $(TARGETS) *.o *.d 
+# build all object files in a separate dir
+OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
+CLEANFILES = $(TARGETS) $(DEPDIR) $(OBJDIR) *.o *.d
 
 # default target
 all: $(TARGETS)
 
 # include rules file for each object file
--include $(SRCS:.c=.d)
+include $(addprefix $(DEPDIR)/,$(SRCS:.c=.d))
 
 impd4e: $(OBJS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
-impd4e_pf: $(OBJS) $(DEPHDR)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(PFOBJS) $(PFLIBS) -o $@
+impd4e_pf: $(OBJS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(PFLIBS) -o $@
 
 # generate rules file with all dependencies for each object file
-%.d: %.c
+$(DEPDIR)/%.d: %.c | $(DEPDIR)
 	@set -e; rm -f $@; \
 	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< > $@.$$$$; \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	sed 's,\($*\)\.o[ :]*,$(OBJDIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
 
+$(DEPDIR):
+	mkdir $@
+
 # generate each object file
-%.o: %.c
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
 
+$(OBJDIR):
+	mkdir $@
+
 clean:
-	rm -f $(CLEANFILES)
+	rm -rf $(CLEANFILES)
 
 distclean:
-	rm -f $(CLEANFILES) $(DHPARAMS) Makefile
+	rm -rf $(CLEANFILES) $(DHPARAMS) Makefile
 
 install:
 	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})

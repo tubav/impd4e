@@ -105,12 +105,12 @@ $(DEPDIR)/%.d: %.c | $(DEPDIR)
 	rm -f $@.$$$$
 
 $(DEPDIR):
-	mkdir $@
+	mkdir -p $@
 
 # generate each object file
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
 
 $(OBJDIR):
-	mkdir $@
+	mkdir -p $@
 

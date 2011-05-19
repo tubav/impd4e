@@ -555,11 +555,11 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-    #ifdef PFRING
-   	char par[] = "hv::nyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
-    #else
-    char par[] = "hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
-    #endif
+   #ifdef PFRING
+   char par[] = "hv::nyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
+   #else
+   char par[] = "hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
+   #endif
 	errno = 0;
 
 	options->number_interfaces = 0;

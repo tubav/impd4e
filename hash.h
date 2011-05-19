@@ -62,35 +62,35 @@ typedef enum {
 } linkProt_t;
 
 typedef enum {
-    N_UNKNOWN = 0,
-    N_IP = 4,
-    N_IP6 = 6
+   N_UNKNOWN = 0,
+   N_IP = 4,
+   N_IP6 = 6
 } netProt_t;
 
 typedef enum {
-    T_UNKNOWN = 0,
-    T_ICMP    = 1,
-    T_IGMP    = 2,
-    T_GGP     = 3,
-    T_IPIP    = 4,
-    T_STREAM  = 5,
-    T_TCP     = 6,
-    T_EGP     = 8,
-    T_IGP     = 9,
-    T_UDP     = 17,
-    T_MUX     = 18,
-    T_IDPR    = 35,
-    T_IPV6    = 41,
-    T_IDRP    = 45,
-    T_RSVP    = 46,
-    T_GRE     = 47,
-    T_MOBILE  = 55,
-    T_ICMP6   = 58
+   T_UNKNOWN = 0,
+   T_ICMP    = 1,
+   T_IGMP    = 2,
+   T_GGP     = 3,
+   T_IPIP    = 4,
+   T_STREAM  = 5,
+   T_TCP     = 6,
+   T_EGP     = 8,
+   T_IGP     = 9,
+   T_UDP     = 17,
+   T_MUX     = 18,
+   T_IDPR    = 35,
+   T_IPV6    = 41,
+   T_IDRP    = 45,
+   T_RSVP    = 46,
+   T_GRE     = 47,
+   T_MOBILE  = 55,
+   T_ICMP6   = 58
 } transProt_t;
 
 typedef enum {
-	P_NONE = 0,
-	P_EXISTS = 1
+   P_NONE = 0,
+   P_EXISTS = 1
 } payload_t;
 
 // get the ttl-field of an IPv4 header
@@ -105,43 +105,43 @@ void parseRange( char* arg );
 
 
 uint16_t copyFields_Rec( const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_Only_Net(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_U_TCP_and_Net(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]			);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]			);
 
 uint16_t copyFields_Packet(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_Link(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_Net(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_Trans(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength,
-			 int16_t headerOffset[4], uint8_t layers[4]);
+      uint8_t *outBuffer, uint16_t outBufferLength,
+      int16_t headerOffset[4], uint8_t layers[4]);
 
 uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
-			 uint8_t *outBuffer, uint16_t outBufferLength );
+      uint8_t *outBuffer, uint16_t outBufferLength );
 
 uint32_t calcHashValue_BOB( uint8_t *dataBuffer, uint16_t dataBufferLength );
 uint32_t calcHashValue_Hsieh( uint8_t *dataBuffer, uint16_t dataBufferLength );

@@ -1,0 +1,57 @@
+# impdv4 example config file v0.1, 
+# 
+# starts a comment till end of line
+# keys and values will be WS-trimmed, so no quotes are needed
+#
+# parameters on command line will always supersede those in the config file
+# independently of order of CLI commands (auf Wunsch einer einzelnen Person ;) )
+
+[General]
+	verbosity = 2		# the higher the more verbose, default = 0
+#	help
+
+[Capture]
+	interface = i:eth0
+#	interface = f:data.txt
+#	interface = p:traffic.pcap
+#	interface = s:192.168.0.42:4711
+#	interface = u:/tmp/socket.AF_UNIX
+
+[Filter]
+	bpfilter = tcp udp icmp
+	snaplength = 80 
+
+[Interval]
+	data_export = 3.0
+	probe_stats = 30.0
+	interface_stats = 10.0
+	location = 60.0
+
+[Selection]
+#	min_hash_range = 0 						# do not use in conjunction with sampling_ratio
+#	max_hash_range = 123456789				# do not use in conjunction with sampling_ratio
+    hash_selection_ratio = 50				# in % (double)
+	selection_preset = IP+TP 				# or "IP", "REC8", "PACKET", default: "IP+TP"
+#	selection_parts = RAW20,34-45,14+4,4	# see impd4e -h for details
+	hash_function = BOB						# "BOB", "OAAT", "TWMX", "HSIEH"
+	pktid_function = BOB                    # use for packetID generation: "BOB", "OAAT", "TWMX", "HSIEH" 
+
+[Ipfix]
+	observation_domain_id = 12345			# optional: default = IP address of the interface
+	one_odid 					# flag: use only one oid from the first interface, if true
+	collector_IP_address  = 1.2.4.5         # an IPFIX collector address, default: localhost
+	collector_port = 4739 					# IPFIX Collector Port, default: 4739
+	export_flush_count = 20 						# size of export buffer after which packets are flushed (per device)
+
+[Template]
+	used_template = ts						# either "min" or "lp" or "ts", default: "min"
+
+[Geotags]
+	probe_name = foo						# a probe name, default: <hostname>
+    location_name = bar						# an arbitrary location name
+    latitude = 52.234						# geo location (double): latitude
+	longitude = 13.345						# geo location (double): longitude
+
+test1
+ test2
+	test3 # hahaha

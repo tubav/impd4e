@@ -10,3 +10,4 @@ Makefile
 Debug/*
 .*.swp
 autom4te.cache
+*~

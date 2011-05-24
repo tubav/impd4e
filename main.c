@@ -131,7 +131,10 @@ void print_help() {
 			"USAGE: impd4e -i interface [options] \n"
 			"\n");
 
-	printf(
+	printf(		"   -c  <configfile>               read parameters from config file\n"
+                        "                                  (parameters on command line have precedence over the same\n"
+                        "                                  parameters in config file, or are supplemental, e.g. for -i)\n"
+                        "\n"
             #ifndef PFRING
 			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t i - ethernet adapter;             -i i:eth0\n"

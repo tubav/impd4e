@@ -878,17 +878,22 @@ void parse_cmdline(int argc, char **argv) {
 			}
 			break;
 		case 'v':
-			++options->verbosity;
-			// workaround to use -v as normal (e.g. -vvv) which do not work
-			// with optional parameter
-			if( NULL != optarg ) {
-				while( 'v' == optarg[0] ) {
-					++options->verbosity;
-					++optarg;
-				}
-				options->verbosity_filter_string = optarg;
-			}
-			//fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
+         if( (NULL != optarg) && (isdigit(*optarg)) ) {
+            options->verbosity = atoi(optarg);
+         }
+         else {
+            ++options->verbosity;
+            // workaround to use -v as normal (e.g. -vvv) which do not work
+            // with optional parameter
+            if( NULL != optarg ) {
+               while( 'v' == optarg[0] ) {
+                  ++options->verbosity;
+                  ++optarg;
+               }
+               options->verbosity_filter_string = optarg;
+            }
+            //fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
+         }
 			break;
 		case 'd':
 			options->s_probe_name = optarg;

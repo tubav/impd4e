@@ -36,20 +36,14 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include <ipfix.h>
-#include <stdbool.h>
+//#include <ipfix.h>
+//#include <stdbool.h>
+//
+//#include "settings.h"
+//
+//#include "constants.h"
 
-#include "settings.h"
 
-#include "constants.h"
-
-
-
-// todo: just a workaround for now
-
-void  libipfix_init();
-void  libipfix_open(device_dev_t *if_device, options_t *options);
-void  libipfix_reconnect();
 
 
 

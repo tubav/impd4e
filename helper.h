@@ -73,10 +73,6 @@ void setNONBlocking( device_dev_t* pDevice );
 
 int get_file_desc( device_dev_t* pDevice );
 
-#ifndef PFRING
-int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args);
-#endif
-
 #ifdef PFRING
 #ifdef PFRING_STATS
 void print_stats( device_dev_t* dev );

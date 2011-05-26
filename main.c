@@ -55,25 +55,18 @@
 #include <netinet/in.h>
 #include <linux/if.h>
 #include <arpa/inet.h>
-#ifndef PFRING
-#include <pcap.h>
-#endif
+
+#include "main.h"
 
 //// event loop
 //#include <ev.h>
 #include "ev_handler.h"
-//
-#include "main.h"
+#include "ipfix_handler.h"
+#include "pcap_handler.h"
+#include "socket_handler.h"
 
 //#include "constants.h"
 //#include "hash.h"
-
-// ipfix staff
-#include "ipfix.h"
-#include "ipfix_def.h"
-#include "ipfix_def_fokus.h"
-#include "ipfix_fields_fokus.h"
-#include "templates.h"
 
 //#include "stats.h"
 
@@ -755,105 +748,6 @@ void parse_cmdline(int argc, char **argv) {
 
 }
 
-#ifndef PFRING
-void open_pcap_file(device_dev_t* if_dev, options_t *options) {
-
-	// todo: parameter check
-
-	if_dev->device_handle.pcap = pcap_open_offline(if_dev->device_name, errbuf);
-	if (NULL == if_dev->device_handle.pcap) {
-		LOGGER_fatal( "%s", errbuf);
-	}
-	determineLinkType(if_dev);
-	setFilter(if_dev);
-}
-
-void open_pcap(device_dev_t* if_dev, options_t *options) {
-
-	if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
-			options->snapLength, 1, 1000, errbuf);
-	if (NULL == if_dev->device_handle.pcap) {
-		LOGGER_fatal( "%s", errbuf);
-		exit(1);
-	}
-
-	// if (pcap_lookupnet(options->if_names[i],
-	//		&(if_devices[i].IPv4address), &(if_devices[i].mask), errbuf)
-	//		< 0) {
-	//	printf("could not determine netmask and Ip-Adrdess of device %s \n",
-	//			options->if_names[i]);
-	// }
-
-	/* I want IP address attached to device */
-	if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
-
-	/* display result */
-	fprintf( stderr , "Device %s has IP %s\n"
-					, if_dev->device_name
-					, ntoa(if_dev->IPv4address));
-
-	determineLinkType(if_dev);
-	setFilter(if_dev);
-
-	// dirty IP read hack - but socket problem with embedded interfaces
-
-	//			FILE *fp;
-	//			char *script = "getIPAddress.sh ";
-	//			char *cmdLine;
-	//			cmdLine = (char *) malloc((strlen(script) + strlen(
-	//					options->if_names[i]) + 1) * sizeof(char));
-	//			strcpy(cmdLine, script);
-	//			strcat(cmdLine, options->if_names[i]);
-	//			fp = popen(cmdLine, "r");
-	//
-	//			char IPAddress[LINE_LENGTH];
-	//			fgets(IPAddress, LINE_LENGTH, fp);
-	//			struct in_addr inp;
-	//			if (inet_aton(IPAddress, &inp) < 0) {
-	//				LOGGER_fatal( "read wrong IP format of Interface %s ",
-	//						options->if_names[i]);
-	//				exit(1);
-	//			}
-	//			if_devices[i].IPv4address = ntohl((uint32_t) inp.s_addr);
-	//			LOGGER_info( "Device %s has IP %s", options->if_names[i], htoa(
-	//					if_devices[i].IPv4address));
-	//			pclose(fp);
-
-}
-
-void open_socket_inet(device_dev_t* if_device, options_t *options) {
-	LOGGER_fatal( "open_socket_inet():not yet implemented!");
-}
-
-void open_socket_unix(device_dev_t* if_device, options_t *options) {
-	struct sockaddr_un socket_address;
-	int socket_addressLength = 0;
-
-	// create a socket to work with
-	if_device->device_handle.socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-	if (0 > if_device->device_handle.socket) {
-		perror("socket: create");
-		exit(1);
-	}
-
-	// create socket address
-	socket_address.sun_family = AF_UNIX;
-	strcpy(socket_address.sun_path, if_device->device_name);
-	socket_addressLength = SUN_LEN(&socket_address);
-
-	// connect the socket to the destination
-	// FIXME: this won't build on OpenWrt
-	#ifndef OPENWRT_BUILD
-	if (0 > connect(if_device->device_handle.socket,
-			(__CONST_SOCKADDR_ARG) &socket_address, socket_addressLength)) {
-		perror("socket: connect");
-		exit(2);
-	}
-    #endif
-
-}
-#endif
-
 #ifdef PFRING
 void open_pfring(device_dev_t* if_dev, options_t *options) {
 	LOGGER_fatal( "selected PF_RING");
@@ -901,8 +795,9 @@ void open_device(device_dev_t* if_device, options_t *options) {
 		break;
 
 	case TYPE_SOCKET_INET:
-		LOGGER_fatal( "open_socket_inet():not yet implemented!");
-		//open_socket_inet(if_device, options);
+      // TODO: remove if test is over
+		LOGGER_fatal( "open_socket_inet(): TESTING!!");
+		open_socket_inet(if_device, options);
 		break;
 
 	case TYPE_SOCKET_UNIX:
@@ -925,107 +820,6 @@ void open_device(device_dev_t* if_device, options_t *options) {
 	gettimeofday(&(if_device->last_export_time), NULL);
 
 	return;
-}
-
-void libipfix_init() {
-	if (ipfix_init() < 0) {
-		LOGGER_fatal( "cannot init ipfix module: %s", strerror(errno));
-
-	}
-	if (ipfix_add_vendor_information_elements(ipfix_ft_fokus) < 0) {
-		fprintf(stderr, "cannot add FOKUS IEs: %s\n", strerror(errno));
-		exit(1);
-	}
-}
-
-
-void libipfix_open(device_dev_t *if_device, options_t *options) {
-	// set initial export packe count
-	if_device->export_packet_count = 0;
-
-	// use observationDomainID if explicitely given via
-	// cmd line, else use interface IPv4address as oid
-	// todo: alternative oID instead of IP address --> !!different device types!!
-	uint32_t odid = (options->observationDomainID != 0)
-					? options->observationDomainID
-					: if_device->IPv4address;
-
-	if( options->use_oid_first_interface ){
-		odid = if_devices[0].IPv4address;
-	}
-
-	if (ipfix_open(&(if_device->ipfixhandle), odid, IPFIX_VERSION) < 0) {
-		LOGGER_fatal( "ipfix_open() failed: %s", strerror(errno));
-
-	}
-
-	// create templates
-	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-			if_device->ipfixtmpl_min, export_fields_min) < 0) {
-		LOGGER_fatal("template initialization failed: %s", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-			if_device->ipfixtmpl_ts,
-			export_fields_ts) < 0) {
-		LOGGER_fatal("template initialization failed: %s", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-			if_device->ipfixtmpl_ts_ttl,
-			export_fields_ts_ttl_proto) < 0) {
-		LOGGER_fatal("template initialization failed: %s", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-			if_device->ipfixtmpl_interface_stats, export_fields_interface_stats)
-			< 0) {
-		LOGGER_fatal("template initialization failed: %s", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-			if_device->ipfixtmpl_probe_stats, export_fields_probe_stats) < 0) {
-		LOGGER_fatal("template initialization failed: %s", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-			if_device->ipfixtmpl_sync, export_fields_sync) < 0) {
-		LOGGER_fatal("template initialization failed: %s", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-			if_device->ipfixtmpl_location, export_fields_location) < 0) {
-		LOGGER_fatal("template initialization failed: %s", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
-	if (ipfix_add_collector(if_device->ipfixhandle,
-			options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP)
-			< 0) {
-		LOGGER_error("ipfix_add_collector(%s,%d) failed: %s",
-				options->collectorIP, options->collectorPort, strerror(
-						errno));
-	}
-
-//	LOGGER_info("device:      %p", if_device);
-//	LOGGER_info("ipfixhandle: %p", if_device->ipfixhandle);
-//	LOGGER_info("collectors:  %p", if_device->ipfixhandle->collectors);
-//	LOGGER_info("fd:          %d", ((ipfix_collector_sync_t*) if_device->ipfixhandle->collectors)->fd);
-//	LOGGER_info("&fd:         %p", &((ipfix_collector_sync_t*) if_device->ipfixhandle->collectors)->fd);
-
-	return;
-}
-
-void libipfix_reconnect() {
-	int i;
-	LOGGER_info("trying to reconnect ");
-	for (i = 0; i < g_options.number_interfaces; i++) {
-		ipfix_export_flush(if_devices[i].ipfixhandle);
-		ipfix_close(if_devices[i].ipfixhandle);
-	}
-	ipfix_cleanup();
-	libipfix_init(if_devices, &g_options);
-
 }
 
 

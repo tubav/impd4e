@@ -84,6 +84,7 @@ void logger_init( int level );
  * Set logger level
  */
 void logger_set_level( int level );
+int  logger_get_level();
 void logger_set_filter( char* s_filter );
 void logger  ( int level, const char *file, int line, const char *function,
               char fmt[], ... ) __attribute__((format (printf, 5, 6)));

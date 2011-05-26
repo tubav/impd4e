@@ -55,6 +55,7 @@
 #endif
 
 #include "ev_handler.h"
+#include "socket_handler.h"
 #include "logger.h"
 #include "netcon.h"
 
@@ -332,6 +333,17 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
       break;
 
    case TYPE_SOCKET_INET:
+      if( 0 > socket_dispatch_inet( if_devices[0].device_handle.socket
+                     , PCAP_DISPATCH_PACKET_COUNT
+                     , packet_pcap_cb
+                     , (u_char*) pcap_dev_ptr) )
+      {
+         LOGGER_error( "Error DeviceNo   %s: %s"
+               , pcap_dev_ptr->device_name, "" );
+
+      }
+      break;
+
    case TYPE_SOCKET_UNIX:
       if( 0 > socket_dispatch( if_devices[0].device_handle.socket
                      , PCAP_DISPATCH_PACKET_COUNT
@@ -518,7 +530,10 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
    if_device->totalpacketcount++;
 
    if(0){
-      LOGGER_debug( "%02x ", packet[i], header->caplen);
+      int i = 0;
+      for( i=0; i < header->caplen; ++i ) {
+         LOGGER_debug( "%02x ", packet[i]);
+      }
    }
 
    // selection of viable fields of the packet - depend on the selection function choosen
@@ -754,9 +769,6 @@ int configuration_help(unsigned long mid, char *msg) {
    }
    return NETCON_CMD_MATCHED;
 }
-
-// TODO: there used to be an include, but not main.h
-int parseTemplate(char *arg_string, options_t *options);
 
 /**
  * command: t <value>

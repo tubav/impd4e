@@ -174,12 +174,18 @@ void logger_init( int level ){
    logger_model.time_fmt="%T.";
    logger_set_level(level);
 }
+
 void logger_set_level( int level ){
    logger_model.level=level;
    logger_model.level=level<0?0:level;
    logger_model.level=level>LOG_N_LEVELS?LOG_N_LEVELS-1:level;
 
 }
+
+int logger_get_level(){
+   return logger_model.level;
+}
+
 /**
  * Log message
  */

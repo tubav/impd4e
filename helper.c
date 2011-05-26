@@ -171,65 +171,6 @@ int get_file_desc( device_dev_t* pDevice ) {
 
 }
 
-#ifndef PFRING
-int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args)
-{
-	int32_t  i;
-	int32_t  nPackets = 0;
-	uint8_t  buffer[BUFFER_SIZE];
-
-	struct pcap_pkthdr hdr;
-
-	for ( i = 0
-		; i < max_packets || 0 == max_packets || -1 == max_packets
-		; ++i)
-	{
-		// ensure buffer will fit
-		uint32_t caplen = BUFFER_SIZE;
-		if( BUFFER_SIZE > g_options.snapLength )
-		{
-			caplen = g_options.snapLength;
-		}
-		else
-		{
-			LOGGER_warn( "socket_dispatch: snaplan exceed Buffer size (%d); "
-							"use Buffersize instead.\n", BUFFER_SIZE );
-		}
-
-		// recv is blocking; until connection is closed
-		switch(hdr.caplen = recv(socket, buffer, caplen, 0)) {
-		case 0: {
-			fprintf(stderr, "socket: recv(); connection shutdown\n");
-			return -1;
-		}
-
-		case -1: {
-			if (EAGAIN == errno || EWOULDBLOCK == errno) {
-				return nPackets;
-			} else {
-				perror("socket: recv()");
-				return -1;
-			}
-		}
-
-		default: {
-			// get timestamp
-			gettimeofday(&hdr.ts, NULL);
-
-			hdr.len = hdr.caplen;
-
-			// print received data
-			// be aware of the type casts need
-			packet_handler(user_args, &hdr, buffer);
-			++nPackets;
-		}
-		} // switch(recv())
-	}
-
-	return nPackets;
-}
-#endif
-
 #ifdef PFRING
 //#define verbose
 #ifdef verbose

@@ -181,17 +181,18 @@ typedef struct export_data {
 #define HASH_INPUT_SELECT  "SELECT"
 
 // template definition
-
 #define MINT_ID         	0
 #define TS_TTL_PROTO_ID 	1
 #define TS_ID           	2
+#define TS_TTL_PROTO_IP_ID 	3
 
 #define MIN_NAME  			"min"
 #define TS_TTL_RROTO_NAME 	"lp"
 #define TS_NAME			 	"ts"
+#define TS_TTL_RROTO_IP_NAME 	"lp+ip"
 
 typedef enum hash_function {
-	FUNCTION_BOB		= 0x001,
+	FUNCTION_BOB		 = 0x001,
 	FUNCTION_TWMX		= 0x002,
 	FUNCTION_OAAT		= 0x003,
 	FUNCTION_SBOX		= 0x004,

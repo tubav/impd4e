@@ -57,169 +57,175 @@
  * Logger model
  */
 static struct  {
-	int level;
-	FILE        *fp;
-	const char *time_fmt;
+   int level;
+   FILE        *fp;
+   const char *time_fmt;
 } logger_model ;
 
 typedef struct filter_list filter_list_t;
 struct filter_list{
-	filter_list_t* next;
-	char* value;
+   filter_list_t* next;
+   char* value;
 };
 
 static filter_list_t* include_list = NULL;
 static filter_list_t* exclude_list = NULL;
 
 filter_list_t* push_filter( filter_list_t* list, char* value ){
-	if( NULL == list ) {
-		list = (filter_list_t*) malloc( sizeof(filter_list_t) );
-		list->next = NULL;
-		list->value = value;
-		// fprintf( stderr, "%s\n", list->value); // todo: remove when finish
-	}
-	else {
-		// fprintf( stderr, "%s->", list->value); // todo: remove when finish
-		list->next = push_filter( list->next, value );
-	}
-	return list;
+   if( NULL == list ) {
+      list = (filter_list_t*) malloc( sizeof(filter_list_t) );
+      list->next = NULL;
+      list->value = value;
+      // fprintf( stderr, "%s\n", list->value); // todo: remove when finish
+   }
+   else {
+      // fprintf( stderr, "%s->", list->value); // todo: remove when finish
+      list->next = push_filter( list->next, value );
+   }
+   return list;
 }
 
 void logger_set_filter( char* s_filter ) {
-	char* token;
-	// prevent segmentation fault when there is no string
-	s_filter = s_filter?s_filter:"";
+   char* token;
+   // prevent segmentation fault when there is no string
+   s_filter = s_filter?s_filter:"";
 
-	// read all filter values
-	token = strtok( s_filter, "," );
-	if( NULL != token ) {
-		do {
-			if( '-' == token[0] ) {
-				// add to exclude list
-				exclude_list = push_filter( exclude_list, ++token );
-			}
-			else {
-				// add to include list
-				include_list = push_filter( include_list, token );
-			}
-		}
-		while( NULL != (token = strtok( NULL, "," )) );
-	}
+   // read all filter values
+   token = strtok( s_filter, "," );
+   if( NULL != token ) {
+      do {
+         if( '-' == token[0] ) {
+            // add to exclude list
+            exclude_list = push_filter( exclude_list, ++token );
+         }
+         else {
+            // add to include list
+            include_list = push_filter( include_list, token );
+         }
+      }
+      while( NULL != (token = strtok( NULL, "," )) );
+   }
 }
 
 bool is_filter( filter_list_t* list, const char* s ) {
-	// check for end of list
-	if( NULL == list ) return false;
-	// check for matching anything
-	if( 0 == strcmp("*", list->value) ) return true;
+   // check for end of list
+   if( NULL == list ) return false;
+   // check for matching anything
+   if( 0 == strcmp("*", list->value) ) return true;
 
-	const char* tmp_f = list->value;
-	const char* tmp_s = s;
-	bool  start_with_asterix = '*' == *tmp_f;
+   const char* tmp_f = list->value;
+   const char* tmp_s = s;
+   bool  start_with_asterix = '*' == *tmp_f;
 
-	// skip the asterix if needed
-	tmp_f = start_with_asterix?tmp_f+1:tmp_f;
-	do {
-		int i = 0;
-		while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
-			++i;
-		}
-		if( '*'  == tmp_f[i] ) return true;
-		if( tmp_s[i] == tmp_f[i] ) return true;
-		++tmp_s;
-	}
-	while( '\0' != *tmp_s && start_with_asterix); // find start location in string
-//	if( '*' == *tmp_f ) {
-//		++tmp_f; // skip the asterix
-//		while( '\0' != *tmp_s ) {
-//			int i = 0;
-//			while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
-//				++i;
-//			}
-//			if( '*'  == tmp_f[i] ) return true;
-//			if( tmp_s[i] == tmp_f[i] ) return true;
-//			++tmp_s;
-//		}
-//	}
-//	else {
-//		int i = 0;
-//		while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
-//			++i;
-//		}
-//		if( '*'  == tmp_f[i] ) return true;
-//		if( tmp_s[i] == tmp_f[i] ) return true;
-//	}
+   // skip the asterix if needed
+   tmp_f = start_with_asterix?tmp_f+1:tmp_f;
+   do {
+      int i = 0;
+      while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
+         ++i;
+      }
+      if( '*'  == tmp_f[i] ) return true;
+      if( tmp_s[i] == tmp_f[i] ) return true;
+      ++tmp_s;
+   }
+   while( '\0' != *tmp_s && start_with_asterix); // find start location in string
+//   if( '*' == *tmp_f ) {
+//      ++tmp_f; // skip the asterix
+//      while( '\0' != *tmp_s ) {
+//         int i = 0;
+//         while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
+//            ++i;
+//         }
+//         if( '*'  == tmp_f[i] ) return true;
+//         if( tmp_s[i] == tmp_f[i] ) return true;
+//         ++tmp_s;
+//      }
+//   }
+//   else {
+//      int i = 0;
+//      while( '\0' != tmp_f[i] && '\0' != tmp_s[i] && tmp_f[i] == tmp_s[i]) {
+//         ++i;
+//      }
+//      if( '*'  == tmp_f[i] ) return true;
+//      if( tmp_s[i] == tmp_f[i] ) return true;
+//   }
 
-	return is_filter(list->next, s);
+   return is_filter(list->next, s);
 }
 
 bool is_logging( const char* s ) {
-	// check if function is in include list
-	if( NULL == include_list || is_filter(include_list, s) ){
-		if( NULL != exclude_list && is_filter(exclude_list, s) ) {
-			return false;
-		}
-		return true;
-	}
-	return false;
+   // check if function is in include list
+   if( NULL == include_list || is_filter(include_list, s) ){
+      if( NULL != exclude_list && is_filter(exclude_list, s) ) {
+         return false;
+      }
+      return true;
+   }
+   return false;
 }
 
 /**
  * Initialize logger
  */
 void logger_init( int level ){
-	// TODO support file
-	logger_model.fp=NULL;
-	//	logger_model.time_fmt="%m-%d-%Y %T.";
-	logger_model.time_fmt="%T.";
-	logger_set_level(level);
+   // TODO support file
+   logger_model.fp=NULL;
+   //   logger_model.time_fmt="%m-%d-%Y %T.";
+   logger_model.time_fmt="%T.";
+   logger_set_level(level);
 }
+
 void logger_set_level( int level ){
-	logger_model.level=level;
-	logger_model.level=level<0?0:level;
-	logger_model.level=level>LOG_N_LEVELS?LOG_N_LEVELS-1:level;
+   logger_model.level=level;
+   logger_model.level=level<0?0:level;
+   logger_model.level=level>LOG_N_LEVELS?LOG_N_LEVELS-1:level;
 
 }
+
+int logger_get_level(){
+   return logger_model.level;
+}
+
 /**
  * Log message
  */
 void logger ( int level, const char *file, int line, const char *function,  char fmt[], ... ) {
-	static char tmpbuf[4001];
-	static const char strlevel [][6] = {
-			"FATAL",
-			"ERROR",
-			"WARN ",
-			"INFO ",
-			"DEBUG",
-			"TRACE"
-	};
+   static char tmpbuf[4001];
+   static const char strlevel [][6] = {
+      "FATAL",
+      "ERROR",
+      "WARN ",
+      "INFO ",
+      "DEBUG",
+      "TRACE"
+   };
 
-	// time info
-	char timeBuffer[64];
-	struct timeval tv;
-	time_t curtime;
+   // time info
+   char timeBuffer[64];
+   struct timeval tv;
+   time_t curtime;
 
-	if ( level > logger_model.level ){
-		return;
-	}
+   if ( level > logger_model.level ){
+      return;
+   }
 
-	if( is_logging(function) ) {
-		logger_model.fp=logger_model.fp?logger_model.fp:stderr;
+   if( is_logging(function) ) {
+      logger_model.fp=logger_model.fp?logger_model.fp:stderr;
 
-		gettimeofday(&tv, NULL);
-		curtime=tv.tv_sec;
-		// varargs
-		va_list args;
+      gettimeofday(&tv, NULL);
+      curtime=tv.tv_sec;
+      // varargs
+      va_list args;
 
-		// processing varargs
-		va_start(args, fmt);
-		(void) vsnprintf( tmpbuf, sizeof(tmpbuf), fmt, args );
-		va_end(args);
-		// creating log string
-		strftime(timeBuffer,30,logger_model.time_fmt, localtime(&curtime));
-		fprintf( logger_model.fp, "%s%ld %s %s (%s(), %s:%d)\n",
-				timeBuffer, tv.tv_usec, strlevel[level],  tmpbuf,function, file, line );
-		fflush( logger_model.fp );
-	}
+      // processing varargs
+      va_start(args, fmt);
+      (void) vsnprintf( tmpbuf, sizeof(tmpbuf), fmt, args );
+      va_end(args);
+      // creating log string
+      strftime(timeBuffer,30,logger_model.time_fmt, localtime(&curtime));
+      fprintf( logger_model.fp, "%s%ld %s %s (%s(), %s:%d)\n",
+            timeBuffer, tv.tv_usec, strlevel[level],  tmpbuf,function, file, line );
+      fflush( logger_model.fp );
+   }
 }
 

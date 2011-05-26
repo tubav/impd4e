@@ -88,7 +88,7 @@ options_t g_options;
  * returns: pointer g_options
  */
 options_t* getOptions() {
-	return &g_options;
+   return &g_options;
 }
 
 // =============================================================================
@@ -121,7 +121,7 @@ int set_sampling_lowerbound(options_t *options, char* s) {
   {
     LOGGER_warn( "lower bound (%#08x) > upper bound (%#08x); adjust upper bound"
                , options->sel_range_min
-	       , options->sel_range_max );
+          , options->sel_range_max );
     options->sel_range_max = options->sel_range_min;
   }
 
@@ -158,7 +158,7 @@ int set_sampling_upperbound(options_t *options, char* s) {
   {
     LOGGER_warn( "lower bound (%#08x) > upper bound (%#08x); adjust lower bound"
                , options->sel_range_min
-	       , options->sel_range_max );
+          , options->sel_range_max );
     options->sel_range_min = options->sel_range_max;
   }
 
@@ -171,23 +171,23 @@ int set_sampling_upperbound(options_t *options, char* s) {
  * Set sampling ratio, returns -1 in case of failure.
  */
 int set_sampling_ratio(options_t *options, char* value) {
-	double sampling_ratio = strtod( value, NULL);
-	LOGGER_debug("sampling ratio: %lf", sampling_ratio);
-	/*
-	 * for the sampling ratio we do not like values at the edge, therefore we use values beginning at the 10% slice.
-	 */
-	options->sel_range_min = 0x19999999;
-	options->sel_range_max = (double) UINT32_MAX / 100 * sampling_ratio;
+   double sampling_ratio = strtod( value, NULL);
+   LOGGER_debug("sampling ratio: %lf", sampling_ratio);
+   /*
+    * for the sampling ratio we do not like values at the edge, therefore we use values beginning at the 10% slice.
+    */
+   options->sel_range_min = 0x19999999;
+   options->sel_range_max = (double) UINT32_MAX / 100 * sampling_ratio;
 
-	if (UINT32_MAX - options->sel_range_max > options->sel_range_min) {
-		options->sel_range_min = 0x19999999;
-		options->sel_range_max += options->sel_range_min;
-	} else {
-		/* more than 90% therefore use also values from first 10% slice */
-		options->sel_range_min = UINT32_MAX - options->sel_range_max;
-		options->sel_range_max = UINT32_MAX;
-	}
-	return 0;
+   if (UINT32_MAX - options->sel_range_max > options->sel_range_min) {
+      options->sel_range_min = 0x19999999;
+      options->sel_range_max += options->sel_range_min;
+   } else {
+      /* more than 90% therefore use also values from first 10% slice */
+      options->sel_range_min = UINT32_MAX - options->sel_range_max;
+      options->sel_range_max = UINT32_MAX;
+   }
+   return 0;
 }
 
 // =============================================================================
@@ -195,24 +195,26 @@ int set_sampling_ratio(options_t *options, char* value) {
 /**
  * Parse command line template
  */
- int parseTemplate(char *arg_string, options_t *options) {
-	int k;
-	struct templateDef {
-		char *hstring;
-		int templateID;
-	} templates[] = { { MIN_NAME, MINT_ID }, { TS_TTL_RROTO_NAME,
-			TS_TTL_PROTO_ID }, { TS_NAME, TS_ID } };
+int parseTemplate(char *arg_string, options_t *options) {
+   int k;
+   struct templateDef {
+      char *hstring;
+      int templateID;
+   } templates[] = {   { MIN_NAME, MINT_ID }
+                     , { TS_TTL_RROTO_NAME, TS_TTL_PROTO_ID }
+                     , { TS_TTL_RROTO_IP_NAME, TS_TTL_PROTO_IP_ID }
+                     , { TS_NAME, TS_ID } };
 
-	// remove any leading whitespaces
-	while( isspace(*arg_string) ) ++arg_string;
+   // remove any leading whitespaces
+   while( isspace(*arg_string) ) ++arg_string;
 
-	for (k = 0; k < (sizeof(templates) / sizeof(struct templateDef)); k++) {
-		if (strncasecmp(arg_string, templates[k].hstring, strlen(
-				templates[k].hstring)) == 0) {
-			return options->templateID = templates[k].templateID;
-		}
-	}
-	return -1;
+   for (k = 0; k < (sizeof(templates) / sizeof(struct templateDef)); k++) {
+      if (strncasecmp(arg_string, templates[k].hstring, strlen(
+            templates[k].hstring)) == 0) {
+         return options->templateID = templates[k].templateID;
+      }
+   }
+   return -1;
 }
 
 // =============================================================================
@@ -221,32 +223,32 @@ int set_sampling_ratio(options_t *options, char* value) {
  * Parse command line selection function
  */
 void parseSelFunction(char *arg_string, options_t *options) {
-	int k;
-	struct selfunction {
-		char *hstring;
-		selectionFunction selfunction;
-	} selfunctions[] = 	{ { HASH_INPUT_REC8,   copyFields_Rec }
-						, { HASH_INPUT_IP,     copyFields_Only_Net }
-						, { HASH_INPUT_IPTP,   copyFields_U_TCP_and_Net }
-						, { HASH_INPUT_PACKET, copyFields_Packet }
-						, { HASH_INPUT_RAW,    copyFields_Raw }
-						, { HASH_INPUT_LINK,   copyFields_Link }
-						, { HASH_INPUT_NET,    copyFields_Net }
-						, { HASH_INPUT_TRANS,  copyFields_Trans }
-						, { HASH_INPUT_PAYLOAD,copyFields_Payload }
-						, { HASH_INPUT_SELECT, copyFields_Raw } };
+   int k;
+   struct selfunction {
+      char *hstring;
+      selectionFunction selfunction;
+   } selfunctions[] = {   { HASH_INPUT_REC8,   copyFields_Rec }
+                        , { HASH_INPUT_IP,     copyFields_Only_Net }
+                        , { HASH_INPUT_IPTP,   copyFields_U_TCP_and_Net }
+                        , { HASH_INPUT_PACKET, copyFields_Packet }
+                        , { HASH_INPUT_RAW,    copyFields_Raw }
+                        , { HASH_INPUT_LINK,   copyFields_Link }
+                        , { HASH_INPUT_NET,    copyFields_Net }
+                        , { HASH_INPUT_TRANS,  copyFields_Trans }
+                        , { HASH_INPUT_PAYLOAD,copyFields_Payload }
+                        , { HASH_INPUT_SELECT, copyFields_Raw } };
 
-	for (k = 0; k < (sizeof(selfunctions) / sizeof(struct selfunction)); k++) {
-		if (strncasecmp(arg_string, selfunctions[k].hstring
-				, strlen(selfunctions[k].hstring)) == 0)
-		{
-			options->selection_function = selfunctions[k].selfunction;
+   for (k = 0; k < (sizeof(selfunctions) / sizeof(struct selfunction)); k++) {
+      if (strncasecmp(arg_string, selfunctions[k].hstring
+            , strlen(selfunctions[k].hstring)) == 0)
+      {
+         options->selection_function = selfunctions[k].selfunction;
 
-			// needed for RAW, LINK, NET, TRANS, PAYLOAD
-			// set in hash.c
-			parseRange( arg_string+strlen(selfunctions[k].hstring) );
-		}
-	}
+         // needed for RAW, LINK, NET, TRANS, PAYLOAD
+         // set in hash.c
+         parseRange( arg_string+strlen(selfunctions[k].hstring) );
+      }
+   }
 }
 
 // =============================================================================
@@ -255,25 +257,25 @@ void parseSelFunction(char *arg_string, options_t *options) {
  * Parse command line hash function
  */
 hashFunction parseFunction(char *arg_string) {
-	int k;
-	int j = 0;
-	struct hashfunction {
-		char *hstring;
-		hashFunction function;
-	} hashfunctions[] = { { HASH_FUNCTION_BOB, calcHashValue_BOB }
-						, { HASH_FUNCTION_TWMX, calcHashValue_TWMXRSHash }
-						, { HASH_FUNCTION_HSIEH, calcHashValue_Hsieh }
-						, { HASH_FUNCTION_OAAT, calcHashValue_OAAT } };
+   int k;
+   int j = 0;
+   struct hashfunction {
+      char *hstring;
+      hashFunction function;
+   } hashfunctions[] = { { HASH_FUNCTION_BOB, calcHashValue_BOB }
+                  , { HASH_FUNCTION_TWMX, calcHashValue_TWMXRSHash }
+                  , { HASH_FUNCTION_HSIEH, calcHashValue_Hsieh }
+                  , { HASH_FUNCTION_OAAT, calcHashValue_OAAT } };
 
-	for (k = 0; k < (sizeof(hashfunctions) / sizeof(struct hashfunction)); k++) {
-		if (strncasecmp(arg_string, hashfunctions[k].hstring
-				, strlen(hashfunctions[k].hstring)) == 0)
-		{
-			j = k;
-			LOGGER_info("using %s as hashFunction \n", hashfunctions[k].hstring);
-		}
-	}
-	return hashfunctions[j].function;
+   for (k = 0; k < (sizeof(hashfunctions) / sizeof(struct hashfunction)); k++) {
+      if (strncasecmp(arg_string, hashfunctions[k].hstring
+            , strlen(hashfunctions[k].hstring)) == 0)
+      {
+         j = k;
+         LOGGER_info("using %s as hashFunction \n", hashfunctions[k].hstring);
+      }
+   }
+   return hashfunctions[j].function;
 }
 
 // =============================================================================

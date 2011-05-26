@@ -56,7 +56,7 @@ uint32_t TWMXHash(uint8_t *data, uint32_t length, uint32_t initval)
    uint32_t key = initval;
 
 
-   if (((uint32_t)k)&3)
+   if ((long)k&3)
    {
       while (len >= 4)    /* unaligned */
       {

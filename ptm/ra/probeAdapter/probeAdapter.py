@@ -61,7 +61,7 @@ class probeAdapter(AbstractResourceAdapter):
 		logger.debug("--> Interface of this machine: "+interface)
 
 		oid = "empty"
-		location = "52.51:13.40" # default location (Berlin)
+		location = "52.51:13.40:2" # default location (Berlin)
 		collector = ipaddress+":"+"4739"
 		packetFilter = ""
 		samplingRatio = "100.0"
@@ -92,10 +92,6 @@ class probeAdapter(AbstractResourceAdapter):
 		logger.debug("--> samplingRatio = "+samplingRatio)
 		logger.debug("--------------------------------------------------")
 
-		indexLocationSplit = location.find(":")
-    		latitude = location[0:indexLocationSplit]
-    		longitude = location[indexLocationSplit+1:len(location)]
-
     		indexCollectorSplit = collector.find(":")
     		collectorIP = collector[0:indexCollectorSplit]
     		collectorPort = collector[indexCollectorSplit+1:len(collector)]		
@@ -118,14 +114,14 @@ class probeAdapter(AbstractResourceAdapter):
 
                 self.__instances.add(n)
 
-		self.run(interface,collectorIP,collectorPort,oid,latitude,longitude,packetFilter,samplingRatio)
+		self.run(interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio)
 
                 return name
 
 
-	def run(self,interface,collectorIP,collectorPort,oid,latitude,longitude,packetFilter,samplingRatio):
+	def run(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio):
 		logger.debug("--- starting impd4e ... --- ")
-                cmd=["screen","-d","-m","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",latitude+":"+longitude+":2","-f",packetFilter]
+                cmd=["screen","-d","-m","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
 		s=subprocess.call(cmd) 
 		logger.debug("--- impd4e started! ---")
 

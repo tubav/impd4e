@@ -60,7 +60,7 @@ class probeAdapter(AbstractResourceAdapter):
 		logger.debug("--------------------------------------------------")
 		logger.debug("--> Interface of this machine: "+interface)
 
-		oid = "empty"
+		probe = "empty"
 		location = "52.51:13.40:2" # default location (Berlin)
 		collector = ipaddress+":"+"4739"
 		packetFilter = ""
@@ -68,8 +68,8 @@ class probeAdapter(AbstractResourceAdapter):
 
 		configLength = len(config)
 
-		if config.has_key("oid"):
-			oid = config["oid"].strip('s')
+		if config.has_key("probe"):
+			probe = config["probe"].strip('s')
 
 		if config.has_key("location"):
 			location = config["location"].strip('s')
@@ -85,7 +85,7 @@ class probeAdapter(AbstractResourceAdapter):
 
 		logger.debug("--------------------------------------------------")
 		logger.debug("--> Config has the following length: "+str(configLength))
-		logger.debug("--> oid = "+oid)
+		logger.debug("--> probe = "+probe)
 		logger.debug("--> location = "+location)
 		logger.debug("--> collector = "+collector)
 		logger.debug("--> filter = "+packetFilter)
@@ -96,10 +96,35 @@ class probeAdapter(AbstractResourceAdapter):
     		collectorIP = collector[0:indexCollectorSplit]
     		collectorPort = collector[indexCollectorSplit+1:len(collector)]		
 
+		oid = ""
+		probeIP = ""
+		username = ""
+		n = probe
                 if not name:
-			if config.has_key("oid"):
-				n = oid
-				name = n
+			if config.has_key("probe"):
+
+				probe_index_1 = probe.find(":")
+				if (probe_index_1 != -1):
+    					oid = probe[0:probe_index_1]
+
+    					probe_part = probe[probe_index_1+1:len(probe)]
+    					probe_index_2 = probe_part.find(":")
+    					probeIP = probe_part[0:probe_index_2]
+
+    					username = probe_part[probe_index_2+1:len(probe_part)]
+
+					n = oid
+					name = n
+
+					logger.debug("--> oid = "+oid)
+                			logger.debug("--> probeID = "+probeIP)
+                			logger.debug("--> username = "+username)
+					logger.debug("--------------------------------------------------")
+				else:
+					oid = probe
+					n = oid
+					name = n
+
 		  	else:
                         	i = 0
                         	while True:
@@ -114,13 +139,20 @@ class probeAdapter(AbstractResourceAdapter):
 
                 self.__instances.add(n)
 
-		self.run(interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio)
+		if (probeIP == ""):
+			self.run_local(interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio)
+		else:
+			self.run_remote(interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio,probeIP,username)
 
                 return name
 
+	def run_remote(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio,probeIP,username):
+		logger.debug("--- starting impd4e on machine "+probeIP+" ...")
+		login = username + "@" + probeIP
+		cmd=["screen","-d",".-m","ssh","-tt",login,"impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
 
-	def run(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio):
-		logger.debug("--- starting impd4e ... --- ")
+	def run_local(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio):
+		logger.debug("--- starting impd4e on this machine ... --- ")
                 cmd=["screen","-d","-m","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
 		s=subprocess.call(cmd) 
 		logger.debug("--- impd4e started! ---")

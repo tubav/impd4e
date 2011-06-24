@@ -1,0 +1,139 @@
+This readme will explain step by step how to set up impd4e by using Teagle.
+---------------------------------------------------------------------------
+
+I.) SETTING UP THE INTERFACE
+----------------------------
+
+1) At first it is necessary to copy the folder 'ptm' in your local /opt-folder.
+
+2) Open a terminal and switch to the folder '/opt/ptm/bin'. Then enter './ptmhub' to start the PTM-Hub.
+
+3) When the PTM-Hub is started successfully open a second terminal in the same folder '/opt/ptm/bin'. Now enter './rarunner probeAdapter.probeAdapter.probeAdapter' to start the probeAdapter.
+
+4) When the probeAdapter started successfully open an internet browser - for example Mozilla Firefox. Then enter the URL 'http://127.0.0.1:8000/'.
+
+Now you should see an webinterface with the emblem Fraunhofer FOKUS. Also there should be a 'List of resources for I' whith one element '/probeResource-0'. This element is always there, so you don't have to care about it.
+
+
+
+II.) STARTING A PROBE OVER PTM
+------------------------------
+
+1) Below on the interface you should see the link 'Add a new resource instance here'. Click on this link.
+
+2) Now you should see a new interface where you can enter typename and 5 parameters.
+
+3) At first you have to enter 'probeResource' in the typename-field.
+
+4) With the other 5 parameters you can set up the options how the probe will be started. To start the probe correctly make sure, that all parameters are of type 'String'
+
+There a 5 options available:
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+i) probe
+--------
+
+This option contains the observation ID. Optional you can enter the IP-Address where the probe should be started. PTM will build up a SSH-Connection to this Host. Also you have to enter the login name for the machine where you want to start the probe.
+
+NOTE: It is necessary that 'impd4e' is already installed on every machine, where you want to set up a probe! Also it is necessary that every machine where you want to set up a probe has your public key!
+
+If you don't enter any IP-Address or login name the probe will be started on the machine where the PTM-process is running on.
+
+At first type 'probe' in the name of the parameter.
+
+If you want to start the probe on the same machine where the PTM-process is running, then type in the value-field the obervation ID. For example '23001'.
+
+If you want to start the probe on another machine, then type in the value field your parameters with the following syntax:
+
+<Obervation ID>:<IP-Address of the probe>:<login name of the wanted machine>
+
+For example:
+23001:192.168.41.111:prism
+
+For these parameters the probe will have the Observation ID '23001'. Also the probe will be started on the machine '192.168.41.111'. PTM will login to this machine with the username 'prism'.
+
+
+
+ii) location
+------------
+
+This option contains the latitude, the longitude and the export Ratio of the probe location.
+
+NOTE: It is necessary that you enter parameters for this option! Otherwise the probe won't send any location information and you won't be able to see the probes on the Netview-Map.
+
+At first type 'location' in the name of the parameter.
+
+To set up the location enter the latitude, the longitude and the export ratio with the following syntax in the value-field:
+
+<latitude>:<longitude>:<export Ratio>
+
+For example:
+30:30:2
+
+For these parameters the probe will be located on the latitude 30 and the longitude 30, which is somewhere in egypt. Also the probe will export every 2 seconds his location information.
+
+
+
+iii) collector
+--------------
+
+This option contains the IP-address and the port of the collector.
+
+NOTE: If you want to set up the collector on the same machine, where you are running the PTM-process you don't have to enter this parameter!
+
+If the collector runs on another machine then type 'collector' in the name of the parameter first.
+
+Then type the IP-address and the port of the collector with the following syntax in the value-field:
+
+<collector-IP>:<collector-Port>
+
+For example:
+10.147.65.144:4739
+
+For these parameters the probe will send his information to the host 10.147.65.144. The port will be 4739.
+
+
+
+iv) packetFilter
+----------------
+
+This option contains the berkeley filter expression.
+
+NOTE: If you don't want to set up any filter you don't have to enter this parameter!
+
+If you want to enter a berkeley filter expression, then type 'packetFilter' in the name of the parameter first.
+
+The type your berkeley filter expression you want to have in the value-field.
+
+For the right syntax see manuals for the berkeley filter.
+For example see: http://biot.com/capstats/bpf.html
+
+
+
+v) samplingRatio
+----------------
+
+This option contains the sampling Ratio of the probe.
+
+NOTE: If you want to set up the probe with a sampling Ratio of 100% you don't have to enter this parameter!
+
+If you want a special sampling ratio, then type 'samplingRatio' in the name of the parameter first.
+
+Then type the percentage of the sampling Ratio you want to have for this probe in the value-field.
+
+For example:
+60.0
+
+For this parameter the sampling Ratio will be 60%.
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+If you've entered all your options, click on the button 'Submit Query'. Otherwise you can click on the button 'cancel' to return to the main webinterface.
+
+If click on the button 'Submit Query' the probe will be set up. To make sure that everything works fine check the outputs of your collector.
+
+You will return to the main webinterface. You now should see, that a new element is in your list.
+This element should be called '/probeResource-<your entered Obervation ID>'.
+
+

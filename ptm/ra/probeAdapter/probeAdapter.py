@@ -78,8 +78,8 @@ class probeAdapter(AbstractResourceAdapter):
 			collector = config["collector"].strip('s')
 
 		if config.has_key("packetFilter"):
-			packet = config["packetFilter"].strip('s')
-
+			packetFilter = config["packetFilter"].strip('s')
+			
 		if config.has_key("samplingRatio"):
 			samplingRatio = config["samplingRatio"].strip('s')
 
@@ -149,13 +149,24 @@ class probeAdapter(AbstractResourceAdapter):
 	def run_remote(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio,probeIP,username):
 		logger.debug("--- starting impd4e on machine "+probeIP+" ...")
 		login = username + "@" + probeIP
-		cmd=["screen","-d",".-m","ssh","-tt",login,"impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+		if (packetFilter == ""):
+			cmd=["screen","-d","-m","ssh","-tt",login,"sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+		else:
+			cmd=["screen","-d","-m","ssh","-tt",login,"sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+		s=subprocess.call(cmd)
+
+		logger.debug("--- impd4e started on machine "+probeIP+" ---")
 
 	def run_local(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio):
 		logger.debug("--- starting impd4e on this machine ... --- ")
-                cmd=["screen","-d","-m","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
-		s=subprocess.call(cmd) 
-		logger.debug("--- impd4e started! ---")
+		if (packetFilter == ""):
+                	cmd=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+		else:
+			cmd=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+
+		s=subprocess.call(cmd)
+
+		logger.debug("--- impd4e started on this machine! ---")
 
 
         def have_resource(self, identifier):

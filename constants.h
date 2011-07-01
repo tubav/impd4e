@@ -103,7 +103,7 @@ typedef enum {
 
 typedef struct device_desc {
 	device_type_t	  type;
-	char*    		  name;	// network adapter; file-name; socket-name; depends on device type
+	char*             name;	// network adapter; file-name; socket-name; depends on device type
 	device_t          handle;
 } device_desc_t;
 
@@ -130,6 +130,7 @@ typedef struct device_dev {
 	ipfix_template_t *ipfixtmpl_min;
 	ipfix_template_t *ipfixtmpl_ts;
 	ipfix_template_t *ipfixtmpl_ts_ttl;
+        ipfix_template_t *ipfixtmpl_ts_ttl_ip;
 	ipfix_template_t *ipfixtmpl_interface_stats;
 	ipfix_template_t *ipfixtmpl_probe_stats;
 	ipfix_template_t *ipfixtmpl_sync;
@@ -186,10 +187,10 @@ typedef struct export_data {
 #define TS_ID           	2
 #define TS_TTL_PROTO_IP_ID 	3
 
-#define MIN_NAME  			"min"
+#define MIN_NAME  		"min"
 #define TS_TTL_RROTO_NAME 	"lp"
-#define TS_NAME			 	"ts"
-#define TS_TTL_RROTO_IP_NAME 	"lp+ip"
+#define TS_NAME			"ts"
+#define TS_TTL_RROTO_IP_NAME 	"ls"
 
 typedef enum hash_function {
 	FUNCTION_BOB		 = 0x001,

@@ -523,9 +523,9 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
    uint32_t copiedbytes;
    uint8_t ttl;
    uint64_t timestamp;
-
+   
    LOGGER_trace("handle packet");
-
+   
    if_device->sampling_delta_count++;
    if_device->totalpacketcount++;
 
@@ -543,7 +543,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 
    ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
          layers[L_NET]);
-
+  
    if (0 == copiedbytes) {
 
       LOGGER_trace( "Warning: packet does not contain Selection");
@@ -595,8 +595,8 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
          template = if_device->ipfixtmpl_ts_ttl;
          break;
       case TS_TTL_PROTO_IP_ID:
-         //template = if_device->ipfixtmpl_ts_ttl_ip;
-         //break;
+         template = if_device->ipfixtmpl_ts_ttl_ip;
+         break;
       default:
          LOGGER_info( "!!!no template specified!!!" );
          return;
@@ -614,7 +614,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 //      set_ip_version();
 //      set_ip_length();
 //      set_ip_id();
-
+      
       switch (g_options.templateID) {
       case TS_ID: {
          int index = 0;
@@ -651,14 +651,32 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
          break;
       }
 
-      case TS_TTL_PROTO_IP_ID: {
-         // TODO: !!
-//         do case TS_TTL_PROTO_ID
-//         add source ip
-//         add source port
-//         add destin ip
-//         add destin port
-         break;
+      case TS_TTL_PROTO_IP_ID: {          
+          if (layers[L_NET] == N_IP) {
+              length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 2])));  
+          } else if (layers[L_NET] == N_IP6) {
+              length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 4])));
+          } else {
+              LOGGER_fatal( "cannot parse packet length" );
+              length = 0;
+          }
+          
+          int index = 0;
+          index += set_value( &fields[index], &lengths[index], &timestamp, 8);
+          index += set_value( &fields[index], &lengths[index], &hash_result, 4);
+          index += set_value( &fields[index], &lengths[index], &ttl, 1);
+          index += set_value( &fields[index], &lengths[index], &length, 2);
+          index += set_value( &fields[index], &lengths[index], &layers[L_TRANS], 1);
+          index += set_value( &fields[index], &lengths[index], &layers[L_NET], 1);
+          index += set_value( &fields[index], &lengths[index], 
+                (uint32_t*) &packet[if_device->offset[L_NET] + 12], 4);
+          index += set_value( &fields[index], &lengths[index], 
+                (uint16_t*) &packet[if_device->offset[L_TRANS]], 2);
+          index += set_value( &fields[index], &lengths[index], 
+                (uint32_t*) &packet[if_device->offset[L_NET] + 16], 4);
+          index += set_value( &fields[index], &lengths[index], 
+                (uint16_t*) &packet[if_device->offset[L_TRANS] + 2], 2);
+          break;
       }
 
       default:

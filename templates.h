@@ -102,9 +102,9 @@ export_fields_t export_fields_ts_ttl_proto_ip[] = {
 		{ 0, IPFIX_FT_PROTOCOLIDENTIFIER, 1 },
 		{ 0, IPFIX_FT_IPVERSION, 1 },
 		{ 0, IPFIX_FT_SOURCEIPV4ADDRESS, 4 },
-		{ 0, IPFIX_FT_SOURCETRANSPORTPORT, 4 },
+		{ 0, IPFIX_FT_SOURCETRANSPORTPORT, 2 },
 		{ 0, IPFIX_FT_DESTINATIONIPV4ADDRESS, 4 },
-		{ 0, IPFIX_FT_DESTINATIONTRANSPORTPORT, 4 },
+		{ 0, IPFIX_FT_DESTINATIONTRANSPORTPORT, 2 },
 };
 
 export_fields_t export_fields_interface_stats[] = {

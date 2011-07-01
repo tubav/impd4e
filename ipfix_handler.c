@@ -103,6 +103,12 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
       exit(EXIT_FAILURE);
    }
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
+           if_device->ipfixtmpl_ts_ttl_ip,
+           export_fields_ts_ttl_proto_ip) < 0) {
+      LOGGER_fatal("template initialization failed: %s", strerror(errno));
+      exit(EXIT_FAILURE);
+   }
+   if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
             if_device->ipfixtmpl_interface_stats, export_fields_interface_stats)
          < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
@@ -123,7 +129,6 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
-
    if (ipfix_add_collector(if_device->ipfixhandle,
             options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP) < 0) {
       LOGGER_error("ipfix_add_collector(%s,%d) failed: %s",

@@ -86,7 +86,7 @@
  * Event and Signal handling via libev
  */
 struct {
-   struct ev_loop *loop;
+   EV_P;
    ev_signal sigint_watcher;
    ev_signal sigalrm_watcher;
    ev_signal sigpipe_watcher;
@@ -95,7 +95,7 @@ struct {
    ev_timer   export_timer_stats;
    ev_timer   export_timer_location;
    ev_timer   resync_timer;
-   ev_io       packet_watchers[MAX_INTERFACES];
+//   ev_io      packet_watchers[MAX_INTERFACES];
 } events;
 
 
@@ -150,7 +150,7 @@ set_cfg_fct_t getFunction(char cmd)
  */
 void sigint_cb (EV_P_ ev_signal *w, int revents) {
    LOGGER_info("Signal INT received");
-   ev_unloop (loop, EVUNLOOP_ALL);
+   ev_unloop (EV_A_ EVUNLOOP_ALL);
 }
 
 /**
@@ -171,9 +171,9 @@ void sigalrm_cb (EV_P_ ev_signal *w, int revents) {
  * Setups and starts main event loop.
  */
 void event_loop() {
-   //   struct ev_loop *loop = ev_default_loop (EVLOOP_ONESHOT);
-   struct ev_loop *loop = ev_default_loop(0);
-   if (!loop) {
+   //struct ev_loop *loop = ev_default_loop(0);
+   EV_P = EV_DEFAULT;
+   if( !EV_A ) {
       LOGGER_fatal("Could not initialize loop!");
       exit(EXIT_FAILURE);
    }
@@ -183,15 +183,15 @@ void event_loop() {
 
    /* signals */
    ev_signal_init(&events.sigint_watcher, sigint_cb, SIGINT);
-   ev_signal_start(loop, &events.sigint_watcher);
+   ev_signal_start(EV_A_ &events.sigint_watcher);
    ev_signal_init(&events.sigalrm_watcher, sigalrm_cb, SIGALRM);
-   ev_signal_start(loop, &events.sigalrm_watcher);
+   ev_signal_start(EV_A_ &events.sigalrm_watcher);
    ev_signal_init(&events.sigpipe_watcher, sigpipe_cb, SIGPIPE);
-   ev_signal_start(loop, &events.sigpipe_watcher);
+   ev_signal_start(EV_A_ &events.sigpipe_watcher);
 
    /* resync   */
    ev_timer_init(&events.resync_timer, resync_timer_cb, 0, RESYNC_PERIOD);
-   ev_timer_again(loop, &events.resync_timer);
+   ev_timer_again(EV_A_ &events.resync_timer);
 
    /* export timers */
    /* export device measurements */
@@ -201,7 +201,7 @@ void event_loop() {
          , g_options.export_pktid_interval // repeat
          );
    // trigger first after 'repeat'
-   ev_timer_again (loop, &events.export_timer_pkid);
+   ev_timer_again (EV_A_ &events.export_timer_pkid);
 
    /* export device sampling stats */
    ev_timer_init (&events.export_timer_sampling
@@ -210,7 +210,7 @@ void event_loop() {
          , g_options.export_sampling_interval // repeat
          );
    // trigger first after 'repeat'
-   ev_timer_again (loop, &events.export_timer_sampling);
+   ev_timer_again (EV_A_ &events.export_timer_sampling);
 
    /* export system stats - with at least one export*/
    ev_timer_init (&events.export_timer_stats
@@ -219,7 +219,7 @@ void event_loop() {
          , g_options.export_stats_interval // repeat
          );
    // trigger first after 'after' then after 'repeat'
-   ev_timer_start (loop, &events.export_timer_stats);
+   ev_timer_start (EV_A_ &events.export_timer_stats);
 
    /* export system location - with at least one export*/
    ev_timer_init(&events.export_timer_location
@@ -228,32 +228,32 @@ void event_loop() {
          , g_options.export_location_interval // repeat
          );
    // trigger first after 'after' then after 'repeat'
-   ev_timer_start (loop, &events.export_timer_location);
+   ev_timer_start (EV_A_ &events.export_timer_location);
 
    /*   packet watchers */
-   event_setup_pcapdev(loop);
+   event_setup_pcapdev(EV_A);
 
    /* setup network console */
-   event_setup_netcon(loop);
+   event_setup_netcon(EV_A);
 
    /* Enter main event loop; call unloop to exit.
     *
     * Everything is going to be handled within this call
     * accordingly to callbacks defined above.
     * */
-   events.loop = loop;
-   ev_loop(loop, 0);
+   events.EV_A = EV_A;
+   ev_loop(EV_A_ 0);
 }
 
 
 /**
  * Setup network console
  */
-void event_setup_netcon(struct ev_loop *loop) {
+void event_setup_netcon(EV_P) {
    char *host = "localhost";
    int port = 5000;
 
-   if (netcon_init(loop, host, port) < 0) {
+   if (netcon_init(EV_A_ host, port) < 0) {
       LOGGER_error("could not initialize netcon: host: %s, port: %d ", host,
             port);
    }
@@ -280,7 +280,7 @@ void event_setup_netcon(struct ev_loop *loop) {
  * Here we setup a pcap device in non block mode and configure libev to read
  * a packet as soon it is available.
  */
-void event_setup_pcapdev(struct ev_loop *loop) {
+void event_setup_pcapdev(EV_P) {
    int i;
    device_dev_t * pcap_dev_ptr;
    for (i = 0; i < g_options.number_interfaces; i++) {
@@ -301,7 +301,7 @@ void event_setup_pcapdev(struct ev_loop *loop) {
       ev_io_init(&events.packet_watchers[i], packet_watcher_cb
             , get_file_desc( pcap_dev_ptr )
             , EV_READ);
-      ev_io_start(loop, &events.packet_watchers[i]);
+      ev_io_start(EV_A_ &events.packet_watchers[i]);
    }
 }
 
@@ -847,7 +847,7 @@ int configuration_set_export_to_probestats(unsigned long mid, char *msg) {
       for (i = 0; i < g_options.number_interfaces; i++) {
          LOGGER_debug("==> %s", response);
          export_data_sync( &if_devices[i]
-                                 , ev_now(events.loop) * 1000
+               , ev_now(events.loop) * 1000
                , mid
                , 0
                , response );
@@ -877,7 +877,7 @@ int configuration_set_export_to_ifstats(unsigned long mid, char *msg) {
       for (i = 0; i < g_options.number_interfaces; i++) {
          LOGGER_debug("==> %s", response);
          export_data_sync( &if_devices[i]
-                                 , ev_now(events.loop) * 1000
+               , ev_now(events.loop) * 1000
                , mid
                , 0
                , response );
@@ -907,7 +907,7 @@ int configuration_set_export_to_pktid(unsigned long mid, char *msg) {
       for (i = 0; i < g_options.number_interfaces; i++) {
          LOGGER_debug("==> %s", response);
          export_data_sync( &if_devices[i]
-                                 , ev_now(events.loop) * 1000
+               , ev_now(events.loop) * 1000
                , mid
                , 0
                , response );
@@ -984,7 +984,7 @@ int configuration_set_ratio(unsigned long mid, char *msg) {
       for (i = 0; i < g_options.number_interfaces; i++) {
          LOGGER_debug("==> %s", response);
          export_data_sync( &if_devices[i]
-                                 , ev_now(events.loop) * 1000
+               , ev_now(events.loop) * 1000
                , mid
                , 0
                , response );
@@ -1008,60 +1008,60 @@ int configuration_set_ratio(unsigned long mid, char *msg) {
 
 
 /*-----------------------------------------------------------------------------
- Export
- -----------------------------------------------------------------------------*/
+  Export
+  -----------------------------------------------------------------------------*/
 void export_data_interface_stats(device_dev_t *dev,
       uint64_t observationTimeMilliseconds, u_int32_t size,
       u_int64_t deltaCount) {
    static uint16_t lengths[] = { 8, 4, 8, 4, 4, 0, 0 };
    static char interfaceDescription[16];
-      #ifndef PFRING
+#ifndef PFRING
    struct pcap_stat pcapStat;
-      void*   fields[] = { &observationTimeMilliseconds, &size, &deltaCount
-                              , &pcapStat.ps_recv
-                              , &pcapStat.ps_drop
-                              , dev->device_name
-                              , interfaceDescription };
-      #else
-      pfring_stat pfringStat;
-      void*   fields[] = { &observationTimeMilliseconds, &size, &deltaCount
-                              , &pfringStat.recv
-                              , &pfringStat.drop
-                              , dev->device_name
-                              , interfaceDescription };
-      #endif
+   void*   fields[] = { &observationTimeMilliseconds, &size, &deltaCount
+      , &pcapStat.ps_recv
+         , &pcapStat.ps_drop
+         , dev->device_name
+         , interfaceDescription };
+#else
+   pfring_stat pfringStat;
+   void*   fields[] = { &observationTimeMilliseconds, &size, &deltaCount
+      , &pfringStat.recv
+         , &pfringStat.drop
+         , dev->device_name
+         , interfaceDescription };
+#endif
 
    snprintf(interfaceDescription, sizeof(interfaceDescription)
          ,"%s", ntoa(dev->IPv4address));
    lengths[5]=strlen(dev->device_name);
    lengths[6]=strlen(interfaceDescription);
 
-      #ifndef PFRING
+#ifndef PFRING
    /* Get pcap statistics in case of live capture */
    if ( TYPE_PCAP == dev->device_type ) {
       if (pcap_stats(dev->device_handle.pcap, &pcapStat) < 0) {
          LOGGER_error("Error DeviceNo   %s: %s", dev->device_name
-                  , pcap_geterr(dev->device_handle.pcap));
+               , pcap_geterr(dev->device_handle.pcap));
       }
    } else {
       pcapStat.ps_drop = 0;
       pcapStat.ps_recv = 0;
    }
-      #else
-      if ( TYPE_PFRING == dev->device_type ) {
-            if (pfring_stats(dev->device_handle.pfring, &pfringStat) < 0) {
-                  LOGGER_error("Error DeviceNo   %s: Failed to get statistics",
-                                    dev->device_name);
-            }
-      } else {
-            pfringStat.drop = 0;
-            pfringStat.recv = 0;
+#else
+   if ( TYPE_PFRING == dev->device_type ) {
+      if (pfring_stats(dev->device_handle.pfring, &pfringStat) < 0) {
+         LOGGER_error("Error DeviceNo   %s: Failed to get statistics",
+               dev->device_name);
       }
-      #endif
+   } else {
+      pfringStat.drop = 0;
+      pfringStat.recv = 0;
+   }
+#endif
 
    LOGGER_trace("sampling: (%d, %lu)", size, (long unsigned) deltaCount);
    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_interface_stats, 7,
-         fields, lengths) < 0) {
+            fields, lengths) < 0) {
       LOGGER_error("ipfix export failed: %s", strerror(errno));
    } else {
       dev->sampling_size = 0;
@@ -1075,10 +1075,10 @@ void export_data_sync(device_dev_t *dev,
    static uint16_t lengths[] = { 8, 4, 4, 0 };
    lengths[3] = strlen(message);
    void *fields[] = { &observationTimeMilliseconds, &messageId, &messageValue,
-         message };
+      message };
    LOGGER_debug("export data sync");
    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_sync, 4,
-         fields, lengths) < 0) {
+            fields, lengths) < 0) {
       LOGGER_error("ipfix export failed: %s", strerror(errno));
       return;
    }
@@ -1093,16 +1093,16 @@ void export_data_probe_stats(device_dev_t *dev) {
    struct probe_stat probeStat;
 
    void *fields[] = { &probeStat.observationTimeMilliseconds,
-         &probeStat.systemCpuIdle, &probeStat.systemMemFree,
-         &probeStat.processCpuUser, &probeStat.processCpuSys,
-         &probeStat.processMemVzs, &probeStat.processMemRss };
+      &probeStat.systemCpuIdle, &probeStat.systemMemFree,
+      &probeStat.processCpuUser, &probeStat.processCpuSys,
+      &probeStat.processMemVzs, &probeStat.processMemRss };
 
    probeStat.observationTimeMilliseconds = (uint64_t) ev_now(events.loop)
-         * 1000;
+      * 1000;
    get_probe_stats(&probeStat);
 
    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_probe_stats, 7,
-         fields, lengths) < 0) {
+            fields, lengths) < 0) {
       LOGGER_error("ipfix export failed: %s", strerror(errno));
       return;
    }
@@ -1116,15 +1116,15 @@ void export_data_location(device_dev_t *dev, int64_t observationTimeMilliseconds
    lengths[4] = strlen(getOptions()->s_probe_name);
    lengths[5] = strlen(getOptions()->s_location_name);
    void *fields[] = { &observationTimeMilliseconds
-               , &getOptions()->ipAddress
-               , getOptions()->s_latitude
-               , getOptions()->s_longitude
-               , getOptions()->s_probe_name
-               , getOptions()->s_location_name };
+      , &getOptions()->ipAddress
+         , getOptions()->s_latitude
+         , getOptions()->s_longitude
+         , getOptions()->s_probe_name
+         , getOptions()->s_location_name };
    LOGGER_debug("export data location");
    //LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location, sizeof(lengths)/sizeof(lengths[0]),
-         fields, lengths) < 0) {
+            fields, lengths) < 0) {
       LOGGER_error("ipfix export failed: %s", strerror(errno));
       return;
    }
@@ -1187,15 +1187,15 @@ void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents) {
    int i;
    uint64_t observationTimeMilliseconds;
    LOGGER_trace("export timer sampling call back");
-   observationTimeMilliseconds = (uint64_t)ev_now(events.loop) * 1000;
+   observationTimeMilliseconds = (uint64_t)ev_now(EV_A) * 1000;
    for (i = 0; i < g_options.number_interfaces ; i++) {
       device_dev_t *dev = &if_devices[i];
       export_data_interface_stats(dev, observationTimeMilliseconds, dev->sampling_size, dev->sampling_delta_count );
-      #ifdef PFRING
-      #ifdef PFRING_STATS
+#ifdef PFRING
+#ifdef PFRING_STATS
       print_stats( dev );
-      #endif
-      #endif
+#endif
+#endif
    }
    export_flush();
 }
@@ -1213,7 +1213,7 @@ void export_timer_location_cb (EV_P_ ev_timer *w, int revents) {
    int i;
    uint64_t observationTimeMilliseconds;
    LOGGER_trace("export timer location call back");
-   observationTimeMilliseconds = (uint64_t)ev_now(events.loop) * 1000;
+   observationTimeMilliseconds = (uint64_t)ev_now(EV_A) * 1000;
    for (i = 0; i < g_options.number_interfaces ; i++) {
       device_dev_t *dev = &if_devices[i];
       export_data_location(dev, observationTimeMilliseconds);

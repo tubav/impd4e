@@ -537,6 +537,7 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
    }
 
    // selection of viable fields of the packet - depend on the selection function choosen
+   // locate protocolsections of ip-stack --> findHeaders() in hash.c
    copiedbytes = g_options.selection_function(packet, header->caplen,
          if_device->outbuffer, if_device->outbufferLength,
          if_device->offset, layers);
@@ -544,8 +545,8 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
    ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
          layers[L_NET]);
   
+   // !!!! no ip-stack found !!!!
    if (0 == copiedbytes) {
-
       LOGGER_trace( "Warning: packet does not contain Selection");
       // todo: ?alternative selection function
       // todo: ?for the whole configuration
@@ -668,14 +669,44 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
           index += set_value( &fields[index], &lengths[index], &length, 2);
           index += set_value( &fields[index], &lengths[index], &layers[L_TRANS], 1);
           index += set_value( &fields[index], &lengths[index], &layers[L_NET], 1);
-          index += set_value( &fields[index], &lengths[index], 
-                (uint32_t*) &packet[if_device->offset[L_NET] + 12], 4);
-          index += set_value( &fields[index], &lengths[index], 
-                (uint16_t*) &packet[if_device->offset[L_TRANS]], 2);
-          index += set_value( &fields[index], &lengths[index], 
-                (uint32_t*) &packet[if_device->offset[L_NET] + 16], 4);
-          index += set_value( &fields[index], &lengths[index], 
-                (uint16_t*) &packet[if_device->offset[L_TRANS] + 2], 2);
+          // this needs to be IPv4 and UDP or TCP or SCTP (not yet supported)
+          // TODO: switch template members
+          uint32_t ipa = 0;
+          if( N_IP == layers[L_NET] ) {
+             index += set_value( &fields[index], &lengths[index], 
+                   (uint32_t*) &packet[if_device->offset[L_NET] + 12], 4);
+          }
+          else {
+             index += set_value( &fields[index], &lengths[index], &ipa, 4);
+          }
+          uint16_t port = 0;
+          switch( layers[L_TRANS] ) {
+             case T_TCP:
+             case T_UDP:
+             //case T_SCTP:
+                port = ntohs(*((uint16_t*) &packet[if_device->offset[L_TRANS]]));
+                break;
+             default:
+                port = 0;
+          }
+          index += set_value( &fields[index], &lengths[index], &port, 2);
+          if( N_IP == layers[L_NET] ) {
+             index += set_value( &fields[index], &lengths[index], 
+                   (uint32_t*) &packet[if_device->offset[L_NET] + 16], 4);
+          }
+          else {
+             index += set_value( &fields[index], &lengths[index], &ipa, 4);
+          }
+          switch( layers[L_TRANS] ) {
+             case T_TCP:
+             case T_UDP:
+             //case T_SCTP:
+                port = ntohs(*((uint16_t*) &packet[if_device->offset[L_TRANS] + 2]));
+                break;
+             default:
+                port = 0;
+          }
+          index += set_value( &fields[index], &lengths[index], &port, 2);
           break;
       }
 

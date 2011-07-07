@@ -124,7 +124,10 @@ void print_help() {
 			"USAGE: impd4e -i interface [options] \n"
 			"\n");
 
-	printf(
+	printf(		"   -c  <configfile>               read parameters from config file\n"
+                        "                                  (parameters on command line have precedence over the same\n"
+                        "                                  parameters in config file, or are supplemental, e.g. for -i)\n"
+                        "\n"
             #ifndef PFRING
 			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t i - ethernet adapter;             -i i:eth0\n"
@@ -199,7 +202,7 @@ void print_help() {
 			"                                  Default: localhost\n"
 			"   -P  <Collector Port>           an IPFIX Collector Port\n"
 			"                                  Default: 4739\n"
-			"   -c  <export packet count>      size of export buffer after which packets\n"
+			"   -e  <export packet count>      size of export buffer after which packets\n"
 			"                                  are flushed (per device)\n"
 			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\"\n"
 			"                                  Default: \"min\"\n"
@@ -541,6 +544,157 @@ void parse_pfring_filter(char* arg_string, options_t* options) {
 }
 #endif
 
+
+void make_lower(char *s) {
+	if (!s) return;
+	while (*s) {
+		*s = tolower(*s);
+		s++;
+	}
+}
+
+struct config_map_t {
+	char *cfg_item;
+	char opt_letter;
+};
+
+struct config_map_t cfg_opt_list[] = {
+	{ "general.verbosity", 'v'},
+	{ "general.help", 'h'},
+	{ "capture.interface", 'i'},
+	{ "filter.bpfilter", 'f'},
+	{ "filter.snaplength", 'N'},
+	{ "interval.data_export", 'I'},
+	{ "interval.probe_stats", 'J'},
+	{ "interval.interface_stats", 'K'},
+	{ "interval.location", 'G'},
+	{ "selection.min_hash_range", 'm'},
+	{ "selection.max_hash_range", 'M'},
+	{ "selection.hash_selection_ratio", 'r'},
+	{ "selection.selection_preset", 's'},
+	{ "selection.selection_parts", 'S'},
+	{ "selection.hash_function", 'F'},
+	{ "selection.pktid_function", 'p'},
+	{ "ipfix.observation_domain_id", 'o'},
+	{ "ipfix.one_odid", 'u'},
+	{ "ipfix.collector_ip_address", 'C'},
+	{ "ipfix.collector_port", 'P'},
+	{ "ipfix.export_flush_count", 'e'},
+	{ "template.used_template", 't'},
+	{ "geotags.probe_name", 'd'},
+	{ "geotags.location_name", 'D'},
+	{ "geotags.latitude", 'l'},
+	{ "geotags.longitude", 'L'},
+	{ NULL, '\0' }
+};
+
+/* 'mapped' config item read from file, e.g. {'i', "eth0"} */
+struct config_option_t {
+	char opt_letter;
+	char *value;
+};
+
+/* table of 'mapped' config items read from file, e.g. {{'i', "eth0", {'o', "1234"}} */
+struct config_option_t g_config_file_options[200];
+
+
+char find_opt_letter( char *option ) {
+	struct config_map_t *c = cfg_opt_list;
+	
+	while (c->cfg_item != NULL) {
+		if (strcmp( option, c->cfg_item) == 0) {
+			/* printf("~~~~ %c ~~~~\n", c->opt_letter); */
+			return c->opt_letter;
+		}
+		c++;
+	}
+	return '\0';
+}
+
+char ** read_options_file( FILE *file ) {
+
+	char line[2000];
+	char *pos = NULL;
+	int  llen = 0;
+	struct config_option_t *cfg_ptr = g_config_file_options;
+	
+	while (NULL != fgets(line, sizeof(line), file)) {
+
+		/* cut off any in-line comments */
+		{
+			char *hpos = strchr(line, '#');
+			if (hpos != NULL) {
+				hpos[0] = '\0';
+			}
+			if (line[0]=='\0') continue; /* optimization for comment-only lines */
+		}
+
+		/* do an rtrim and on the remaining 'line' */
+		llen = strlen(line);
+		pos = line + llen - 1;
+		while (pos>=line && (*pos==' ' || *pos=='\t' || *pos=='\n' || *pos=='\r')) {
+			pos--;
+		}
+		pos[1] = '\0';
+
+		/* do an ltrim and on 'line' */
+		pos = line;
+		while (*pos==' ' || *pos=='\t') {
+			pos++;
+		}
+
+		/* skip lines that are empty after trim */
+		if (pos[0]=='\0') {
+			continue;
+		}
+
+		char heading[100+1];
+
+		/* check for [section headings] */
+		if (pos[0]=='[') {
+			sscanf(pos+1, "%[^]]]", heading);
+			make_lower(heading);
+			continue;
+		}
+
+		/* check if we have a 'key = value' pair or just a flag ( 'enable_xyz' ) */
+		{
+			char *pos2 = strchr(pos, '=');
+			char key[100+1], value[100+1], fullkey[200];
+			char letter;
+			if (pos2 != NULL) {  /* key-value feature */
+				pos2[0] = '\0';
+				sscanf(pos,    "%s", key);
+				sscanf(pos2+1, "%s", value);
+				make_lower(key);
+				/* printf( "%s.%s = '%s'\n", heading, key, value ); */
+			} else { /* found feature flag */
+				sscanf(pos, "%s", key);
+				value[0] = '\0';
+				make_lower(key);
+				/* printf( "%s.%s = TRUE\n", heading, key ); */
+			}
+
+			sprintf( fullkey, "%s.%s", heading, key );
+			letter = find_opt_letter(fullkey);
+			
+			if (letter != '\0') {
+				/* we have read a config option from file for which a config letter exists */
+				cfg_ptr->opt_letter = letter;
+				cfg_ptr->value = strdup(value);
+				cfg_ptr++;
+			}
+		}
+
+	}
+
+	cfg_ptr->opt_letter = '\0';
+	cfg_ptr->value = NULL;
+	
+	return NULL;
+}
+
+
 /**
  * Process command line arguments
  */
@@ -548,32 +702,69 @@ void parse_cmdline(int argc, char **argv) {
 
 	options_t* options = &g_options;
 	int c;
-   #ifdef PFRING
-   char par[] = "hv::nyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
-   #else
-   char par[] = "hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:c:P:C:l:L:G:N:p:d:D:";
-   #endif
+    #ifdef PFRING
+	char par[] = "c:hv::nyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:";
+    #else
+	char par[] = "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:";
+    #endif
 	errno = 0;
 
 	options->number_interfaces = 0;
-	#ifdef PFRING
+    #ifdef PFRING
 	options->rules_in_list = 0;
 	options->filter_policy = -1;
-	#endif
+    #endif
 
+	/* check if we have a config file given at first */
 	while (-1 != (c = getopt(argc, argv, par))) {
+		if (c == 'c') { 
+			FILE *cfile = fopen(optarg, "rt");
+			if (!cfile) {
+				char err_string[500];
+				snprintf(err_string, sizeof(err_string)-1, "cannot open config file '%s'", optarg);
+				perror(err_string);
+				exit(1);
+			}
+			read_options_file(cfile);
+			fclose(cfile);
+		}
+	}	    
+
+	struct config_option_t *cfg_ptr;
+
+/*
+	cfg_ptr = g_config_file_options;
+	while (cfg_ptr->opt_letter != '\0') {
+		printf("FOUND '%c' -> \"%s\"\n", cfg_ptr->opt_letter, cfg_ptr->value);
+		cfg_ptr++;
+	}
+*/
+	cfg_ptr = g_config_file_options;
+
+	optind = 1; /* reset getopt to start of parameter list ; from unistd.h */
+	while ( (cfg_ptr->opt_letter != '\0') || (-1 != (c = getopt(argc, argv, par)))) {
+		
+		if (cfg_ptr->opt_letter != '\0') {
+			c = cfg_ptr->opt_letter;
+			optarg = cfg_ptr->value;
+			cfg_ptr++;
+		}
+		
 		switch (c) {
         #ifdef PFRING
-        case 'a':
-            /* pf_ring filter */
-            parse_pfring_filter(optarg, options);
-            break;
+		case 'a':
+			/* pf_ring filter */
+			parse_pfring_filter(optarg, options);
+			break;
         #endif
+		case 'c': /* config file */
+			/* ignore config file parameter in this second pass over args */
+			break;
 		case 'C':
 			/* collector port */
 			strcpy(options->collectorIP, optarg);
 			break;
-		case 'c': /* export count */
+		case 'e': /* export flush count */
 			options->export_packet_count = atoi(optarg);
 			break;
 		case 'f':
@@ -680,17 +871,22 @@ void parse_cmdline(int argc, char **argv) {
 			}
 			break;
 		case 'v':
-			++options->verbosity;
-			// workaround to use -v as normal (e.g. -vvv) which do not work
-			// with optional parameter
-			if( NULL != optarg ) {
-				while( 'v' == optarg[0] ) {
-					++options->verbosity;
-					++optarg;
-				}
-				options->verbosity_filter_string = optarg;
-			}
-			//fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
+         if( (NULL != optarg) && (isdigit(*optarg)) ) {
+            options->verbosity = atoi(optarg);
+         }
+         else {
+            ++options->verbosity;
+            // workaround to use -v as normal (e.g. -vvv) which do not work
+            // with optional parameter
+            if( NULL != optarg ) {
+               while( 'v' == optarg[0] ) {
+                  ++options->verbosity;
+                  ++optarg;
+               }
+               options->verbosity_filter_string = optarg;
+            }
+            //fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
+         }
 			break;
 		case 'd':
 			options->s_probe_name = optarg;

@@ -96,6 +96,9 @@ int parseTemplate(char *arg_string, options_t *options);
 void parseSelFunction(char *arg_string, options_t *options);
 hashFunction parseFunction(char *arg_string);
 
+void print_help();
+void parse_cmdline(int argc, char **argv);
+
 // todo: use getter instead
 extern options_t     g_options;
 

@@ -85,6 +85,33 @@
 options_t g_options;
 
 // -----------------------------------------------------------------------------
+// Prototypes
+// -----------------------------------------------------------------------------
+char ** read_options_file( FILE *file );
+char ** read_options_file_v2( FILE *file, options_t* options );
+
+// -----------------------------------------------------------------------------
+// Structures, Typedefs
+// -----------------------------------------------------------------------------
+/* 'mapped' config item read from file, e.g. {'i', "eth0"} */
+struct config_option_t {
+   char opt_letter;
+   char *value;
+};
+
+/* table of 'mapped' config items read from file, e.g. {{'i', "eth0", {'o', "1234"}} */
+struct config_option_t g_config_file_options[200];
+
+typedef int (*cmd_par_fct_t)(char*, options_t*);
+
+struct config_map_t {
+   char          opt_letter;
+   cmd_par_fct_t opt_fct;
+   char*         cfg_item;
+};
+
+
+// -----------------------------------------------------------------------------
 // Functions
 // -----------------------------------------------------------------------------
 
@@ -299,8 +326,9 @@ void print_help() {
 			"\n");
 
 	printf(		"   -c  <configfile>               read parameters from config file\n"
-                        "                                  (parameters on command line have precedence over the same\n"
-                        "                                  parameters in config file, or are supplemental, e.g. for -i)\n"
+                        "                                  (parameters have precedence by order of the same parameters \n"
+                        "                                  (last comes last serves), or are supplemental, e.g. for -i)\n"
+                        "                                  (config file at last will overwrite cmd line (vice versa))\n"
                         "\n"
             #ifndef PFRING
 			"   -i  <i,f,p,s,u>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
@@ -423,69 +451,345 @@ void print_help() {
 // =============================================================================
 
 void make_lower(char *s) {
-	if (!s) return;
-	while (*s) {
-		*s = tolower(*s);
-		s++;
-	}
+   if (!s) return;
+   while (*s) {
+      *s = tolower(*s);
+      s++;
+   }
 }
 
-struct config_map_t {
-	char *cfg_item;
-	char opt_letter;
-};
+
+int opt_unknown_parameter( char* arg, options_t* options ) {
+   LOGGER_warn( "unkown parameter" );
+   return 0;
+}
+
+#ifdef PFRING
+int opt_a( char* arg, options_t* options ) {
+   parse_pfring_filter(arg, options);
+   return 0;
+}
+#endif
+
+int opt_c( char* arg, options_t* options ) {
+   FILE *cfile = fopen(arg, "rt");
+   if (!cfile) {
+      char err_string[500];
+      snprintf(err_string, sizeof(err_string)-1, "cannot open config file '%s'", arg);
+      perror(err_string);
+      exit(1);
+   }
+   read_options_file_v2(cfile, options);
+   fclose(cfile);
+   return 0;
+}
+
+int opt_C( char* arg, options_t* options ) {
+   strcpy(options->collectorIP, arg);
+   return 0;
+}
+
+int opt_e( char* arg, options_t* options ) {
+   options->export_packet_count = atoi(arg);
+   return 0;
+}
+
+int opt_f( char* arg, options_t* options ) {
+   options->bpf = strdup(arg);
+   return 0;
+}
+
+int opt_h( char* arg, options_t* options ) {
+   print_help();
+   exit(0);
+   return 0;
+}
+
+int opt_i( char* arg, options_t* options ) {
+   uint8_t if_idx = options->number_interfaces; // shorter for better reading
+   if (MAX_INTERFACES == options->number_interfaces) {
+      fprintf( stderr, "specify at most %d interfaces with -i\n", MAX_INTERFACES);
+   }
+   else {
+      if (':' != arg[1]) {
+         fprintf( stderr, "specify interface type with -i\n");
+         fprintf( stderr, "use [i,f,p,s,u]: as prefix - see help\n");
+         fprintf( stderr, "for compatibility reason, assume ethernet as 'i:' is given!\n");
+         if_devices[if_idx].device_type = TYPE_PCAP;
+         if_devices[if_idx].device_name = strdup(arg);
+      }
+      else {
+         switch (arg[0]) {
+         case 'i': // ethernet adapter
+            if_devices[if_idx].device_type = TYPE_PCAP;
+            break;
+         case 'p': // pcap-file
+            if_devices[if_idx].device_type = TYPE_PCAP_FILE;
+            break;
+         case 'f': // file
+            if_devices[if_idx].device_type = TYPE_FILE;
+            break;
+         case 's': // inet socket
+            if_devices[if_idx].device_type = TYPE_SOCKET_INET;
+            break;
+         case 'u': // unix domain socket
+            if_devices[if_idx].device_type = TYPE_SOCKET_UNIX;
+            break;
+         #ifdef PFRING
+         case 'r': // use pfring instead of libpcap
+            if_devices[if_idx].device_type = TYPE_PFRING;
+         break;
+         #endif
+         case 'x': // unknown option
+            if_devices[if_idx].device_type = TYPE_UNKNOWN;
+            break;
+         default:
+            LOGGER_fatal( "unknown interface type with -i");
+            LOGGER_fatal( "use [i,f,p,s,u]: as prefix - see help");
+            break;
+         }
+         // skip prefix
+         if_devices[if_idx].device_name=strdup(arg+2);
+      }
+      // increment the number of interfaces
+      ++options->number_interfaces;
+   }
+   return 0;
+}
+
+int opt_I( char* arg, options_t* options ) {
+   options->export_pktid_interval = atof(arg);
+   return 0;
+}
+
+int opt_J( char* arg, options_t* options ) {
+   options->export_stats_interval = atof(arg);
+   return 0;
+}
+
+int opt_K( char* arg, options_t* options ) {
+   options->export_sampling_interval = atof(arg);
+   return 0;
+}
+
+int opt_G( char* arg, options_t* options ) {
+   options->export_location_interval = atof(arg);
+   return 0;
+}
+
+
+int opt_o( char* arg, options_t* options ) {
+   options->observationDomainID = atoi(arg);
+   return 0;
+}
+
+int opt_t( char* arg, options_t* options ) {
+   parseTemplate(arg, options);
+   return 0;
+}
+
+int opt_m( char* arg, options_t* options ) {
+   set_sampling_lowerbound(options, arg);
+   return 0;
+}
+
+int opt_M( char* arg, options_t* options ) {
+   set_sampling_upperbound(options, arg);
+   return 0;
+}
+
+int opt_r( char* arg, options_t* options ) {
+   set_sampling_ratio(options, arg);
+   return 0;
+}
+
+int opt_S( char* arg, options_t* options ) {
+   parseSelFunction(arg, options);
+   return 0;
+}
+inline int opt_s( char* arg, options_t* options ) {
+   return opt_S(arg, options);
+}
+
+int opt_F( char* arg, options_t* options ) {
+   options->hash_function = parseFunction(arg);
+   return 0;
+}
+
+int opt_p( char* arg, options_t* options ) {
+   options->pktid_function = parseFunction(arg);
+   options->hashAsPacketID = 0;
+   return 0;
+}
+
+int opt_P( char* arg, options_t* options ) {
+   if ((options->collectorPort = atoi(arg)) < 0) {
+      LOGGER_fatal( "Invalid -P argument!");
+      exit(1);
+   }
+   return 0;
+}
+
+int opt_v( char* arg, options_t* options ) {
+   if( (NULL != arg) && (isdigit(*arg)) ) {
+      options->verbosity = atoi(arg);
+   }
+   else {
+      ++options->verbosity;
+      // workaround to use -v as normal (e.g. -vvv) which do not work
+      // with optional parameter
+      if( NULL != arg ) {
+         while( 'v' == arg[0] ) {
+            ++options->verbosity;
+            ++arg;
+         }
+         options->verbosity_filter_string = arg;
+      }
+      //fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
+   }
+   return 0;
+}
+
+int opt_d( char* arg, options_t* options ) {
+   options->s_probe_name = arg;
+   return 0;
+}
+
+int opt_D( char* arg, options_t* options ) {
+   options->s_location_name = arg;
+   return 0;
+}
+
+int opt_l( char* arg, options_t* options ) {
+   char* tok = strtok(arg, ":");
+   if( NULL != tok ) {
+      options->s_latitude = tok;
+      tok = strtok(NULL, ":");
+      if( NULL != tok ) {
+         options->s_longitude = tok;
+         tok = strtok(NULL, ":");
+         if( NULL != tok && isdigit(*tok) ) {
+            options->export_location_interval = atof(tok);
+         }
+      }
+   }
+   return 0;
+}
+
+int opt_L( char* arg, options_t* options ) {
+   char* tok = strtok(arg, ":");
+   if( NULL != tok ) {
+      options->s_longitude = tok;
+      tok = strtok(NULL, ":");
+      if( NULL != tok ) {
+         options->s_latitude = tok;
+         tok = strtok(NULL, ":");
+         if( NULL != tok && isdigit(*tok) ) {
+            options->export_location_interval = atof(tok);
+         }
+      }
+   }
+   return 0;
+}
+
+int opt_N( char* arg, options_t* options ) {
+   options->snapLength = atoi(arg);
+   return 0;
+}
+
+int opt_u( char* arg, options_t* options ) {
+   options->use_oid_first_interface=1;
+   return 0;
+}
+
+int opt_n( char* arg, options_t* options ) {
+   // TODO parse enable export sampling
+   return 0;
+}
+
+int opt_y( char* arg, options_t* options ) {
+   // TODO
+   //			options->export_sysinfo = true;
+   return 0;
+}
+
+#define ADD_OPTION( opt, full_opt ) { '##opt##', &##opt_##opt, full_opt }
 
 struct config_map_t cfg_opt_list[] = {
-	{ "general.verbosity", 'v'},
-	{ "general.help", 'h'},
-	{ "capture.interface", 'i'},
-	{ "filter.bpfilter", 'f'},
-	{ "filter.snaplength", 'N'},
-	{ "interval.data_export", 'I'},
-	{ "interval.probe_stats", 'J'},
-	{ "interval.interface_stats", 'K'},
-	{ "interval.location", 'G'},
-	{ "selection.min_hash_range", 'm'},
-	{ "selection.max_hash_range", 'M'},
-	{ "selection.hash_selection_ratio", 'r'},
-	{ "selection.selection_preset", 's'},
-	{ "selection.selection_parts", 'S'},
-	{ "selection.hash_function", 'F'},
-	{ "selection.pktid_function", 'p'},
-	{ "ipfix.observation_domain_id", 'o'},
-	{ "ipfix.one_odid", 'u'},
-	{ "ipfix.collector_ip_address", 'C'},
-	{ "ipfix.collector_port", 'P'},
-	{ "ipfix.export_flush_count", 'e'},
-	{ "template.used_template", 't'},
-	{ "geotags.probe_name", 'd'},
-	{ "geotags.location_name", 'D'},
-	{ "geotags.latitude", 'l'},
-	{ "geotags.longitude", 'L'},
-	{ NULL, '\0' }
+	{ 'v', &opt_v, "general.verbosity"              },
+	{ 'h', &opt_h, "general.help"                   },
+	{ 'i', &opt_i, "capture.interface"              },
+	{ 'f', &opt_f, "filter.bpfilter"                },
+	{ 'N', &opt_N, "filter.snaplength"              },
+	{ 'I', &opt_I, "interval.data_export"           },
+	{ 'J', &opt_J, "interval.probe_stats"           },
+	{ 'K', &opt_K, "interval.interface_stats"       },
+	{ 'G', &opt_G, "interval.location"              },
+	{ 'm', &opt_m, "selection.min_hash_range"       },
+	{ 'M', &opt_M, "selection.max_hash_range"       },
+	{ 'r', &opt_r, "selection.hash_selection_ratio" },
+	{ 's', &opt_s, "selection.selection_preset"     },
+	{ 'S', &opt_S, "selection.selection_parts"      },
+	{ 'F', &opt_F, "selection.hash_function"        },
+	{ 'p', &opt_p, "selection.pktid_function"       },
+	{ 'o', &opt_o, "ipfix.observation_domain_id"    },
+	{ 'u', &opt_u, "ipfix.one_odid"                 },
+	{ 'C', &opt_C, "ipfix.collector_ip_address"     },
+	{ 'P', &opt_P, "ipfix.collector_port"           },
+	{ 'e', &opt_e, "ipfix.export_flush_count"       },
+	{ 't', &opt_t, "template.used_template"         },
+	{ 'd', &opt_d, "geotags.probe_name"             },
+	{ 'D', &opt_D, "geotags.location_name"          },
+	{ 'l', &opt_l, "geotags.latitude"               },
+	{ 'L', &opt_L, "geotags.longitude"              },
+	{ 'c', &opt_c, "empty" }, // TODO:something
+	{ 'n', &opt_n, "empty" },
+	{ 'y', &opt_y, "empty" },
+	{ 'F', &opt_F, "empty" },
+#ifdef PFRING
+	{ 'a', &opt_a, "empty" },
+#endif
+//	{ '\0', NULL, NULL }
 };
 
-/* 'mapped' config item read from file, e.g. {'i', "eth0"} */
-struct config_option_t {
-	char opt_letter;
-	char *value;
-};
+cmd_par_fct_t find_opt_function_char( const char c ) {
+   int size = sizeof(cfg_opt_list) / sizeof(struct config_map_t);
+   int i    = 0;
 
-/* table of 'mapped' config items read from file, e.g. {{'i', "eth0", {'o', "1234"}} */
-struct config_option_t g_config_file_options[200];
+   for (i = 0; i < size; ++i) {
+      if( c == cfg_opt_list[i].opt_letter ) {
+         //printf("1~~~~ %c ~~~~\n", cfg_opt_list[i].opt_letter);
+         return cfg_opt_list[i].opt_fct;
+      }
+   }
+   return &opt_unknown_parameter;
+}
 
+cmd_par_fct_t find_opt_function_key( char* key ) {
+   int size = sizeof(cfg_opt_list) / sizeof(struct config_map_t);
+   int i    = 0;
 
-char find_opt_letter( char *option ) {
-	struct config_map_t *c = cfg_opt_list;
-	
-	while (c->cfg_item != NULL) {
-		if (strcmp( option, c->cfg_item) == 0) {
-			/* printf("~~~~ %c ~~~~\n", c->opt_letter); */
-			return c->opt_letter;
-		}
-		c++;
-	}
-	return '\0';
+   for (i = 0; i < size; ++i) {
+      if( 0 == strcmp(key, cfg_opt_list[i].cfg_item) ) {
+         //printf("2~~~~ %c ~~~~\n", cfg_opt_list[i].opt_letter);
+         return cfg_opt_list[i].opt_fct;
+      }
+   }
+   return &opt_unknown_parameter;
+}
+
+char find_opt_letter( char* key ) {
+   int size = sizeof(cfg_opt_list) / sizeof(struct config_map_t);
+   int i    = 0;
+
+   for (i = 0; i < size; ++i) {
+      if( 0 == strcmp(key, cfg_opt_list[i].cfg_item) ) {
+         //printf("3~~~~ %c ~~~~\n", cfg_opt_list[i].opt_letter);
+         return cfg_opt_list[i].opt_letter;
+      }
+   }
+
+   return '\0';
 }
 
 void remove_comment( char* s ) {
@@ -516,13 +820,66 @@ void r_trim( char* s ) {
    }
 }
 
-char ** read_options_file( FILE *file ) {
+char ** read_options_file_v2( FILE *file, options_t* options ) {
+   char line[2000];
+   
+   // process each line of config file
+   while (NULL != fgets(line, sizeof(line), file)) {
+      char heading[100+1];
 
-	char line[2000];
-	//int  llen = 0;
-	struct config_option_t *cfg_ptr = g_config_file_options;
-	
-	while (NULL != fgets(line, sizeof(line), file)) {
+      // print line for debugging
+      //printf( "line: %s", line );
+
+      // trim line of comments
+      remove_comment( line );
+      // trim trailing whitespaces
+      r_trim( line );
+
+      // skip empty lines
+      if( 1 < strlen(line) )
+      {
+         /* check for [section headings] */
+         if( 0 != sscanf(line, "[%[a-zA-Z0-9 _+-]]", heading) ) {
+            make_lower( heading );
+            //printf( "heading: %s\n", heading );
+         }
+         else {
+            /* check if we have a 'key = value' pair or just a flag ( 'enable_xyz' ) */
+
+            char  fullkey[200];
+
+            char* key   = line;
+            char* value = strchr( line, '=');
+
+            // cut line at '=' and trim value of white-spaces
+            if( NULL != value ) *(value++) = '\0';
+            else value = "";
+            value = l_trim( value );
+
+            // trim key of white-spaces -> to lower case
+            r_trim( key );
+            key = l_trim(key);
+            make_lower( key );
+
+            // TODO: logger_DEBUG
+            //printf( "%s.%s = '%s'\n", heading, key, value );
+
+            sprintf( fullkey, "%s.%s", heading, key );
+            // TODO: is strdup nessesary here
+            find_opt_function_key(fullkey)(value, options);
+         }
+      }
+   }
+
+   return NULL;
+}
+
+char ** read_options_file( FILE *file ) {
+   char line[2000];
+   //int  llen = 0;
+   struct config_option_t *cfg_ptr = g_config_file_options;
+   
+   while (NULL != fgets(line, sizeof(line), file)) {
       char heading[100+1];
 
       // print line for debugging
@@ -575,12 +932,12 @@ char ** read_options_file( FILE *file ) {
             }
          }
       }
-	}
+   }
 
-	cfg_ptr->opt_letter = '\0';
-	cfg_ptr->value = NULL;
-	
-	return NULL;
+   cfg_ptr->opt_letter = '\0';
+   cfg_ptr->value = NULL;
+   
+   return NULL;
 }
 
 // =============================================================================
@@ -826,6 +1183,24 @@ void parse_pfring_filter(char* arg_string, options_t* options) {
 }
 #endif
 
+// ============================================================================
+// ============================================================================
+
+/**
+ * Process command line arguments
+ */
+void parse_cmdline_v2(int argc, char **argv) {
+
+   char par[] = "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:";
+   char c;
+
+   while (-1 != (c = getopt(argc, argv, par))) {
+      find_opt_function_char( c )(optarg, &g_options);
+   }
+}
+
+// ============================================================================
+// ============================================================================
 
 /**
  * Process command line arguments

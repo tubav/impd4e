@@ -256,7 +256,8 @@ int main(int argc, char *argv[]) {
 
 	// parse commandline; set global parameter options
    // see settings.c
-	parse_cmdline(argc, argv);
+	parse_cmdline_v2(argc, argv);
+	//parse_cmdline(argc, argv);
 	LOGGER_info( "parse_cmdline() okay");
 
 	logger_set_level(g_options.verbosity);

@@ -18,7 +18,7 @@
 #	interface = u:/tmp/socket.AF_UNIX
 
 [Filter]
-	bpfilter = tcp udp icmp
+	bpfilter = tcp #udp icmp
 #	snaplength = 80 
 
 [Interval]

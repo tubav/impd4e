@@ -472,15 +472,21 @@ int opt_a( char* arg, options_t* options ) {
 #endif
 
 int opt_c( char* arg, options_t* options ) {
-   FILE *cfile = fopen(arg, "rt");
-   if (!cfile) {
-      char err_string[500];
-      snprintf(err_string, sizeof(err_string)-1, "cannot open config file '%s'", arg);
-      perror(err_string);
-      exit(1);
-   }
-   read_options_file_v2(cfile, options);
-   fclose(cfile);
+   // TODO: create template file
+   //if( "create_template" == arg ) {
+   //   create_template_config_file( arg );
+   //}
+   //else {
+      FILE *cfile = fopen(arg, "rt");
+      if (!cfile) {
+         char err_string[500];
+         snprintf(err_string, sizeof(err_string)-1, "cannot open config file '%s'", arg);
+         perror(err_string);
+         exit(1);
+      }
+      read_options_file_v2(cfile, options);
+      fclose(cfile);
+   //}
    return 0;
 }
 

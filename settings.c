@@ -501,7 +501,7 @@ int opt_e( char* arg, options_t* options ) {
 }
 
 int opt_f( char* arg, options_t* options ) {
-   options->bpf = strdup(arg);
+   options->bpf = arg;
    return 0;
 }
 
@@ -522,7 +522,7 @@ int opt_i( char* arg, options_t* options ) {
          fprintf( stderr, "use [i,f,p,s,u]: as prefix - see help\n");
          fprintf( stderr, "for compatibility reason, assume ethernet as 'i:' is given!\n");
          if_devices[if_idx].device_type = TYPE_PCAP;
-         if_devices[if_idx].device_name = strdup(arg);
+         if_devices[if_idx].device_name = arg;
       }
       else {
          switch (arg[0]) {
@@ -555,7 +555,7 @@ int opt_i( char* arg, options_t* options ) {
             break;
          }
          // skip prefix
-         if_devices[if_idx].device_name=strdup(arg+2);
+         if_devices[if_idx].device_name = arg+2;
       }
       // increment the number of interfaces
       ++options->number_interfaces;
@@ -872,7 +872,7 @@ char ** read_options_file_v2( FILE *file, options_t* options ) {
 
             sprintf( fullkey, "%s.%s", heading, key );
             // TODO: is strdup nessesary here
-            find_opt_function_key(fullkey)(value, options);
+            find_opt_function_key(fullkey)( strdup(value), options);
          }
       }
    }

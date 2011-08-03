@@ -24,6 +24,10 @@ from subprocess import PIPE
 
 logger = logging.getLogger("ptm")
 ipaddress = "empty"
+cmd_install_software_properties = ['sudo','apt-get','install','python-software-properties']
+cmd_add_repo = ['sudo','add-apt-repository','ppa:pt-team/pt']
+cmd_update = ['sudo','apt-get','update']
+cmd_install_impd4e = ['sudo','apt-get','install','impd4e']
 
 class probeAdapter(AbstractResourceAdapter):
         '''
@@ -117,7 +121,7 @@ class probeAdapter(AbstractResourceAdapter):
 					name = n
 
 					logger.debug("--> oid = "+oid)
-                			logger.debug("--> probeID = "+probeIP)
+                			logger.debug("--> probeIP = "+probeIP)
                 			logger.debug("--> username = "+username)
 					logger.debug("--------------------------------------------------")
 				else:
@@ -148,23 +152,44 @@ class probeAdapter(AbstractResourceAdapter):
 
 	def run_remote(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio,probeIP,username):
 		logger.debug("--- starting impd4e on machine "+probeIP+" ...")
-		login = username + "@" + probeIP
+
+		login = ["ssh","-tt",username + "@" + probeIP]
+		global cmd_install_software_properties
+                global cmd_add_repo
+                global cmd_update
+                global cmd_install_impd4e
+
 		if (packetFilter == ""):
-			cmd=["screen","-d","-m","ssh","-tt",login,"sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+			cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
 		else:
-			cmd=["screen","-d","-m","ssh","-tt",login,"sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
-		s=subprocess.call(cmd)
+			cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+
+		s=subprocess.call(login+cmd_install_software_properties)
+		s=subprocess.call(login+cmd_add_repo)
+		s=subprocess.call(login+cmd_update)
+		s=subprocess.call(login+cmd_install_impd4e)
+		s=subprocess.call(login+cmd_execute)
 
 		logger.debug("--- impd4e started on machine "+probeIP+" ---")
 
 	def run_local(self,interface,collectorIP,collectorPort,oid,location,packetFilter,samplingRatio):
 		logger.debug("--- starting impd4e on this machine ... --- ")
-		if (packetFilter == ""):
-                	cmd=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
-		else:
-			cmd=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
 
-		s=subprocess.call(cmd)
+		global cmd_install_software_properties
+		global cmd_add_repo
+		global cmd_update
+		global cmd_install_impd4e
+
+		if (packetFilter == ""):
+                	cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+		else:
+			cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+
+		s=subprocess.call(cmd_install_software_properties)
+		s=subprocess.call(cmd_add_repo)
+		s=subprocess.call(cmd_update)
+		s=subprocess.call(cmd_install_impd4e)
+		s=subprocess.call(cmd_execute)
 
 		logger.debug("--- impd4e started on this machine! ---")
 

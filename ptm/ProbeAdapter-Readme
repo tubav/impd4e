@@ -36,7 +36,7 @@ i) probe
 
 This option contains the observation ID. Optional you can enter the IP-Address where the probe should be started. PTM will build up a SSH-Connection to this Host. Also you have to enter the login name for the machine where you want to start the probe.
 
-NOTE: It is necessary that 'impd4e' is already installed on every machine, where you want to set up a probe! Also it is necessary that every machine where you want to set up a probe has your public key!
+NOTE: It's not necessary, that impd4e is already installed on every machine! The probeAdapter will download and install the newest version of impd4e if necessary. It is necessary that every machine where you want to set up a probe has your public key!
 
 If you don't enter any IP-Address or login name the probe will be started on the machine where the PTM-process is running on.
 

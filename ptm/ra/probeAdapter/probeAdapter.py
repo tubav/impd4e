@@ -65,7 +65,7 @@ class probeAdapter(AbstractResourceAdapter):
 		logger.debug("--> Interface of this machine: "+interface)
 
 		probe = "empty"
-		location = "52.51:13.40:2" # default location (Berlin)
+		location = "52:13:2" # default location (Berlin)
 		collector = ipaddress+":"+"4739"
 		packetFilter = ""
 		samplingRatio = "100.0"
@@ -160,9 +160,9 @@ class probeAdapter(AbstractResourceAdapter):
                 global cmd_install_impd4e
 
 		if (packetFilter == ""):
-			cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+			cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
 		else:
-			cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+			cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
 
 		s=subprocess.call(login+cmd_install_software_properties)
 		s=subprocess.call(login+cmd_add_repo)
@@ -181,9 +181,11 @@ class probeAdapter(AbstractResourceAdapter):
 		global cmd_install_impd4e
 
 		if (packetFilter == ""):
-                	cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+                	cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
 		else:
-			cmd_execute=["screen","-d","-m","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+			cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+		
+		logger.debug(cmd_execute)
 
 		s=subprocess.call(cmd_install_software_properties)
 		s=subprocess.call(cmd_add_repo)

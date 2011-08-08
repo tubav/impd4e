@@ -12,14 +12,14 @@ I.) SETTING UP THE INTERFACE
 
 4) When the probeAdapter started successfully open an internet browser - for example Mozilla Firefox. Then enter the URL 'http://127.0.0.1:8000/'.
 
-Now you should see an webinterface with the logo of Fraunhofer FOKUS. Also there should be a 'List of resources for I' whith one element '/probeResource-0'. This element is always there, so you don't have to care about it.
+Now you should see a webinterface with the logo of Fraunhofer FOKUS. Also there should be a 'List of resources for I' whith one element '/probeResource-0'. This element is always there, so you don't have to care about it.
 
 
 
 II.) STARTING A PROBE OVER PTM
 ------------------------------
 
-1) Below on the interface you should see the link 'Add a new resource instance here'. Click on this link.
+1) Below in the interface you should see the link 'Add a new resource instance here'. Click on this link.
 
 2) Now you should see a new interface where you can enter the typename and 5 parameters.
 
@@ -34,12 +34,12 @@ There a 5 options available:
 i) probe
 --------
 
-This option contains the observation ID. Optional you can enter the IP-Address where the probe should be started. PTM will build up a SSH-Connection to this Host. Also you have to enter the login name for the machine where you want to start the probe.
+This option contains the observation ID. Optional you can enter the IP-Address where the probe should be started. The PTM will build up a SSH-Connection to this Host. Also you have to enter the login name for the machine where you want to start the probe.
 
 NOTE: 	1. It is necessary that every machine where you want to set up a probe has your public key!
 	2. You don't have to bother if impd4e is installed on the machine, where you want to start the probe. The probeAdapter will download and install the newest version of impd4e automatically if necessary.
 
-If you don't enter any IP-Address or login name the probe will be started on the machine where the PTM-process is running on.
+If you don't enter any IP-Address or login name, then the probe will be started on the machine where the PTM-process is running on.
 
 At first type 'probe' in the name of the parameter.
 
@@ -52,7 +52,7 @@ If you want to start the probe on another machine, then type in the value field 
 For example:
 23001:192.168.41.111:prism
 
-For these parameters the probe will have the Observation ID '23001'. Also the probe will be started on the machine '192.168.41.111'. PTM will login to this machine with the username 'prism'.
+For these parameters the probe will have the Observation ID '23001'. Also the probe will be started on the machine '192.168.41.111'. The PTM will login to this machine with the username 'prism'.
 
 
 
@@ -101,7 +101,7 @@ iv) packetFilter
 
 This option contains the berkeley filter expression.
 
-NOTE: If you don't want to set up any filter you don't have to enter this parameter!
+NOTE: If you don't want to set up any filter, then let this parameter free!
 
 If you want to enter a berkeley filter expression, then type 'packetFilter' in the name of the parameter first.
 
@@ -132,9 +132,17 @@ For this parameter the sampling Ratio will be 60%.
 
 If you've entered all your options, click on the button 'Submit Query'. Otherwise you can click on the button 'cancel' to return to the main webinterface.
 
-If click on the button 'Submit Query' the probe will be set up. To make sure that everything works fine check the outputs of your collector.
+If you click on the button 'Submit Query' the probe will be set up.
 
-You will return to the main webinterface. You now should see, that a new element is in your list.
+After you've submitted the query go to the terminal where you started the probeAdapter. In some cases you need to enter the password of the machine where you want to start the probe.
+
+After you've entered the right password you should see how the probeAdapter checks if the newest version of impd4e is installed on the machine where you want to start the probe. After everything is finished, you should see a text like "Device [..] has IP [..]". Please check if the specified interface and IP is alright. To make sure that everything works fine check the output of your collector.
+
+If you want to kill the probe type CTRL+C.
+
+If everything is alright type CTRL+A. After that type D.
+You will now return to the main webinterface. You now should see, that a new element is in your list.
 This element should be called '/probeResource-<your entered Obervation ID>'.
 
+You can now start other probes in the same way.
 

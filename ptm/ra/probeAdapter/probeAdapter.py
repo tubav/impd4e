@@ -160,9 +160,11 @@ class probeAdapter(AbstractResourceAdapter):
                 global cmd_install_impd4e
 
 		if (packetFilter == ""):
-			cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+			cmd_execute=["screen","-m","sudo","/usr/bin/impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
 		else:
-			cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+			cmd_execute=["screen","-m","sudo","/usr/bin/impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+
+		logger.debug(cmd_execute)
 
 		s=subprocess.call(login+cmd_install_software_properties)
 		s=subprocess.call(login+cmd_add_repo)
@@ -181,9 +183,9 @@ class probeAdapter(AbstractResourceAdapter):
 		global cmd_install_impd4e
 
 		if (packetFilter == ""):
-                	cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
+                	cmd_execute=["screen","-m","sudo","/usr/bin/impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio]
 		else:
-			cmd_execute=["screen","-m","-d","sudo","impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
+			cmd_execute=["screen","-m","sudo","/usr/bin/impd4e","-i","i:"+interface,"-C",collectorIP,"-P",collectorPort,"-o",oid,"-l",location,"-r",samplingRatio,"-f",packetFilter]
 		
 		logger.debug(cmd_execute)
 

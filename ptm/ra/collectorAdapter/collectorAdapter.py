@@ -64,14 +64,14 @@ class collectorAdapter(AbstractResourceAdapter):
 		if config.has_key("ttlcheck"):
 			ttlcheck = "yes"
 
-		logger.debug("--------------------------------------------------")
-		logger.debug("--> Config has the following length: "+str(configLength))
+		logger.debug("------------------------------------------------------")
+		logger.debug("--> Number of entered parameters: "+str(configLength))
 		logger.debug("--> host = "+host)
 		logger.debug("--> exportFolder = "+exportFolder)
 		logger.debug("--> exportFormat = "+exportFormat)
 		logger.debug("--> exportHost = "+exportHost)
 		logger.debug("--> ttlcheck = "+ttlcheck)
-		logger.debug("--------------------------------------------------")
+		logger.debug("------------------------------------------------------")
 
 		# Host Parsing
 		hostIP = "empty"
@@ -118,20 +118,19 @@ class collectorAdapter(AbstractResourceAdapter):
             			exportInterval = "7"
 
 		# Writing the command
-		#cmd = "\"sh ~/collector/scripts/matcher.sh start\""
 		if (hostIP == "empty"):
-			cmd = "java -Dmainclass=de.fhg.fokus.net.packetmatcher.Matcher -cp org.kohsuke.args4j.Starter -jar ~/collector/packetmatcher/target/packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar"
+			cmd = "java -Dmainclass=de.fhg.fokus.net.packetmatcher.Matcher -cp org.kohsuke.args4j.Starter -jar ~/collector/packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar"
 		else:
-			cmd = "java -Dmainclass=de.fhg.fokus.net.packetmatcher.Matcher -cp org.kohsuke.args4j.Starter -jar collector/packetmatcher/target/packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar"
+			cmd = "java -Dmainclass=de.fhg.fokus.net.packetmatcher.Matcher -cp org.kohsuke.args4j.Starter -jar collector/packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar"
+
+		if (exportInCSV == "Yes"):
+                        cmd = cmd + " -csv"
+
+                if (exportInObj == "Yes"):
+                        cmd = cmd + " -obj"
 
     		if (exportFolder != "empty"):
         		cmd = cmd + " -exportFolder "+exportFolder
-
-    		if (exportInCSV == "Yes"):
-        		cmd = cmd + " -csv"
-
-    		if (exportInObj == "Yes"):
-        		cmd = cmd + " -obj"
 
     		if (exportHostIP != "empty"):
         		cmd = cmd + " -exportHost "+exportHostIP

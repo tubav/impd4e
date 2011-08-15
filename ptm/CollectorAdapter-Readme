@@ -1,0 +1,167 @@
+This readme will explain step by step how to set up a collector by using Teagle.
+--------------------------------------------------------------------------------
+
+I.) SETTING UP THE INTERFACE
+----------------------------
+
+1) At first it is necessary to copy the folder 'ptm' in your local /opt-folder.
+
+2) Now the the second step is to create a folder named 'collector' in your home folder. To do that open a terminal and enter 'mkdir collector'. Then you have to copy the packetmatcher jar archive you want to use in this folder.
+
+NOTE: It is necessary, that the jar archive has the name 'packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar'.
+
+If you want to run the collector on another machine, the collector adapter will always copy this folder to this machine and run the packetmatcher from there.
+
+3) After that open a terminal and switch to the folder '/opt/ptm/bin'. Then enter './ptmhub' to start the PTM-Hub.
+
+4) When the PTM-Hub is started successfully open a second terminal in the same folder '/opt/ptm/bin'. Now enter './rarunner collectorAdapter.collectorAdapter.collectorAdapter' to start the collector adapter.
+
+5) When the collector adapter started successfully, open an internet browser - for example Mozilla Firefox. Then enter the URL 'http://127.0.0.1:8000/'.
+
+Now you should see a webinterface with the logo of Fraunhofer FOKUS. Also there should be a 'List of resources for I' whith one element '/collectorResource-0'. This element is always there, so you don't have to care about it.
+
+
+
+II.) STARTING THE COLLECTOR OVER PTM
+------------------------------------
+
+1) Below in the interface you should see the link 'Add a new resource instance here'. Click on this link.
+
+2) Now you should see a new interface where you can enter the typename and 5 parameters.
+
+3) At first you have to enter 'collectorResource' in the typename-field.
+
+4) With the other 5 parameters you can set up the options how the collector will be started. To start the collector correctly make sure, that all parameters are of type 'String'.
+
+There a 5 options available:
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+
+
+i) host
+--------
+
+This option contains the IP-Address where the collector should be started. The PTM will build up a SSH-Connection to this Host. Also you have to enter the login name for the machine where you want to start the collector.
+
+NOTE: 	1) If you want to run the collector on the machine where the PTM-process is running on, you can let this option free!
+	2) It is necessary that every machine where you want to set up a collector has your public key!
+
+Otherwise, if you want to start the collector on another machine you have to, you have type 'host' in the name of the parameter. Now type in the value field your parameters with the following syntax:
+
+<IP-Address of the collector>:<login name of the wanted machine>
+
+For example:
+192.168.41.111:prism
+
+For these parameters the collector will be started on the machine '192.168.41.111'. The PTM will login to this machine with the username 'prism'.
+
+
+
+ii) exportFolder
+-----------------
+
+This option contains the exportFolder where the collector will export his data.
+
+NOTE: If you just want, that the collector exports his data only to netview, you can let this option free!
+
+Otherwise, if you want to export the collector data to a certain folder, you have to type 'exportFolder' in the name of the parameter. Now type in the value field the folder where you want to export the collector data.
+
+NOTE: If you want to run the collector on the machine where the PTM is running, you have to enter the exportFolder with the following syntax:
+
+~/<your path>
+
+For example:
+~/Desktop/matcher_data
+
+The reason is that if you only enter 'matcher_data' the packetmatcher will choose the location where you started the ptmhub. This would be the folder '/opt/ptm/bin'. The matcher would not start correctly, because he has no permissions to create the folder there.
+
+NOTE: If you want to run the collector on another machine, you can enter the exportFolder without '~/...'. The collector Adapter will create the entered folder in the home folder of the entered machine.
+
+
+
+iii) exportFormat
+------------------
+
+This option contains the format of the data, which the matcher will export.
+
+NOTE: If you want, that the collector exports his data only to netview, you can let this option free!
+
+Otherwise, if you want to export the collector data to the folder you have specified in option ii) exportFolder, you have to type 'exportFormat' in the name of the parameter. Now type in the value field the format you want to have.
+
+There are two formats available:
+	1) CSV-Tables
+	2) Java-Objects
+
+If you want to export the data in CSV-Tables you have to enter 'csv' in the value field.
+
+If you want to export the data in Java-Objects you have to enter 'obj' in the value field.
+
+If you want to export the data in both formats you have to enter 'csv+obj' in the value field.
+
+NOTE: If you don't specify any exportFolder the exportFolder will automatically be 'matcher_data'.
+
+
+
+iv) exportHost
+---------------
+
+This option contains the IP address and the port where the packetmatcher will send his data to. Also this option contains the export reconnect interval in seconds.
+
+The default options are:
+Export IP address: 		127.0.0.1
+Export Port:			40123
+Export reconnect interval:	7
+
+NOTE: If you want, that the packetmatcher will use the default options you can let this options free!
+
+Otherwise, if you want to start the collector with other options, you have type 'exportHost' in the name of the parameter. Now type in the value field your parameters with the following syntax:
+
+<Export IP address>:<Export Port>:<Export reconnect interval>
+
+For example:
+127.0.0.1:40123:10
+
+For these parameters the export host will be localhost, the export port will be 40123 and the export reconnect interval will be 10 seconds.
+
+
+
+v) ttlcheck
+------------
+
+This option contains a flag to order the packetmatcher to check if the TTL of the incomming packets is greater zero.
+
+NOTE: If you want to set up the collector without this flag, you have to let this parameter free!
+
+Otherwise if you want to set this flag, you have to type 'ttlcheck' in the name of the parameter. The flag will now be setted. The collector adapter will ignore the content of the value field for this option.
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+
+
+If you've entered all your options, click on the button 'Submit Query'. Otherwise you can click on the button 'cancel' to return to the main webinterface.
+
+If you click on the button 'Submit Query' the collector will be setted up.
+
+After you've submitted the query go to the terminal where you started the collectorAdapter. In some cases you need to enter the password of the machine where you want to start the collector. After you've entered the right password you should see how the collector adapter first copy the collector-folder to the specified host, of you've entered a host.
+
+After that the matcher will be started and you should see the outputs of the packetmatcher. Please check if the export host, the export format, the export folder and the flag for ttl checks is setted rightly.
+
+If you want to kill the collector type CTRL+C.
+
+If everything is alright type CTRL+A. After that type D.
+You will now return to the main webinterface. You now should see, that a new element is in your list.
+This element should be called '/collectorResource-<number of the collector>'.
+
+The collector adapter will always start the collector inside a screen. If you want to return to the screen where the collector is running type 'screen -r collector<number of the wanted collector>' in an open terminal.
+
+You can also see all collectors on a machine by tying 'screen -ls'.
+
+
+
+You can now set up other collectors in the same way.
+

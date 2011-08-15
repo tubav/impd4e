@@ -10,7 +10,7 @@ I.) SETTING UP THE INTERFACE
 
 3) When the PTM-Hub is started successfully open a second terminal in the same folder '/opt/ptm/bin'. Now enter './rarunner probeAdapter.probeAdapter.probeAdapter' to start the probeAdapter.
 
-4) When the probeAdapter started successfully open an internet browser - for example Mozilla Firefox. Then enter the URL 'http://127.0.0.1:8000/'.
+4) When the probe adapter started successfully open an internet browser - for example Mozilla Firefox. Then enter the URL 'http://127.0.0.1:8000/'.
 
 Now you should see a webinterface with the logo of Fraunhofer FOKUS. Also there should be a 'List of resources for I' whith one element '/probeResource-0'. This element is always there, so you don't have to care about it.
 
@@ -29,7 +29,11 @@ II.) STARTING A PROBE OVER PTM
 
 There a 5 options available:
 
+
+
 ///////////////////////////////////////////////////////////////////////////////////////
+
+
 
 i) probe
 --------
@@ -37,7 +41,7 @@ i) probe
 This option contains the observation ID. Optional you can enter the IP-Address where the probe should be started. The PTM will build up a SSH-Connection to this Host. Also you have to enter the login name for the machine where you want to start the probe.
 
 NOTE: 	1. It is necessary that every machine where you want to set up a probe has your public key!
-	2. You don't have to bother if impd4e is installed on the machine, where you want to start the probe. The probeAdapter will download and install the newest version of impd4e automatically if necessary.
+	2. You don't have to bother if impd4e is installed on the machine, where you want to start the probe. The probe adapter will download and install the newest version of impd4e automatically if necessary.
 
 If you don't enter any IP-Address or login name, then the probe will be started on the machine where the PTM-process is running on.
 
@@ -128,21 +132,29 @@ For example:
 
 For this parameter the sampling Ratio will be 60%.
 
+
+
 ///////////////////////////////////////////////////////////////////////////////////////
+
+
 
 If you've entered all your options, click on the button 'Submit Query'. Otherwise you can click on the button 'cancel' to return to the main webinterface.
 
 If you click on the button 'Submit Query' the probe will be set up.
 
-After you've submitted the query go to the terminal where you started the probeAdapter. In some cases you need to enter the password of the machine where you want to start the probe.
+After you've submitted the query go to the terminal where you started the probe adapter. In some cases you need to enter the password of the machine where you want to start the probe.
 
-After you've entered the right password you should see how the probeAdapter checks if the newest version of impd4e is installed on the machine where you want to start the probe. After everything is finished, you should see a text like "Device [..] has IP [..]". Please check if the specified interface and IP is alright. To make sure that everything works fine check the output of your collector.
+After you've entered the right password you should see how the probe adapter checks if the newest version of impd4e is installed on the machine where you want to start the probe. After everything is finished, you should see a text like "Device [..] has IP [..]". Please check if the specified interface and IP is alright. To make sure that everything works fine check the output of your collector.
 
 If you want to kill the probe type CTRL+C.
 
 If everything is alright type CTRL+A. After that type D.
 You will now return to the main webinterface. You now should see, that a new element is in your list.
 This element should be called '/probeResource-<your entered Obervation ID>'.
+
+The probe adapter will always start the probe inside a screen. If you want to return to the screen where the collector is running type 'screen -r probe<number of the wanted probe>' in an open terminal.
+
+You can also see all probes on a machine by tying 'screen -ls'.
 
 You can now start other probes in the same way.
 

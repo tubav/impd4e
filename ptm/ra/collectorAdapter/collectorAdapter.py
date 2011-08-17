@@ -74,18 +74,29 @@ class collectorAdapter(AbstractResourceAdapter):
 		logger.debug("------------------------------------------------------")
 
 		# Host Parsing
-		hostIP = "empty"
-    		hostName = "empty"
+		hostIPs = [] # result host IP's
+    		hostNames = [] # result host names
+    		currHost = ""
+    		remainingHosts = host
 
-    		host_index = host.find(":")
-    		if (host_index != -1):
-        		hostIP = host[0:host_index]
-        		hostName = host[host_index+1:len(host)]
+    		while(remainingHosts != ""):
 
-		# ExportHost Parsing
-		exportHostIP = "empty"
-    		exportHostPort = "empty"
-    		exportInterval = "empty"
+        		semicolon_index = remainingHosts.find(";")
+        		if (semicolon_index != -1):
+            			# Multiple hosts found
+            			currHost = remainingHosts[0:semicolon_index]
+            			remainingHosts = remainingHosts[semicolon_index+1:len(remainingHosts)]
+
+     			else:
+            			currHost = remainingHosts
+            			remainingHosts = ""
+
+        		comma_index = currHost.find(":")
+
+        		# Saving the current host information
+        		if (comma_index != -1):
+            			hostIPs = hostIPs + [currHost[0:comma_index]]
+            			hostNames = hostNames + [currHost[comma_index+1:len(currHost)]]
 
 		# Export Format Parsing
 		exportInCSV = "No";
@@ -100,6 +111,11 @@ class collectorAdapter(AbstractResourceAdapter):
     		if (exportFormat == "csv+obj"):
         		exportInCSV = "Yes";
         		exportInObj = "Yes";
+
+		# ExportHost Parsing
+                exportHostIP = "empty"
+                exportHostPort = "empty"
+                exportInterval = "empty"
 
     		exportHost_index_1 = exportHost.find(":")
 
@@ -118,7 +134,7 @@ class collectorAdapter(AbstractResourceAdapter):
             			exportInterval = "7"
 
 		# Writing the command
-		if (hostIP == "empty"):
+		if (hostIPs == []):
 			cmd = "java -Dmainclass=de.fhg.fokus.net.packetmatcher.Matcher -cp org.kohsuke.args4j.Starter -jar ~/collector/packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar"
 		else:
 			cmd = "java -Dmainclass=de.fhg.fokus.net.packetmatcher.Matcher -cp org.kohsuke.args4j.Starter -jar collector/packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar"
@@ -159,28 +175,33 @@ class collectorAdapter(AbstractResourceAdapter):
 
                 self.__instances.add(n)
 
-		if (hostIP == "empty"):
+		if (hostIPs == []):
 			self.run_local(cmd,i)
 		else:
-			self.run_remote(cmd,i,hostName,hostIP)
+			self.run_remote(cmd,i,hostNames,hostIPs)
 
                 return name
 
-	def run_remote(self,cmd,i,hostName,hostIP):
+	def run_remote(self,cmd,i,hostNames,hostIPs):
 
-		logger.debug("--- copying collector to machine "+hostIP+" ...")
+		logger.debug("--- copying collector to machine "+hostIPs[len(hostIPs)-1]+" ...")
 
-		cmd_copy_collector = "scp -r ~/collector/ "+hostName+"@"+hostIP+":."
+		# Currently it only works if the path contains one ssh-connection !!!
+		cmd_copy_collector = "scp -r ~/collector/ "+hostNames[len(hostIPs)-1]+"@"+hostIPs[len(hostIPs)-1]+":."
 		os.system(cmd_copy_collector)
 
-		logger.debug("--- starting collector on machine "+hostIP+" ...")
+		logger.debug("--- starting collector on machine "+hostIPs[len(hostIPs)-1]+" ...")
 
 		cmd_execute = "screen -m -S collector"+str(i)+" "+cmd
-		login = "ssh -t "+hostName+"@"+hostIP+" "
+
+		login = ""
+    		for i in range(0,len(hostIPs)):
+        		login = login + "ssh -t " + hostNames[i] + "@" + hostIPs[i] + " "
+
 		logger.debug(login+cmd_execute)
 		os.system(login+cmd_execute)
 
-		logger.debug("--- Collector started on machine "+hostIP+" ---")
+		logger.debug("--- Collector started on machine "+hostIPs[len(hostIPs)-1]+" ---")
 
 	def run_local(self,cmd,i):
 		logger.debug("--- starting collector on this machine ... --- ")

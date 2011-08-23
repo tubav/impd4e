@@ -2,10 +2,9 @@
 
 from Identifier import Identifier
 
-class Owners(object):
-	
+class Owners(object): 
 	def __get_string(self, s):
-		if not isinstance(s, basestring):
+		if not isinstance(s, basestring): 
 			raise Exception("Illegal value for string: %s" % (s,))
 		return unicode(s)
 	

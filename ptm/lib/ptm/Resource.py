@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 
 from Identifier import Identifier
-from exc import PTMException
 
 class Resource(object):
 	def __init__(self, adapter, identifier = None, parent = None, type = None, name = None, *args, **kw):
@@ -11,7 +10,8 @@ class Resource(object):
 
 		if identifier is None:
 			if name is None:
-				raise PTMException("No name given")
+				#raise PTMException("No name given")
+				name = adapter.generate_name(parent, type)
 			identifier = Identifier(parent).make_child_identifier(type, name)
 		else:
 			identifier = Identifier(identifier, need_full = True)
@@ -46,6 +46,7 @@ class Resource(object):
 		parent_id = self.parent_id
 		if parent_id is None:
 			return None
+		#raise Exception(self.identifier, parent_id)
 		return self.adapter.client.get_resource(parent_id)
 	parent = property(get_parent)
 
@@ -58,6 +59,7 @@ class Resource(object):
 
 	def get_configuration(self):
 		return self.adapter.get_configuration(self.identifier)
+	config = configuration = property(get_configuration)
 
 	def get_attribute(self, k):
 		return self.adapter.get_attribute(self.identifier, k)
@@ -66,7 +68,7 @@ class Resource(object):
 		self.adapter.set_configuration(self.identifier, config)
 
 	def set_attribute(self, k, v):
-		self.adapter.set_attribute(k, v)
+		self.adapter.set_attribute(self.identifier, k, v)
 
 	def acquire(self, owner, weak = False):
 		self.adapter.acquire_resource(self.identifier, owner, weak)
@@ -77,6 +79,12 @@ class Resource(object):
 	def get_owners(self):
 		return self.adapter.get_owners(self.identifier)
 	owners = property(get_owners)
+	
+	def delete(self):
+		return self.adapter.delete_resource(self.identifier)
+	
+	def execute_method(self, name, *args, **kw):
+		return self.adapter.execute_method(self.identifier, name, *args, **kw)
 
 class BasicResource(Resource):
 	def get_client(self):
@@ -110,14 +118,16 @@ class DefaultResource(BasicResource):
 		return klass.__name__.lower()
 
 class GenericResource(BasicResource):
-	def __init__(self, config, identifier = None, *args, **kw):
+	def __init__(self, adapter, config, identifier = None, *args, **kw):
 		id = config.pop("identifier", None)
 		if identifier is None:
 			identifier = id
-		super(GenericResource, self).__init__(identifier = identifier, *args, **kw)
+		super(GenericResource, self).__init__(adapter = adapter, identifier = identifier, *args, **kw)
 		self.__config = config
 
 	def _get_configuration(self):
+		if self.__config is None:
+			return self.adapter.get_configuration(self.identifier)
 		return self.__config
 
 	def _set_attribute(self, k, v):

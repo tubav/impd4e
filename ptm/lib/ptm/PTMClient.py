@@ -16,8 +16,6 @@ class PTMClient(object):
 		self.__shadow_manager = HubShadowManager(client = self, hub_url = registry_url)
 
 	def _mangle_parent(self, parent, typename):
-		print ("Mangling: %s %s" % (parent, typename))
-
 #		logger.debug(parent)
 		if parent is None:
 			if not typename:
@@ -41,7 +39,7 @@ class PTMClient(object):
 		else:
 			parent = parent[:-1]
 		
-		logger.debug("mangled2: %s %s" % (parent, typename))
+		#logger.debug("mangled2: %s %s" % (parent, typename))
 		return (parent, typename)
 		"""
 		if typename is not True:
@@ -65,7 +63,7 @@ class PTMClient(object):
 		identifier = Identifier(identifier, need_full = True)
 		return self._resolve_adapter(identifier).get_resource(unicode(identifier))
 
-	def add_resource(self, parent, name, typename, config, owner):
+	def add_resource(self, parent, name, typename, config, owner = None):
 	#	parent, typename = self._mangle_parent(parent, typename)
 		if parent == "/":
 			parent = None

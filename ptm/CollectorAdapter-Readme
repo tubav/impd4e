@@ -1,39 +1,47 @@
-This readme will explain step by step how to set up a collector by using Teagle.
---------------------------------------------------------------------------------
+This readme will explain step by step how to set up the collector by using the collector adapter.
+-------------------------------------------------------------------------------------------------
 
-I.) SETTING UP THE INTERFACE
-----------------------------
+I.) SETTING UP THE WEBINTERFACE
+------------------------------------
 
 1) At first it is necessary to copy the folder 'ptm' in your local /opt-folder.
 
-2) Now the the second step is to create a folder named 'collector' in your home folder. To do that open a terminal and enter 'mkdir collector'. Then you have to copy the packetmatcher jar archive you want to use in this folder.
+2) Make sure that at '/opt/ptm/ra/' is a folder named 'collectorAdapter'.
+In this folder should be the files 'collectorAdapter.py' and '__init__.py'
 
-NOTE: It is necessary, that the jar archive has the name 'packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar'.
+3) Open a terminal and switch to the folder '/opt/ptm/bin'.
+Then enter 'sh ptmhub' to start the PTM-Hub.
 
-If you want to run the collector on another machine, the collector adapter will always copy this folder to this machine and run the packetmatcher from there.
+4) When the PTM-Hub is started successfully open a second terminal in the same folder '/opt/ptm/bin'.
+Now enter 'sh rarunner collectorAdapter.collectorAdapter.collectorAdapter' to start the collector adapter.
 
-3) After that open a terminal and switch to the folder '/opt/ptm/bin'. Then enter './ptmhub' to start the PTM-Hub.
+NOTE: If there are other adapters currently running, the collector adapter possible won't start
+because the port where the adapter runs on default will be already taken. So in that case you
+have to add '--port=<your specific port>'. On default the port will be 8001. So if an adapter
+is currently running on this port, just choose port 8002, 8003 or else.
 
-4) When the PTM-Hub is started successfully open a second terminal in the same folder '/opt/ptm/bin'. Now enter './rarunner collectorAdapter.collectorAdapter.collectorAdapter' to start the collector adapter.
+5) When the collector adapter started successfully open an internet browser.
+Then enter the URL 'http://127.0.0.1:8000/'.
 
-5) When the collector adapter started successfully, open an internet browser - for example Mozilla Firefox. Then enter the URL 'http://127.0.0.1:8000/'.
+Now you should see a webinterface with the logo of Fraunhofer FOKUS.
+Also there should be a 'List of resources for I' whith one element '/collectorResource-0'.
+This element is always there, so you don't have to care about it.
 
-Now you should see a webinterface with the logo of Fraunhofer FOKUS. Also there should be a 'List of resources for I' whith one element '/collectorResource-0'. This element is always there, so you don't have to care about it.
 
 
+II.) STARTING A COLLECTOR WITH THE COLLECTOR-ADAPTER
+-----------------------------------------------------
 
-II.) STARTING THE COLLECTOR OVER PTM
-------------------------------------
+1) Below in the interface you should see the link 'Add a new resource instance here'.
+Click on this link.
 
-1) Below in the interface you should see the link 'Add a new resource instance here'. Click on this link.
-
-2) Now you should see a new interface where you can enter the typename and 5 parameters.
+2) Now you should see a new interface where you can enter the typename and 10 parameters.
 
 3) At first you have to enter 'collectorResource' in the typename-field.
 
-4) With the other 5 parameters you can set up the options how the collector will be started. To start the collector correctly make sure, that all parameters are of type 'String'.
+4) With the other 10 parameters you can specify the options how the collector will be started.
 
-There a 5 options available:
+There a 10 options available:
 
 
 
@@ -41,22 +49,26 @@ There a 5 options available:
 
 
 
-i) host
---------
+i) id
+------
 
-This option contains the IP-Address where the collector should be started. The PTM will build up a SSH-Connection to this Host. Also you have to enter the login name for the machine where you want to start the collector.
+This option contains the ID of the collector. The collector ID will be instance
+number of collector shown in the list of collector resources.
 
-NOTE: 	1) If you want to run the collector on the machine where the PTM-process is running on, you can let this option free!
-	2) It is necessary that every machine where you want to set up a collector has your public key!
+NOTE: On default the collector ID will be numbered from 1 in ascending order.
+If you want to enumerate your collector ID's from 1 in ascending order, you can
+let this option free.
 
-Otherwise, if you want to start the collector on another machine you have to, you have type 'host' in the name of the parameter. Now type in the value field your parameters with the following syntax:
+If you want to specify your own collector ID you have to perform the following steps:
 
-<IP-Address of the collector>:<login name of the wanted machine>
+- At first type 'id' in the name of the parameter.
+- Then set the parameter type to 'string'.
+- At last enter the collector ID in the value field.
 
 For example:
-192.168.41.111:prism
+12
 
-For these parameters the collector will be started on the machine '192.168.41.111'. The PTM will login to this machine with the username 'prism'.
+For this example the collector will have the collector ID '12'.
 
 
 
@@ -65,77 +77,222 @@ ii) exportFolder
 
 This option contains the exportFolder where the collector will export his data.
 
-NOTE: If you just want, that the collector exports his data only to netview, you can let this option free!
+NOTE: On default the exportFolder will be 'matcher_data'. If you want, that the matcher
+will export his data to this default folder, you can let this option free!
 
-Otherwise, if you want to export the collector data to a certain folder, you have to type 'exportFolder' in the name of the parameter. Now type in the value field the folder where you want to export the collector data.
+If you want to export the collector data to a certain folder, you have to perform the following steps:
 
-NOTE: If you want to run the collector on the machine where the PTM is running, you have to enter the exportFolder with the following syntax:
+- At first type 'exportFolder' in the name of the parameter.
+- Then set the parameter type to 'string'.
+- At last enter the folder where you want to export the collector data in the value field.
+
+NOTE: If you want to run the collector on the machine where the collectorAdapter
+is running, you have to enter the exportFolder with the following syntax:
 
 ~/<your path>
 
 For example:
 ~/Desktop/matcher_data
 
-The reason is that if you only enter 'matcher_data' the packetmatcher will choose the location where you started the ptmhub. This would be the folder '/opt/ptm/bin'. The matcher would not start correctly, because he has no permissions to create the folder there.
+For this example the collector will export his data to the folder 'matcher_data'
+under the Desktop.
 
-NOTE: If you want to run the collector on another machine, you can enter the exportFolder without '~/...'. The collector Adapter will create the entered folder in the home folder of the entered machine.
+The reason is that if you only enter 'matcher_data' the packetmatcher will choose the
+location where you started the collectorAdapter. This would be the folder '/opt/ptm/bin'.
+The matcher would not start correctly, because he has no permissions to create the folder there.
+
+NOTE: If you want to run the collector on another machine, you can enter the exportFolder
+without '~/...'. The collector Adapter will create the entered folder in the home folder of the entered machine.
+
+For example:
+Desktop/matcher_data
+
+For this example the collector will also export his data to the folder 'matcher_data'
+under the Desktop.
 
 
 
 iii) exportFormat
 ------------------
 
-This option contains the format of the data, which the matcher will export.
+This option contains the format of the data, the matcher will export.
 
-NOTE: If you want, that the collector exports his data only to netview, you can let this option free!
+NOTE: On default the collector will export his data only to netview. If you want,
+that the collector exports his data only to netview, you can let this option free.
 
-Otherwise, if you want to export the collector data to the folder you have specified in option ii) exportFolder, you have to type 'exportFormat' in the name of the parameter. Now type in the value field the format you want to have.
+Otherwise, if you want to export the collector data to the folder you have specified
+in the option 'exportFolder', you have to perform the following steps:
+
+- At first type 'exportFormat' in the name of the parameter.
+- Then set the parameter type to 'string'.
+- At last type in the value field the format you want to have.
 
 There are two formats available:
 	1) CSV-Tables
 	2) Java-Objects
 
 If you want to export the data in CSV-Tables you have to enter 'csv' in the value field.
-
 If you want to export the data in Java-Objects you have to enter 'obj' in the value field.
-
 If you want to export the data in both formats you have to enter 'csv+obj' in the value field.
-
-NOTE: If you don't specify any exportFolder the exportFolder will automatically be 'matcher_data'.
 
 
 
 iv) exportHost
 ---------------
 
-This option contains the IP address and the port where the packetmatcher will send his data to. Also this option contains the export reconnect interval in seconds.
+This option contains the IP address and the port where the packetmatcher will send his data to.
+Also this option contains the export reconnect interval in seconds.
 
-The default options are:
-Export IP address: 		127.0.0.1
-Export Port:			40123
-Export reconnect interval:	7
+NOTE: On default the IP Address will be 127.0.0.1, the Port will be 40123 and the reconnect interval
+will be 7 seconds. If you want to start the collector with these options, you can let this option free.
 
-NOTE: If you want, that the packetmatcher will use the default options you can let this options free!
+If you want to start the collector with other options, you have to perform the following steps:
 
-Otherwise, if you want to start the collector with other options, you have type 'exportHost' in the name of the parameter. Now type in the value field your parameters with the following syntax:
+- At first type 'exportHost' in the name of the parameter
+- Then set the parameter type to 'string'.
+- At last type in the value field your parameters with the following syntax:
 
 <Export IP address>:<Export Port>:<Export reconnect interval>
 
 For example:
 127.0.0.1:40123:10
 
-For these parameters the export host will be localhost, the export port will be 40123 and the export reconnect interval will be 10 seconds.
+For these parameters the export host will be localhost, the export port will be 40123 and the
+export reconnect interval will be 10 seconds.
 
 
 
-v) ttlcheck
+v) collector
+-------------
+
+This option contains the path where the packetmatcher jar file is located on the machine where the
+collectorAdapter is running. To start the collector the collectorAdapter must know where the
+packetmatcher jar file is located.
+
+NOTE: The packetmatcher jar file must be named 'packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar'.
+
+NOTE: On default the path will be '/home/collector/'. If put the packetmatcher jar file to this location,
+you can let this option free.
+
+If you want to integrate the jar file from another location, have to perform the following steps:
+
+- At first type 'collector' in the name of the parameter.
+- Then set the parameter type to 'string'.
+- At last type the path in the value field.
+
+For example:
+/home/user1/collector/
+
+For this example the collector will be integrated from the folder '/home/user1/collector/'
+
+
+
+vi) ttlcheck
 ------------
 
-This option contains a flag to order the packetmatcher to check if the TTL of the incomming packets is greater zero.
+This option specifies if the packetmatcher should check if the TTL of the incomming
+packets is greater zero. If the TTL of an incomming packet is zero, the packet will be discarded.
 
-NOTE: If you want to set up the collector without this flag, you have to let this parameter free!
+NOTE: On default the collector will not check the TTL of incomming packets. If you just want to
+start the collector without this check, you can let this option free.
 
-Otherwise if you want to set this flag, you have to type 'ttlcheck' in the name of the parameter. The flag will now be setted. The collector adapter will ignore the content of the value field for this option.
+Otherwise if you want that the collector will check the TTL, you have to perform the following steps:
+
+- At first type 'ttlcheck' in the name of the parameter.
+- Then set the parameter type to 'string'.
+
+There is no need to enter a value in the value field, because this option is just a flag.
+The collectorAdapter will ignore the content of the value field.
+
+
+
+vii) install
+-------------
+
+This option specifies if all needed dependencies for the collector will be installed and
+if the packetmatcher jar file will be copied to the machine where you want to start the collector.
+
+NOTE: On default nothing will be installed before running the collector. If you just want to
+start the collector, you can let this option free.
+
+If you want to install all needed depencies for the collector on the spefified machine,
+you have to perform the following steps:
+
+- At first type 'install' in the name of the parameter first.
+- Then set the parameter type to 'string'.
+
+There is no need to enter a value in the value field, because this option is just a flag.
+The collectorAdapter will ignore the content of the value field.
+
+NOTE: If you want to use a node for the first time, you have to set this flag, because it is necessary,
+that the packetmatcher jar file is already copied to the machine where you want to start the collector.
+
+
+
+iix) target
+------------
+
+This option specifies the node where you want to start the collector. So it is necessary that already
+a NodeAdapter is running, that already holds some nodes.
+
+NOTE: On default the collector will be started on the machine where the collectorAdapter is running.
+If you want to start the collector on the machine where the collectorAdapter is running, you can let
+this option free.
+
+If you want to start the collector on a certain machine, you have to perform the following steps:
+
+- At first type 'target' in the name of the parameter first.
+- Then set the parameter type to 'reference'. (NOT 'string' !)
+- At last type the identifier of the node where you want to start the collector in the value field.
+
+For example:
+/pnode-1
+
+For this example the selected node will be '/pnode-1'.
+
+
+
+ix) resource
+-------------
+
+Like the option 'target', this option contains the node where you want to start the collector.
+
+NOTE: On default the collector will be started on the machine where the collectorAdapter is running.
+If you want to start the collector on the machine where the collectorAdapter is running, you can let
+this option free.
+
+If you want to start the collector on a certain machine, you have to perform the following steps:
+
+- At first type 'target' in the name of the parameter first.
+- Then set the parameter type to 'string'. (NOT 'reference' !)
+- At last type the identifier of the node where you want to start the collector in the value field.
+
+NOTE: It is important that you type the same identifier in the value field as in the value field
+of the 'target'-option.
+
+
+
+x) username
+------------
+
+This option contains the username of the node specified in the options 'target' and 'resource'.
+
+NOTE: On default the username will be 'root'. If you want to start the collector on the specified node
+under the username 'root', you can let this option free.
+
+If you want to use another username, you have to perform the following steps:
+
+- At first type 'username' in the name of the parameter.
+- Then set the parameter type to 'string'.
+- At last type the username in the value field:
+
+For example:
+prism
+
+NOTE: It is important that the specified node in the options 'target' and 'resource' contains the password
+you need for the username you want to specify.
+
+For this example the collector will be started on the specified node under the username 'prism'.
 
 
 
@@ -143,25 +300,31 @@ Otherwise if you want to set this flag, you have to type 'ttlcheck' in the name 
 
 
 
-If you've entered all your options, click on the button 'Submit Query'. Otherwise you can click on the button 'cancel' to return to the main webinterface.
+If you've entered all your options, click on the button 'Submit Query'.
+Otherwise you can click on the button 'cancel' to return to the main webinterface.
 
 If you click on the button 'Submit Query' the collector will be setted up.
 
-After you've submitted the query go to the terminal where you started the collectorAdapter. In some cases you need to enter the password of the machine where you want to start the collector. After you've entered the right password you should see how the collector adapter first copy the collector-folder to the specified host, of you've entered a host.
+After you've submitted the query go to the terminal where you started the collector adapter.
 
-After that the matcher will be started and you should see the outputs of the packetmatcher. Please check if the export host, the export format, the export folder and the flag for ttl checks is setted rightly.
+If you used the 'install'-option you should see how the collector adapter installs
+all needed dependencies where you want to start the collector. You can check here if any errors
+occur during the installation.
 
-If you want to kill the collector type CTRL+C.
+After that you will return to the main webinterface. You now should see,
+that a new element is in your list.
+This element should be called '/collectorResource-<your entered Obervation ID>'.
 
-If everything is alright type CTRL+A. After that type D.
-You will now return to the main webinterface. You now should see, that a new element is in your list.
-This element should be called '/collectorResource-<number of the collector>'.
-
-The collector adapter will always start the collector inside a screen. If you want to return to the screen where the collector is running type 'screen -r collector<number of the wanted collector>' in an open terminal.
+The collector adapter will always start the collector inside a screen-session.
+If you want to view the screen-session where the collector is, first log in to the machine, where
+the collector is running and then type 'screen -r collector<number of the wanted collector>'
 
 You can also see all collectors on a machine by tying 'screen -ls'.
 
+You can start other collectors in the same way.
 
+///////////////////////////////////////////////////////////////////////////////////////
 
-You can now set up other collectors in the same way.
+Take a look the document 'Packettracking_Adapter_Parameters.pdf'.
+This document contains a summary of all parameters of the collectorAdapter.
 

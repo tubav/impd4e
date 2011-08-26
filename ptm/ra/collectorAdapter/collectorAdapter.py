@@ -27,10 +27,10 @@ logger = logging.getLogger("ptm")
 cmd_mkdir = "mkdir collector"
 
 # Install command for java
-cmd_install_java = "sudo apt-get install openjdk-6-jdk"
+cmd_install_java = "-y install openjdk-6-jdk"
 
 # Install command for screen
-cmd_install_screen = "sudo apt-get install screen"
+cmd_install_screen = "-y install screen"
 
 class collectorAdapter(AbstractResourceAdapter):
         '''
@@ -58,7 +58,6 @@ class collectorAdapter(AbstractResourceAdapter):
 		exportFormat = "empty"
 		exportHost = "empty"
 		ttlcheck = "empty"
-		
 		hostname = "empty"
 		public_ip = "empty"
 		password = "empty"
@@ -66,7 +65,9 @@ class collectorAdapter(AbstractResourceAdapter):
 		install = False
 		collector = "empty"
 		collector_id = "empty"
+		username = "root" # default username
 
+		# Reading out the config parameters
 		if config.has_key("exportFolder"):
 			exportFolder = config["exportFolder"].strip('s')
 
@@ -99,6 +100,10 @@ class collectorAdapter(AbstractResourceAdapter):
 		if config.has_key("id"):
 			collector_id = config["id"]
 
+		if config.has_key("username"):
+			username = config["username"]
+
+		# Print the entered parameters
 		logger.debug("------------------------------------------------------")
 		logger.debug("--> Number of entered parameters: "+str(configLength))
 		logger.debug("--> exportFolder = "+exportFolder)
@@ -112,21 +117,22 @@ class collectorAdapter(AbstractResourceAdapter):
 		logger.debug("--> install = "+str(install))
 		logger.debug("--> collector = "+collector)
 		logger.debug("--> id = "+collector_id)
+		logger.debug("--> username = "+username)
 		logger.debug("------------------------------------------------------")
 
 		# Export Format Parsing
-		exportInCSV = "No";
-    		exportInObj = "No";
+		exportInCSV = False;
+    		exportInObj = False;
 
     		if (exportFormat == "csv"):
-        		exportInCSV = "Yes";
+        		exportInCSV = True;
 
     		if (exportFormat == "obj"):
-        		exportInObj = "Yes";
+        		exportInObj = True;
 
     		if (exportFormat == "csv+obj"):
-        		exportInCSV = "Yes";
-        		exportInObj = "Yes";
+        		exportInCSV = True;
+        		exportInObj = True;
 
 		# ExportHost Parsing
                 exportHostIP = "empty"
@@ -158,10 +164,10 @@ class collectorAdapter(AbstractResourceAdapter):
 		else:
 			cmd = "java -Dmainclass=de.fhg.fokus.net.packetmatcher.Matcher -cp org.kohsuke.args4j.Starter -jar collector/packetmatcher-1.0-SNAPSHOT-jar-with-dependencies.jar"
 
-		if (exportInCSV == "Yes"):
+		if (exportInCSV == True):
                         cmd = cmd + " -csv"
 
-                if (exportInObj == "Yes"):
+                if (exportInObj == True):
                         cmd = cmd + " -obj"
 
     		if (exportFolder != "empty"):
@@ -179,6 +185,7 @@ class collectorAdapter(AbstractResourceAdapter):
     		if (ttlcheck == "yes"):
         		cmd = cmd + " -ttlcheck"
 
+		# Enumerate the collector instance
 		n = name
                 if not name:
 			if (collector_id != "empty"):
@@ -200,19 +207,20 @@ class collectorAdapter(AbstractResourceAdapter):
                 self.__instances.add(n)
 
 		if (public_ip == "empty"):
+			# Run the collector on the local machine
 			self.run_local(cmd,i)
 		else:
-			#self.run_remote(cmd,i,hostname,public_ip,password,install,collector)
-			self.run_remote(cmd,i,"prism",public_ip,password,install,collector)
+			# Run the collector on another machine
+			self.run_remote(cmd,i,username,public_ip,password,install,collector)
 
                 return name
 
-	def execute_command(self,channel,cmd,password):
+	def execute_command(self,channel,cmd,password,username):
 
                 channel.send(cmd)
 
                 resp = ""
-                while resp.find("$") == -1:
+                while (resp.find(username+"@") == -1):
                         resp = channel.recv(1000000)
                         logger.debug(resp)
 
@@ -220,29 +228,33 @@ class collectorAdapter(AbstractResourceAdapter):
                                 logger.debug("--- password needed! ---")
                                 channel.send(password+"\n")
 
-        def wait_for_new_execute(self,channel):
+        def wait_for_new_execute(self,channel,password,username):
 
                 resp = ""
-                while resp.find("$") == -1:
+                while (resp.find(username+"@") == -1):
                         resp = channel.recv(1000000)
                         logger.debug(resp)
 
-        def command_available(self,channel,cmd):
+			if resp.find("password") != -1:
+                                logger.debug("--- password needed! ---")
+                                channel.send(password+"\n")
+
+        def command_available(self,channel,cmd,username):
 
                 channel.send(cmd)
                 available = True
 
                 resp = ""
-                while resp.find("$") == -1:
+                while (resp.find(username+"@") == -1):
                         resp = channel.recv(1000000)
                         logger.debug(resp)
 
-                        if resp.find("command not found") != -1:
+                        if (resp.find("command not found") != -1 or resp.find("not installed") != -1):
                                 available = False
 
                 return available
 
-	def run_remote(self,cmd,i,hostname,public_ip,password,install,collector):
+	def run_remote(self,cmd,i,username,public_ip,password,install,collector):
 
 		logger.debug("--- copying collector to machine "+public_ip+" ...")
 
@@ -253,17 +265,54 @@ class collectorAdapter(AbstractResourceAdapter):
 		# Initialize Client and Channel.
                 client = paramiko.SSHClient()
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                client.connect(public_ip,username=hostname,password=password)
+                client.connect(public_ip,username=username,password=password)
 
                 # Logging in.
                 channel = client.invoke_shell()
-                self.wait_for_new_execute(channel)
+                self.wait_for_new_execute(channel,password,username)
 
+		# Install needed dependencies
                 if (install == True):
+			# Check out the distribution
+			sftp = client.open_sftp()
+			files = sftp.listdir("/etc/")
+			found_fedora = False
+			found_debian = False
+			for file in files:
+    				if (file.find("fedora") != -1):
+        				found_fedora = True
+        				break
+				if (file.find("debian") != -1):
+                                        found_debian = True
+                                        break
+
+			if (found_fedora == True):
+				cmd_install_java = "sudo yum "+cmd_install_java
+				cmd_install_screen = "sudo yum "+cmd_install_screen
+
+			elif (found_debian == True):
+				cmd_install_java = "sudo apt-get "+cmd_install_java
+                                cmd_install_screen = "sudo apt-get "+cmd_install_screen
+
+			else:
+				# Check out which package managers are available
+				apt_available = command_available(channel,"apt\n")
+                                yum_available = command_available(channel,"yum\n")
+                                if (apt_available == True):
+					cmd_install_java = "sudo apt-get "+cmd_install_java
+                                	cmd_install_screen = "sudo apt-get "+cmd_install_screen
+
+				elif (yum_available == True):
+					cmd_install_java = "sudo yum "+cmd_install_java
+                                	cmd_install_screen = "sudo yum "+cmd_install_screen
+
+				else:
+					raise Exception("No apt or yum found, so the collector-dependencies can't be installed automatically. Try to install the dependencies manually.")
+
 			# install important resources
-                        self.execute_command(channel,cmd_mkdir+'\n',password)
-                        self.execute_command(channel,cmd_install_java+'\n',password)
-			self.execute_command(channel,cmd_install_screen+'\n',password)
+                        self.execute_command(channel,cmd_mkdir+'\n',password,username)
+                        self.execute_command(channel,cmd_install_java+'\n',password,username)
+			self.execute_command(channel,cmd_install_screen+'\n',password,username)
 			# Copy collector
 			sftp = client.open_sftp()
 			if (collector == "empty"):
@@ -274,7 +323,7 @@ class collectorAdapter(AbstractResourceAdapter):
 		logger.debug("--- starting collector on machine "+public_ip+" ...")
 
 		cmd_execute = "screen -m -d -S collector"+str(i)+" "+cmd
-		self.execute_command(channel,cmd_execute+'\n',password)
+		self.execute_command(channel,cmd_execute+'\n',password,username)
 
 		logger.debug("--- collector started on machine "+public_ip+" ---")
 

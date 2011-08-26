@@ -22,24 +22,22 @@ from subprocess import Popen
 from subprocess import PIPE
 
 logger = logging.getLogger("ptm")
-ipaddress = "empty"
+
+IPAddress = "empty"
 
 # --- install commands ----
 
 # Create temporary folder
-cmd_mkdir = "mkdir probe_installation ; cd probe_installation"
-
-# Install command for gcc
-cmd_install_gcc = "sudo apt-get -y install gcc"
+cmd_mkdir = "mkdir probe ; cd probe"
 
 # Install command for screen
-cmd_install_screen = "sudo apt-get -y install screen"
+cmd_install_screen = "-y install screen"
 
 # Install command for git-core
-cmd_install_git_core = "sudo apt-get -y install git-core"
+cmd_install_git_core = "-y install git-core"
 
 # Install command for libpcap
-cmd_install_libpcap = "sudo apt-get -y install libpcap-dev"
+cmd_install_libpcap = "-y install libpcap-dev"
 
 # Install commands for libev
 cmd_download_libev = "wget http://dist.schmorp.de/libev/libev-4.04.tar.gz"
@@ -51,13 +49,12 @@ cmd_download_libipfix = "git clone git://libipfix.git.sourceforge.net/gitroot/li
 cmd_install_libipfix = "./configure ; make ; sudo make install ; cd .."
 
 # Install commands for impd4e
-cmd_install_software_properties = "sudo apt-get install python-software-properties"
-cmd_add_repo = "sudo add-apt-repository ppa:pt-team/pt"
-cmd_update = "sudo apt-get update"
-cmd_install_impd4e = "sudo apt-get install impd4e ; cd .."
-
-# Delete temporary folder
-cmd_rm_dir = "sudo rm -rf probe_installation/"
+#cmd_install_software_properties = "sudo apt-get install python-software-properties"
+#cmd_add_repo = "sudo add-apt-repository ppa:pt-team/pt"
+#cmd_update = "sudo apt-get update"
+#cmd_install_impd4e = "sudo apt-get install impd4e ; cd .."
+cmd_download_impd4e = "git clone git://impd4e.git.sourceforge.net/gitroot/impd4e/impd4e ; cd impd4e"
+cmd_install_impd4e = "./configure ; make ; sudo make install ; cd .."
 
 class probeAdapter(AbstractResourceAdapter):
         '''
@@ -68,48 +65,45 @@ class probeAdapter(AbstractResourceAdapter):
                 super(probeAdapter, self).__init__(*args, **kw)
                 self.__instances = set("0")
                 manager.register_adapter("/probeResource", self)
-                logger.debug("---up---")
+		# Print the IP-Address of this machine
 		output = Popen(["ifconfig"], stdout=PIPE).communicate()[0]
     		indexIPStart = output.find("inet addr")+10
     		indexIPEnd = output.find("Bcast")
-		global ipaddress
-    		ipaddress = output[indexIPStart:indexIPEnd].strip(' ')
-                logger.debug("The IP-Address of this machine is: "+ipaddress)
-
+		global IPAddress
+    		IPAddress = output[indexIPStart:indexIPEnd].strip(' ')
+                logger.debug("--- The IP-Address of this machine is: "+IPAddress+" ---")
 
         def list_resources(self, parent, typename):
                 assert(typename == "probeResource" or not typename)
                 assert(parent == None)
                 return [ Identifier("/probeResource-" + i) for i in self.__instances ]
 
-
         def add_resource(self, parent_id, name, typename, config, owner = None):
 	
 		assert(typename == "probeResource")
-	
-		output = Popen(["ifconfig"], stdout=PIPE).communicate()[0]
-                indexInterface = output.find(" ")
-                interface = output[0:indexInterface]
 
-		logger.debug("--------------------------------------------------")
-		logger.debug("--> Interface of this machine: "+interface)
-
-		probe = "empty"
+		global IPAddress
+		interface = "eth0" # default interface
+		oid = "empty"
 		location = "52:13:2" # default location (Berlin)
-		collector = ipaddress+":"+"4739"
+		collector = IPAddress+":"+"4739"
 		packetFilter = ""
 		samplingRatio = "100.0"
 		install = False
-		
 		hostname = "empty"
                 public_ip = "empty"
                 password = "empty"
                 resource = "empty"
+		username = "root" # default username
 
 		configLength = len(config)
 
-		if config.has_key("probe"):
-			probe = config["probe"].strip('s')
+		# Reading out the config parameters
+		if config.has_key("interface"):
+			interface = config["interface"]
+
+		if config.has_key("oid"):
+			oid = config["oid"].strip('s')
 
 		if config.has_key("location"):
 			location = config["location"].strip('s')
@@ -129,6 +123,9 @@ class probeAdapter(AbstractResourceAdapter):
 		if config.has_key("resource"):
                         resource = config["resource"]
 
+		if config.has_key("username"):
+			username = config["username"]
+
 		if config.has_key("target"):
                         if resource != "empty":
                                 target = config["target"]
@@ -137,29 +134,33 @@ class probeAdapter(AbstractResourceAdapter):
                                 public_ip = configuration["public_ip"]
                                 password = configuration["password"]
 
-
+		# Print the entered parameters
 		logger.debug("--------------------------------------------------")
 		logger.debug("--> Number of entered parameters: "+str(configLength))
-		logger.debug("--> probe = "+probe)
+		logger.debug("--> interface = "+interface)
+		logger.debug("--> oid = "+oid)
 		logger.debug("--> location = "+location)
 		logger.debug("--> collector = "+collector)
-		logger.debug("--> filter = "+packetFilter)
+		logger.debug("--> packetFilter = "+packetFilter)
 		logger.debug("--> samplingRatio = "+samplingRatio)
 		logger.debug("--> install = "+str(install))
 		logger.debug("--> hostname = "+hostname)
 		logger.debug("--> public_ip = "+public_ip)
 		logger.debug("--> password = "+password)
 		logger.debug("--> resource = "+resource)
+		logger.debug("--> username = "+username)
 		logger.debug("--------------------------------------------------")
 
+		# Collector Parsing
     		indexCollectorSplit = collector.find(":")
     		collectorIP = collector[0:indexCollectorSplit]
     		collectorPort = collector[indexCollectorSplit+1:len(collector)]		
 
-		n = probe
+		# Enumerate the probe instance
+		n = "0"
                 if not name:
-			if config.has_key("probe"):
-				n = probe
+			if config.has_key("oid"):
+				n = oid
 				name = n
 
 		  	else:
@@ -170,31 +171,33 @@ class probeAdapter(AbstractResourceAdapter):
                                         	break
                                 	i += 1
                         	name = n
+				oid = name
                 else:
                        if name in self.__instances:
                                 raise DuplicateNameError(parent_id, typename, name)
 
                 self.__instances.add(n)
 
-		cmd = "sudo /usr/bin/impd4e -i i:"+interface+" -C "+collectorIP+" -P "+collectorPort+" -o "+probe+" -l "+location+" -r "+samplingRatio
-
+		# Writing the command
+		cmd = "sudo /usr/bin/impd4e -i i:"+interface+" -C "+collectorIP+" -P "+collectorPort+" -o "+oid+" -l "+location+" -r "+samplingRatio
 		if (packetFilter != ""):
 			cmd = cmd + " -f "+packetFilter
 
 		if (public_ip == "empty"):
-			self.run_local(cmd,probe)
+			# Run the probe on the local machine
+			self.run_local(cmd,oid)
 		else:
-			#self.run_remote(cmd,probe,hostname,public_ip,password,install)
-			self.run_remote(cmd,probe,"prism",public_ip,password,install)
+			# Run the probe on another machine
+			self.run_remote(cmd,oid,username,public_ip,password,install)
 			
                 return name
 
-	def execute_command(self,channel,cmd,password):
+	def execute_command(self,channel,cmd,password,username):
 
     		channel.send(cmd)
 
     		resp = ""
-    		while resp.find("$") == -1:
+    		while (resp.find(username+"@") == -1):
         		resp = channel.recv(1000000)
         		logger.debug(resp)
 
@@ -202,33 +205,36 @@ class probeAdapter(AbstractResourceAdapter):
             			logger.debug("--- password needed! ---")
             			channel.send(password+"\n")
 
-	def wait_for_new_execute(self,channel):
+	def wait_for_new_execute(self,channel,password,username):
 
     		resp = ""
-    		while resp.find("$") == -1:
+    		while (resp.find(username+"@") == -1):
         		resp = channel.recv(1000000)
         		logger.debug(resp)
 
-	def command_available(self,channel,cmd):
+			if resp.find("password") != -1:
+                                logger.debug("--- password needed! ---")
+                                channel.send(password+"\n")
+
+	def command_available(self,channel,cmd,username):
 
     		channel.send(cmd)
     		available = True
     
     		resp = ""
-    		while resp.find("$") == -1:
+    		while (resp.find(username+"@") == -1):
         		resp = channel.recv(1000000)
         		logger.debug(resp)
 
-        		if resp.find("command not found") != -1:
+        		if (resp.find("command not found") != -1 or resp.find("not installed") != -1):
             			available = False
 
     		return available
 
-	def run_remote(self,cmd,probe,hostname,public_ip,password,install):
+	def run_remote(self,cmd,oid,username,public_ip,password,install):
 		logger.debug("--- starting impd4e on machine "+public_ip+" ...")
 
 		global cmd_mkdir
-		global cmd_install_gcc
 		global cmd_install_screen
 		global cmd_install_git_core
 		global cmd_install_libpcap
@@ -241,46 +247,82 @@ class probeAdapter(AbstractResourceAdapter):
                 global cmd_add_repo
                 global cmd_update
                 global cmd_install_impd4e
-		cmd_execute = "screen -m -d -S probe"+probe+" "+cmd
+		cmd_execute = "screen -m -d -S probe"+oid+" "+cmd
 		logger.debug(cmd_execute)
 
 		# Initialize Client and Channel.
 		client = paramiko.SSHClient()
 		client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-		client.connect(public_ip,username=hostname,password=password)
+		client.connect(public_ip,username=username,password=password)
 
 		# Logging in.
 		channel = client.invoke_shell()
-		self.wait_for_new_execute(channel)
+		self.wait_for_new_execute(channel,password,username)
 
 		if (install == True):
 			# Create temporary folder
-			self.execute_command(channel,cmd_mkdir+'\n',password)
-			# Install gcc
-			self.execute_command(channel,cmd_install_gcc+'\n',password)
+			self.execute_command(channel,cmd_mkdir+'\n',password,username)
+			
+			# Check out the distribution
+			sftp = client.open_sftp()
+                        files = sftp.listdir("/etc/")
+                        found_fedora = False
+			found_debian = False
+                        for file in files:
+                                if (file.find("fedora") != -1):
+                                        found_fedora = True
+                                        break
+				if (file.find("debian") != -1):
+					found_debian = True
+					break
+			
+			if (found_fedora == True):
+				cmd_install_screen = "sudo yum "+cmd_install_screen
+                                cmd_install_git_core = "sudo yum "+cmd_install_git_core
+				cmd_install_libpcap = "sudo yum "+cmd_install_libpcap
+
+			elif (found_debian == True):
+				cmd_install_screen = "sudo apt-get "+cmd_install_screen
+                                cmd_install_git_core = "sudo apt-get "+cmd_install_git_core
+                                cmd_install_libpcap = "sudo apt-get "+cmd_install_libpcap
+
+			else:
+				# Check out which package managers are available
+				apt_available = command_available(channel,"apt\n")
+				yum_available = command_available(channel,"yum\n")
+				if (apt_available == True):
+					cmd_install_screen = "sudo apt-get "+cmd_install_screen
+                                	cmd_install_git_core = "sudo apt-get "+cmd_install_git_core
+                                	cmd_install_libpcap = "sudo apt-get "+cmd_install_libpcap
+
+				elif (yum_available == True):
+					cmd_install_screen = "sudo yum "+cmd_install_screen
+                                	cmd_install_git_core = "sudo yum "+cmd_install_git_core
+                                	cmd_install_libpcap = "sudo yum "+cmd_install_libpcap
+
+				else:	
+					raise Exception("No apt or yum found, so the probe can't be installed automatically. Try to install impd4e manually.")
+
 			# Install screen
-			self.execute_command(channel,cmd_install_screen+'\n',password)
+			self.execute_command(channel,cmd_install_screen+'\n',password,username)
 			# Install git-core
-			self.execute_command(channel,cmd_install_git_core+'\n',password)
+			self.execute_command(channel,cmd_install_git_core+'\n',password,username)
 			# Install libpcap
-			self.execute_command(channel,cmd_install_libpcap+'\n',password)
+			self.execute_command(channel,cmd_install_libpcap+'\n',password,username)
+
 			# Install libev
-			self.execute_command(channel,cmd_download_libev+'\n',password)
-			self.execute_command(channel,cmd_extract_libev+'\n',password)
-			self.execute_command(channel,cmd_install_libev+'\n',password)
+			self.execute_command(channel,cmd_download_libev+'\n',password,username)
+			self.execute_command(channel,cmd_extract_libev+'\n',password,username)
+			self.execute_command(channel,cmd_install_libev+'\n',password,username)
 			# Install libipfix
-			self.execute_command(channel,cmd_download_libipfix+'\n',password)
-			self.execute_command(channel,cmd_install_libipfix+'\n',password)
+			self.execute_command(channel,cmd_download_libipfix+'\n',password,username)
+			self.execute_command(channel,cmd_install_libipfix+'\n',password,username)
 			# Get newest version of impd4e
-			self.execute_command(channel,cmd_install_software_properties+'\n',password)
-			self.execute_command(channel,cmd_add_repo+'\n',password)
-			self.execute_command(channel,cmd_update+'\n',password)
-			self.execute_command(channel,cmd_install_impd4e+'\n',password)
-			# Delete temporary folder
-			self.execute_command(channel,cmd_rm_dir+'\n',password)
+			self.execute_command(channel,cmd_download_impd4e+'\n',password,username)
+			self.execute_command(channel,cmd_install_impd4e+'\n',password,username)
 
 		# start impd4e
-		self.execute_command(channel,cmd_execute+'\n',password)
+		self.execute_command(channel,cmd_execute+'\n',password,username)
 		
 		# Close channel and client
 		channel.close()
@@ -288,22 +330,11 @@ class probeAdapter(AbstractResourceAdapter):
 
 		logger.debug("--- impd4e started on machine "+public_ip+" ---")
 
-	def run_local(self,cmd,probe):
+	def run_local(self,cmd,oid):
 		logger.debug("--- starting impd4e on this machine ... --- ")
 
-		global cmd_install_software_properties
-		global cmd_add_repo
-		global cmd_update
-		global cmd_install_impd4e
+		cmd_execute = "screen -m -S probe"+oid+" "+cmd
 
-		cmd_execute = "screen -m -S probe"+probe+" "+cmd
-		
-		logger.debug(cmd_execute)
-
-		os.system(cmd_install_software_properties)
-		os.system(cmd_add_repo)
-		os.system(cmd_update)
-		os.system(cmd_install_impd4e)
 		os.system(cmd_execute)
 
 		logger.debug("--- impd4e started on this machine! ---")

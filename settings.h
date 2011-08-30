@@ -79,6 +79,7 @@ typedef struct options
 	double export_location_interval;
 	int hashAsPacketID;
 	int use_oid_first_interface;
+	uint8_t offset;
 } options_t;
 
 

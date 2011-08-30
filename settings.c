@@ -349,30 +349,53 @@ void print_help() {
                 "\t\t\t\t  filtering policy (valid for all filters).\n"
                 "\t\t\t\t  It can be used multiple times.\n"
             #endif // PFRING
-			"   -N  <snaplength>               setup max capturing size in bytes\n"
-			"                                  Default: 80 \n"
-			"\n"
-            #ifndef PFRING
+			"   -C  <Collector IP>             an IPFIX collector address\n"
+			"                                  Default: localhost\n"
+			"   -d <probe name>                a probe name\n"
+			"                                  Default: <hostname>\n"
+			"   -D <location name>             a location name\n"
+			"   -e  <export packet count>      size of export buffer after which packets\n"
+						"                                  are flushed (per device)\n"
+			#ifndef PFRING
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. tcp udp icmp)\n"
 			"\n"
-            #endif
-			"   -I  <interval>                 pktid export interval in seconds. (e.g. 1.5)\n"
-			"                                  Use -I 0 for disabling this export.\n"
-			"                                  Default: 3.0 \n"
-			"   -J  <interval>                 probe stats export interval in seconds. \n"
-			"                                  Measurement is done at each elapsed interval. \n"
-			"                                  Use -J 0 for disabling this export.\n"
-			"                                  Default: 30.0 \n"
+           #endif
+			"   -F  <hash_function>            hash function to use:\n"
+			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
 			"\n"
-			"   -K  <interval>                 interface stats export interval in seconds. \n"
-			"                                  Use -K 0 for disabling this export.\n"
-			"                                  Default: 10.0 \n"
 			"   -G  <interval>                 location export interval in seconds. \n"
 			"                                  Use -G 0 for exporting once at startup.\n"
 			"                                  Default: 60.0 \n"
 			"\n"
+			"   -I  <interval>                 pktid export interval in sec. (Default: 3.0)\n"
+			"                                  Use -I 0 for disabling this export.\n"
+			"\n"
+			"   -J  <interval>                 probe stats export interval in sec (Default: 30.0).\n"
+			"                                  Use -J 0 for disabling this export.\n"
+			"\n"
+			"   -K  <interval>                 interface stats export interval in sec (Default: 10.0). \n"
+			"                                  Use -K 0 for disabling this export.\n"
+			"\n"
+			"   -l <latitude>                  geo location (double): latitude\n"
+			"   -l <lat>:<long>:<interval>     short form\n"
+			"   -L <longitude>                 geo location (double): longitude\n"
+			"   -L <long>:<lat>:<interval>     short form\n"
+			"\n"
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
 			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
+			"\n"
+			"   -N  <snaplength>               max capturing size in bytes (Default: 80) \n"
+			"\n"
+			"   -o  <observation domain id>    unique identifier for probe \n"
+			"                                  Default: IP address of the interface\n"
+			"\n"
+			"   -O <offset>                    offset in bytes pointing to the start of the packet \n"
+			"                                  used for tunneled or crooked packets\n"
+			"   -p  <hash function>            use different hash_function for packetID generation:\n"
+			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
+			"\n"
+			"   -P  <Collector Port>           an IPFIX Collector Port\n"
+			"                                  Default: 4739\n"
 			"   -r  <sampling ratio>           in %% (double)\n"
 			"\n"
 			"   -s  <selection function>       which parts of the packet used for hashing (presets)\n"
@@ -392,31 +415,9 @@ void print_help() {
 			"                                    < and > have to be escaped \n"
 			"                                  Example: RAW20,34-45,14+4,4\n"
 			"\n"
-			"   -F  <hash_function>            hash function to use:\n"
-			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
-			"   -p  <hash function>            use different hash_function for packetID generation:\n"
-			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
-			"\n"
-			"   -o  <observation domain id>    unique identifier for probe \n"
-			"                                  Default: IP address of the interface\n"
-			"\n"
-			"   -C  <Collector IP>             an IPFIX collector address\n"
-			"                                  Default: localhost\n"
-			"   -P  <Collector Port>           an IPFIX Collector Port\n"
-			"                                  Default: 4739\n"
-			"   -e  <export packet count>      size of export buffer after which packets\n"
-			"                                  are flushed (per device)\n"
 			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\"\n"
 			"                                  Default: \"min\"\n"
 			"   -u                             use only one oid from the first interface \n"
-			"\n"
-			"   -d <probe name>                a probe name\n"
-			"                                  Default: <hostname>\n"
-			"   -D <location name>             a location name\n"
-			"   -l <latitude>                  geo location (double): latitude\n"
-			"   -l <lat>:<long>:<interval>     short form\n"
-			"   -L <longitude>                 geo location (double): longitude\n"
-			"   -L <long>:<lat>:<interval>     short form\n"
 			"\n"
 			"   -v[expression]                 verbose-level; use multiple times to increase output \n"
 			"                                  filter by function names in comma-separated list at a certain \n"
@@ -589,6 +590,11 @@ int opt_o( char* arg, options_t* options ) {
    return 0;
 }
 
+int opt_O( char* arg, options_t* options ) {
+   options->offset = atoi(arg);
+   return 0;
+}
+
 int opt_t( char* arg, options_t* options ) {
    parseTemplate(arg, options);
    return 0;
@@ -739,6 +745,7 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'F', &opt_F, "selection.hash_function"        },
 	{ 'p', &opt_p, "selection.pktid_function"       },
 	{ 'o', &opt_o, "ipfix.observation_domain_id"    },
+	{ 'O', &opt_O, "selection.offset" },
 	{ 'u', &opt_u, "ipfix.one_odid"                 },
 	{ 'C', &opt_C, "ipfix.collector_ip_address"     },
 	{ 'P', &opt_P, "ipfix.collector_port"           },

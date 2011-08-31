@@ -65,25 +65,25 @@
 
 uint32_t getIPv4AddressFromDevice(char* dev_name) {
 
-	int fd;
-	struct ifreq ifr;
+   int fd;
+   struct ifreq ifr;
 
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd == -1) {
-		perror("cannot create socket: ");
-		exit(1);
-	}
+   fd = socket(AF_INET, SOCK_DGRAM, 0);
+   if (fd == -1) {
+      perror("cannot create socket: ");
+      exit(1);
+   }
 
-	/* I want to get an IPv4 IP address */
-	ifr.ifr_addr.sa_family = AF_INET;
+   /* I want to get an IPv4 IP address */
+   ifr.ifr_addr.sa_family = AF_INET;
 
-	/* I want IP address attached to device */
-	strncpy(ifr.ifr_name, dev_name, IFNAMSIZ - 1);
-	ioctl(fd, SIOCGIFADDR, &ifr);
-	close(fd);
+   /* I want IP address attached to device */
+   strncpy(ifr.ifr_name, dev_name, IFNAMSIZ - 1);
+   ioctl(fd, SIOCGIFADDR, &ifr);
+   close(fd);
 
-	// return IP address in network byte order
-	return ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr;
+   // return IP address in network byte order
+   return ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr;
 }
 
 
@@ -92,65 +92,65 @@ uint32_t getIPv4AddressFromDevice(char* dev_name) {
  * TODO: use inet_htoa; inet_ntoa instead
  */
 char *htoa(uint32_t ipaddr) {
-	static char addrstr[16];
-	ipaddr = htonl(ipaddr);
-	uint8_t *p = (uint8_t*) &ipaddr;
-	sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
-	return addrstr;
+   static char addrstr[16];
+   ipaddr = htonl(ipaddr);
+   uint8_t *p = (uint8_t*) &ipaddr;
+   sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+   return addrstr;
 }
 
 char *ntoa(uint32_t ipaddr) {
-	static char addrstr[16];
-	uint8_t *p = (uint8_t*) &ipaddr;
-	sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
-	return addrstr;
+   static char addrstr[16];
+   uint8_t *p = (uint8_t*) &ipaddr;
+   sprintf(addrstr, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+   return addrstr;
 }
 
 #ifndef PFRING
 void setNONBlocking( device_dev_t* pDevice )
 {
-	switch (pDevice->device_type) {
-	case TYPE_PCAP_FILE:
-	case TYPE_PCAP:
-		if (pcap_setnonblock(pDevice->device_handle.pcap, 1, errbuf) < 0) {
-			LOGGER_fatal( "pcap_setnonblock: %s: %s"
-						, pDevice->device_name, errbuf);
-			LOGGER_error( "pcap_setnonblock: %s: %s"
-					, pDevice->device_name, errbuf );
+   switch (pDevice->device_type) {
+   case TYPE_PCAP_FILE:
+   case TYPE_PCAP:
+      if (pcap_setnonblock(pDevice->device_handle.pcap, 1, errbuf) < 0) {
+         LOGGER_fatal( "pcap_setnonblock: %s: %s"
+                  , pDevice->device_name, errbuf);
+         LOGGER_error( "pcap_setnonblock: %s: %s"
+               , pDevice->device_name, errbuf );
 
-		}
-		break;
+      }
+      break;
 
-	case TYPE_SOCKET_INET:
-	case TYPE_SOCKET_UNIX: {
-		int flags = 0;
-		if ((flags = fcntl(pDevice->device_handle.socket, F_GETFL, 0)) < 0) {
-			// todo: handle error
-			LOGGER_fatal( "fcntl (F_GETFL) fails");
-		}
+   case TYPE_SOCKET_INET:
+   case TYPE_SOCKET_UNIX: {
+      int flags = 0;
+      if ((flags = fcntl(pDevice->device_handle.socket, F_GETFL, 0)) < 0) {
+         // todo: handle error
+         LOGGER_fatal( "fcntl (F_GETFL) fails");
+      }
 
-		if (fcntl(pDevice->device_handle.socket, F_SETFL, flags | O_NONBLOCK) < 0) {
-			// todo: handle error
-			LOGGER_fatal( "fcntl (F_SETFL - _NONBLOCK) fails");
-		}
+      if (fcntl(pDevice->device_handle.socket, F_SETFL, flags | O_NONBLOCK) < 0) {
+         // todo: handle error
+         LOGGER_fatal( "fcntl (F_SETFL - _NONBLOCK) fails");
+      }
 
-		break;
-	}
+      break;
+   }
 
-	default:
-		break;
-	}
+   default:
+      break;
+   }
 }
 #endif
 
 int get_file_desc( device_dev_t* pDevice ) {
-	switch (pDevice->device_type) {
-	case TYPE_testtype:
+   switch (pDevice->device_type) {
+   case TYPE_testtype:
     #ifndef PFRING
-	case TYPE_PCAP_FILE:
-	case TYPE_PCAP:
-		return pcap_fileno(pDevice->device_handle.pcap);
-		break;
+   case TYPE_PCAP_FILE:
+   case TYPE_PCAP:
+      return pcap_fileno(pDevice->device_handle.pcap);
+      break;
     #endif
 
     #ifdef PFRING
@@ -159,15 +159,15 @@ int get_file_desc( device_dev_t* pDevice ) {
         break;
     #endif
 
-	case TYPE_SOCKET_INET:
-	case TYPE_SOCKET_UNIX:
-		return pDevice->device_handle.socket;
-		break;
+   case TYPE_SOCKET_INET:
+   case TYPE_SOCKET_UNIX:
+      return pDevice->device_handle.socket;
+      break;
 
-	default:
-		return 0;
-		break;
-	}
+   default:
+      return 0;
+      break;
+   }
 
 }
 
@@ -179,29 +179,29 @@ int get_file_desc( device_dev_t* pDevice ) {
 static char hex[] = "0123456789ABCDEF";
 
 char* etheraddr_string(const u_char *ep, char *buf) {
-	u_int i, j;
-	char *cp;
+   u_int i, j;
+   char *cp;
 
-	cp = buf;
-	if ((j = *ep >> 4) != 0)
-		*cp++ = hex[j];
-	else
-		*cp++ = '0';
+   cp = buf;
+   if ((j = *ep >> 4) != 0)
+      *cp++ = hex[j];
+   else
+      *cp++ = '0';
 
-	*cp++ = hex[*ep++ & 0xf];
+   *cp++ = hex[*ep++ & 0xf];
 
-	for(i = 5; (int)--i >= 0;) {
-		*cp++ = ':';
-		if ((j = *ep >> 4) != 0)
-			*cp++ = hex[j];
-		else
-			*cp++ = '0';
+   for(i = 5; (int)--i >= 0;) {
+      *cp++ = ':';
+      if ((j = *ep >> 4) != 0)
+         *cp++ = hex[j];
+      else
+         *cp++ = '0';
 
-		*cp++ = hex[*ep++ & 0xf];
-	}
+      *cp++ = hex[*ep++ & 0xf];
+   }
 
-	*cp = '\0';
-	return (buf);
+   *cp = '\0';
+   return (buf);
 }
 
 /* ****************************************************** */
@@ -210,99 +210,99 @@ char* etheraddr_string(const u_char *ep, char *buf) {
  * A faster replacement for inet_ntoa().
  */
 char* _intoa(unsigned int addr, char* buf, u_short bufLen) {
-	char *cp, *retStr;
-	u_int byte;
-	int n;
+   char *cp, *retStr;
+   u_int byte;
+   int n;
 
-	cp = &buf[bufLen];
-	*--cp = '\0';
+   cp = &buf[bufLen];
+   *--cp = '\0';
 
-	n = 4;
-	do {
-		byte = addr & 0xff;
-		*--cp = byte % 10 + '0';
-		byte /= 10;
-		if (byte > 0) {
-			*--cp = byte % 10 + '0';
-			byte /= 10;
-			if (byte > 0)
-				*--cp = byte + '0';
-		}
-		*--cp = '.';
-		addr >>= 8;
-	} while (--n > 0);
+   n = 4;
+   do {
+      byte = addr & 0xff;
+      *--cp = byte % 10 + '0';
+      byte /= 10;
+      if (byte > 0) {
+         *--cp = byte % 10 + '0';
+         byte /= 10;
+         if (byte > 0)
+            *--cp = byte + '0';
+      }
+      *--cp = '.';
+      addr >>= 8;
+   } while (--n > 0);
 
-	/* Convert the string to lowercase */
-	retStr = (char*)(cp+1);
+   /* Convert the string to lowercase */
+   retStr = (char*)(cp+1);
 
-	return(retStr);
+   return(retStr);
 }
 
 /* ************************************ */
 
 char* intoa(unsigned int addr) {
-	static char buf[sizeof "ff:ff:ff:ff:ff:ff:255.255.255.255"];
+   static char buf[sizeof "ff:ff:ff:ff:ff:ff:255.255.255.255"];
 
-	return(_intoa(addr, buf, sizeof(buf)));
+   return(_intoa(addr, buf, sizeof(buf)));
 }
 
 /* ************************************ */
 
 inline char* in6toa(struct in6_addr addr6) {
-	static char buf[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
+   static char buf[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
 
-	snprintf(buf, sizeof(buf),
-			"%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-			addr6.s6_addr[0], addr6.s6_addr[1], addr6.s6_addr[2],
-			addr6.s6_addr[3], addr6.s6_addr[4], addr6.s6_addr[5], addr6.s6_addr[6],
-			addr6.s6_addr[7], addr6.s6_addr[8], addr6.s6_addr[9], addr6.s6_addr[10],
-			addr6.s6_addr[11], addr6.s6_addr[12], addr6.s6_addr[13], addr6.s6_addr[14],
-			addr6.s6_addr[15]);
+   snprintf(buf, sizeof(buf),
+         "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+         addr6.s6_addr[0], addr6.s6_addr[1], addr6.s6_addr[2],
+         addr6.s6_addr[3], addr6.s6_addr[4], addr6.s6_addr[5], addr6.s6_addr[6],
+         addr6.s6_addr[7], addr6.s6_addr[8], addr6.s6_addr[9], addr6.s6_addr[10],
+         addr6.s6_addr[11], addr6.s6_addr[12], addr6.s6_addr[13], addr6.s6_addr[14],
+         addr6.s6_addr[15]);
 
-	return(buf);
+   return(buf);
 }
 
 /* ****************************************************** */
 
 char* proto2str(u_short proto) {
-	static char protoName[8];
+   static char protoName[8];
 
-	switch(proto) {
-		case IPPROTO_TCP:  return("TCP");
-		case IPPROTO_UDP:  return("UDP");
-		case IPPROTO_ICMP: return("ICMP");
-		default:
-			snprintf(protoName, sizeof(protoName), "%d", proto);
-			return(protoName);
-	}
+   switch(proto) {
+      case IPPROTO_TCP:  return("TCP");
+      case IPPROTO_UDP:  return("UDP");
+      case IPPROTO_ICMP: return("ICMP");
+      default:
+         snprintf(protoName, sizeof(protoName), "%d", proto);
+         return(protoName);
+   }
 }
 
 /* ****************************************************** */
 
 int32_t gmt2local(time_t t) {
-	int dt, dir;
-	struct tm *gmt, *loc;
-	struct tm sgmt;
+   int dt, dir;
+   struct tm *gmt, *loc;
+   struct tm sgmt;
 
-	if (t == 0)
-		t = time(NULL);
-	gmt = &sgmt;
-	*gmt = *gmtime(&t);
-	loc = localtime(&t);
-	dt = (loc->tm_hour - gmt->tm_hour) * 60 * 60 +
-			(loc->tm_min - gmt->tm_min) * 60;
+   if (t == 0)
+      t = time(NULL);
+   gmt = &sgmt;
+   *gmt = *gmtime(&t);
+   loc = localtime(&t);
+   dt = (loc->tm_hour - gmt->tm_hour) * 60 * 60 +
+         (loc->tm_min - gmt->tm_min) * 60;
 
-	/*
-	 * If the year or julian day is different, we span 00:00 GMT
-	 * and must add or subtract a day. Check the year first to
-	 * avoid problems when the julian day wraps.
-	 */
-	dir = loc->tm_year - gmt->tm_year;
-	if (dir == 0)
-		dir = loc->tm_yday - gmt->tm_yday;
-	dt += dir * 24 * 60 * 60;
+   /*
+    * If the year or julian day is different, we span 00:00 GMT
+    * and must add or subtract a day. Check the year first to
+    * avoid problems when the julian day wraps.
+    */
+   dir = loc->tm_year - gmt->tm_year;
+   if (dir == 0)
+      dir = loc->tm_yday - gmt->tm_yday;
+   dt += dir * 24 * 60 * 60;
 
-	return (dt);
+   return (dt);
 }
 
 #endif // verbose
@@ -367,10 +367,10 @@ void print_stats( device_dev_t* dev ) {
     thpt = ((double)8*nBytes)/(deltaMillisec*1000);
 
     fprintf(stderr, "=========================\n"
-		"Interface: %s\n"
+      "Interface: %s\n"
         "Absolute Stats: [%u pkts rcvd][%u pkts dropped]\n"
         "Total Pkts=%u/Dropped=%.1f %%\n",
-		dev->device_name,
+      dev->device_name,
         (unsigned int)pfringStat.recv, (unsigned int)pfringStat.drop,
         (unsigned int)(pfringStat.recv+pfringStat.drop),
         pfringStat.recv == 0 ? 0 :
@@ -408,143 +408,143 @@ void print_stats( device_dev_t* dev ) {
 /* *************************************** */
 
 int pfring_dispatch(pfring* pd, int max_packets,
-					void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*),
-					u_char* user_args)
+               void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*),
+               u_char* user_args)
 {
-	int32_t  recv_ret = 0;
-	uint8_t  buffer[BUFFER_SIZE];
-	#ifdef verbose
-	uint8_t* bufferPtr = buffer;
-	#endif
+   int32_t  recv_ret = 0;
+   uint8_t  buffer[BUFFER_SIZE];
+   #ifdef verbose
+   uint8_t* bufferPtr = buffer;
+   #endif
 
-	struct pfring_pkthdr hdr;
+   struct pfring_pkthdr hdr;
 
-		// ensure buffer will fit
-		uint32_t caplen = BUFFER_SIZE;
-		if( BUFFER_SIZE > g_options.snapLength )
-		{
-			caplen = g_options.snapLength;
-		}
-		else
-		{
-			LOGGER_warn( "socket_dispatch: snaplan exceed Buffer size (%d); "
-							"use Buffersize instead.\n", BUFFER_SIZE );
-		}
-		switch(recv_ret =  pfring_recv(pd, (char*)buffer, sizeof(buffer), &hdr
+      // ensure buffer will fit
+      uint32_t caplen = BUFFER_SIZE;
+      if( BUFFER_SIZE > g_options.snapLength )
+      {
+         caplen = g_options.snapLength;
+      }
+      else
+      {
+         LOGGER_warn( "socket_dispatch: snaplan exceed Buffer size (%d); "
+                     "use Buffersize instead.\n", BUFFER_SIZE );
+      }
+      switch(recv_ret =  pfring_recv(pd, (char*)buffer, sizeof(buffer), &hdr
                       , 0)) {
-			case 0:
-					// no packet available
-				break;
-			case -1:
-				perror("pf_ring: recv()");
-					return -1;
-				break;
-			default:
-				packet_handler(user_args, &hdr, buffer);
-				#ifdef verbose
-					struct ether_header ehdr;
-					u_short eth_type, vlan_id;
-					char buf1[32], buf2[32];
-					struct ip ip;
-					int s = (hdr.ts.tv_sec + gmt2local(0)) % 86400;
+         case 0:
+               // no packet available
+            break;
+         case -1:
+            perror("pf_ring: recv()");
+               return -1;
+            break;
+         default:
+            packet_handler(user_args, &hdr, buffer);
+            #ifdef verbose
+               struct ether_header ehdr;
+               u_short eth_type, vlan_id;
+               char buf1[32], buf2[32];
+               struct ip ip;
+               int s = (hdr.ts.tv_sec + gmt2local(0)) % 86400;
 
-					printf("%02d:%02d:%02d.%06u ",
-					s / 3600, (s % 3600) / 60, s % 60,
-					(unsigned)hdr.ts.tv_usec);
+               printf("%02d:%02d:%02d.%06u ",
+               s / 3600, (s % 3600) / 60, s % 60,
+               (unsigned)hdr.ts.tv_usec);
 
-					if(hdr.extended_hdr.parsed_header_len > 0) {
-						printf("[eth_type=0x%04X]", hdr.extended_hdr.parsed_pkt.eth_type);
-						printf("[l3_proto=%u]", (unsigned int)hdr.extended_hdr.parsed_pkt.l3_proto);
+               if(hdr.extended_hdr.parsed_header_len > 0) {
+                  printf("[eth_type=0x%04X]", hdr.extended_hdr.parsed_pkt.eth_type);
+                  printf("[l3_proto=%u]", (unsigned int)hdr.extended_hdr.parsed_pkt.l3_proto);
 
-						printf("[%s:%d -> ", (hdr.extended_hdr.parsed_pkt.eth_type == 0x86DD) ?
-								in6toa(hdr.extended_hdr.parsed_pkt.ipv6_src) : intoa(hdr.extended_hdr.parsed_pkt.ipv4_src),
-								hdr.extended_hdr.parsed_pkt.l4_src_port);
-						printf("%s:%d] ", (hdr.extended_hdr.parsed_pkt.eth_type == 0x86DD) ?
-								in6toa(hdr.extended_hdr.parsed_pkt.ipv6_dst) : intoa(hdr.extended_hdr.parsed_pkt.ipv4_dst),
-								hdr.extended_hdr.parsed_pkt.l4_dst_port);
+                  printf("[%s:%d -> ", (hdr.extended_hdr.parsed_pkt.eth_type == 0x86DD) ?
+                        in6toa(hdr.extended_hdr.parsed_pkt.ipv6_src) : intoa(hdr.extended_hdr.parsed_pkt.ipv4_src),
+                        hdr.extended_hdr.parsed_pkt.l4_src_port);
+                  printf("%s:%d] ", (hdr.extended_hdr.parsed_pkt.eth_type == 0x86DD) ?
+                        in6toa(hdr.extended_hdr.parsed_pkt.ipv6_dst) : intoa(hdr.extended_hdr.parsed_pkt.ipv4_dst),
+                        hdr.extended_hdr.parsed_pkt.l4_dst_port);
 
-						printf("[%s -> %s] ",
-								etheraddr_string(hdr.extended_hdr.parsed_pkt.smac, buf1),
-								etheraddr_string(hdr.extended_hdr.parsed_pkt.dmac, buf2));
-					}
+                  printf("[%s -> %s] ",
+                        etheraddr_string(hdr.extended_hdr.parsed_pkt.smac, buf1),
+                        etheraddr_string(hdr.extended_hdr.parsed_pkt.dmac, buf2));
+               }
 
-					memcpy(&ehdr, bufferPtr+hdr.extended_hdr.parsed_header_len, sizeof(struct ether_header));
-					eth_type = ntohs(ehdr.ether_type);
+               memcpy(&ehdr, bufferPtr+hdr.extended_hdr.parsed_header_len, sizeof(struct ether_header));
+               eth_type = ntohs(ehdr.ether_type);
 
-					printf("[%s -> %s][eth_type=0x%04X] ",
-							etheraddr_string(ehdr.ether_shost, buf1),
-							etheraddr_string(ehdr.ether_dhost, buf2), eth_type);
+               printf("[%s -> %s][eth_type=0x%04X] ",
+                     etheraddr_string(ehdr.ether_shost, buf1),
+                     etheraddr_string(ehdr.ether_dhost, buf2), eth_type);
 
-					if(eth_type == 0x8100) {
-						vlan_id = (bufferPtr[14] & 15)*256 + bufferPtr[15];
-						eth_type = (bufferPtr[16])*256 + bufferPtr[17];
-						printf("[vlan %u] ", vlan_id);
-						bufferPtr+=4;
-					}
+               if(eth_type == 0x8100) {
+                  vlan_id = (bufferPtr[14] & 15)*256 + bufferPtr[15];
+                  eth_type = (bufferPtr[16])*256 + bufferPtr[17];
+                  printf("[vlan %u] ", vlan_id);
+                  bufferPtr+=4;
+               }
 
-					if(eth_type == 0x0800) {
-						memcpy(&ip, bufferPtr+hdr.extended_hdr.parsed_header_len+sizeof(ehdr), sizeof(struct ip));
-						printf("[%s:%d ", intoa(ntohl(ip.ip_src.s_addr)), hdr.extended_hdr.parsed_pkt.l4_src_port);
-						printf("-> %s:%d] ", intoa(ntohl(ip.ip_dst.s_addr)), hdr.extended_hdr.parsed_pkt.l4_dst_port);
+               if(eth_type == 0x0800) {
+                  memcpy(&ip, bufferPtr+hdr.extended_hdr.parsed_header_len+sizeof(ehdr), sizeof(struct ip));
+                  printf("[%s:%d ", intoa(ntohl(ip.ip_src.s_addr)), hdr.extended_hdr.parsed_pkt.l4_src_port);
+                  printf("-> %s:%d] ", intoa(ntohl(ip.ip_dst.s_addr)), hdr.extended_hdr.parsed_pkt.l4_dst_port);
 
-						printf("[tos=%d][tcp_seq_num=%u][caplen=%d][len=%d][parsed_header_len=%d]"
-								"[eth_offset=%d][l3_offset=%d][l4_offset=%d][payload_offset=%d]\n",
-								hdr.extended_hdr.parsed_pkt.ipv4_tos, hdr.extended_hdr.parsed_pkt.tcp.seq_num,
-								hdr.caplen, hdr.len, hdr.extended_hdr.parsed_header_len,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.eth_offset,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
+                  printf("[tos=%d][tcp_seq_num=%u][caplen=%d][len=%d][parsed_header_len=%d]"
+                        "[eth_offset=%d][l3_offset=%d][l4_offset=%d][payload_offset=%d]\n",
+                        hdr.extended_hdr.parsed_pkt.ipv4_tos, hdr.extended_hdr.parsed_pkt.tcp.seq_num,
+                        hdr.caplen, hdr.len, hdr.extended_hdr.parsed_header_len,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.eth_offset,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
 
-					} else {
-						if(eth_type == 0x0806)
-							printf("[ARP]");
-						else
-							printf("[eth_type=0x%04X]", eth_type);
+               } else {
+                  if(eth_type == 0x0806)
+                     printf("[ARP]");
+                  else
+                     printf("[eth_type=0x%04X]", eth_type);
 
-						printf("[caplen=%d][len=%d][parsed_header_len=%d]"
-								"[eth_offset=%d][l3_offset=%d][l4_offset=%d][payload_offset=%d]\n",
-								hdr.caplen, hdr.len, hdr.extended_hdr.parsed_header_len,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.eth_offset,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
-								hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
-					}
-				#endif // verbose
-				break;
+                  printf("[caplen=%d][len=%d][parsed_header_len=%d]"
+                        "[eth_offset=%d][l3_offset=%d][l4_offset=%d][payload_offset=%d]\n",
+                        hdr.caplen, hdr.len, hdr.extended_hdr.parsed_header_len,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.eth_offset,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l3_offset,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.l4_offset,
+                        hdr.extended_hdr.parsed_pkt.pkt_detail.offset.payload_offset);
+               }
+            #endif // verbose
+            break;
 
-		}
-	return 1;
+      }
+   return 1;
 }
 #endif // PFRING
 
 #ifndef PFRING
 void determineLinkType(device_dev_t* pcap_device) {
 
-	pcap_device->link_type = pcap_datalink(pcap_device->device_handle.pcap);
-	switch (pcap_device->link_type) {
-	case DLT_EN10MB:
-		pcap_device->offset[L_NET] = 14;
-		LOGGER_info("dltype: DLT_EN10M");
-		break;
-	case DLT_ATM_RFC1483:
-		pcap_device->offset[L_NET] = 8;
-		LOGGER_info("dltype: DLT_ATM_RFC1483");
-		break;
-	case DLT_LINUX_SLL:
-		pcap_device->offset[L_NET] = 16;
-		LOGGER_info("dltype: DLT_LINUX_SLL");
-		break;
-	case DLT_RAW:
-		pcap_device->offset[L_NET] = 0;
-		LOGGER_info("dltype: DLT_RAW");
-		break;
-	default:
-		LOGGER_fatal( "Link Type (%d) not supported - default to DLT_RAW",
-				pcap_device->link_type);
-		pcap_device->offset[L_NET] = 0;
-		break;
-	}
+   pcap_device->link_type = pcap_datalink(pcap_device->device_handle.pcap);
+   switch (pcap_device->link_type) {
+   case DLT_EN10MB:
+      pcap_device->offset[L_NET] = 14;
+      LOGGER_info("dltype: DLT_EN10M");
+      break;
+   case DLT_ATM_RFC1483:
+      pcap_device->offset[L_NET] = 8;
+      LOGGER_info("dltype: DLT_ATM_RFC1483");
+      break;
+   case DLT_LINUX_SLL:
+      pcap_device->offset[L_NET] = 16;
+      LOGGER_info("dltype: DLT_LINUX_SLL");
+      break;
+   case DLT_RAW:
+      pcap_device->offset[L_NET] = 0;
+      LOGGER_info("dltype: DLT_RAW");
+      break;
+   default:
+      LOGGER_fatal( "Link Type (%d) not supported - default to DLT_RAW",
+            pcap_device->link_type);
+      pcap_device->offset[L_NET] = 0;
+      break;
+   }
 }
 #endif
 
@@ -560,48 +560,48 @@ int  set_all_filter( const char* bpf ) {
 }
 
 int set_filter(device_dev_t* pd, const char* bpf) {
-	/* apply filter */
-	struct bpf_program fp;
+   /* apply filter */
+   struct bpf_program fp;
 
-	if (bpf) {
-		if (-1 == pcap_compile(pd->device_handle.pcap, &fp,
-				bpf, 0, 0)) {
-			LOGGER_fatal( "Couldn't parse filter %s: %s"
-				    , bpf
-				    , pcap_geterr(pd->device_handle.pcap));
-		    return -1;
-		}
-		if (-1 == pcap_setfilter(pd->device_handle.pcap, &fp)) {
-			LOGGER_fatal( "Couldn't install filter %s: %s"
-				    , bpf
-				    , pcap_geterr(pd->device_handle.pcap));
-		    return -1;
-		}
-	}
-	return 0;
+   if (bpf) {
+      if (-1 == pcap_compile(pd->device_handle.pcap, &fp,
+            bpf, 0, 0)) {
+         LOGGER_fatal( "Couldn't parse filter %s: %s"
+                , bpf
+                , pcap_geterr(pd->device_handle.pcap));
+          return -1;
+      }
+      if (-1 == pcap_setfilter(pd->device_handle.pcap, &fp)) {
+         LOGGER_fatal( "Couldn't install filter %s: %s"
+                , bpf
+                , pcap_geterr(pd->device_handle.pcap));
+          return -1;
+      }
+   }
+   return 0;
 }
 
 void setFilter(device_dev_t* pcap_device) {
-	/* apply filter */
-	struct bpf_program fp;
+   /* apply filter */
+   struct bpf_program fp;
 
-	if (g_options.bpf) {
-		if (-1 == pcap_compile(pcap_device->device_handle.pcap, &fp,
-				g_options.bpf, 0, 0)) {
-			LOGGER_fatal( "Couldn't parse filter %s: %s", g_options.bpf,
-					pcap_geterr(pcap_device->device_handle.pcap));
-		}
-		if (-1 == pcap_setfilter(pcap_device->device_handle.pcap, &fp)) {
-			LOGGER_fatal( "Couldn't install filter %s: %s", g_options.bpf,
-					pcap_geterr(pcap_device->device_handle.pcap));
-		}
-	}
+   if (g_options.bpf) {
+      if (-1 == pcap_compile(pcap_device->device_handle.pcap, &fp,
+            g_options.bpf, 0, 0)) {
+         LOGGER_fatal( "Couldn't parse filter %s: %s", g_options.bpf,
+               pcap_geterr(pcap_device->device_handle.pcap));
+      }
+      if (-1 == pcap_setfilter(pcap_device->device_handle.pcap, &fp)) {
+         LOGGER_fatal( "Couldn't install filter %s: %s", g_options.bpf,
+               pcap_geterr(pcap_device->device_handle.pcap));
+      }
+   }
 }
 #endif
 
 #ifdef PFRING
 int setPFRingFilter(device_dev_t* pfring_device) {
-	uint8_t i = 0;
+   uint8_t i = 0;
     // data like hash and selection func which will be passed to kernel filter
     struct impd_data *plugin_data;
 
@@ -636,7 +636,7 @@ int setPFRingFilter(device_dev_t* pfring_device) {
         g_options.filter_policy = 0;
     }
 
-	for ( i = 0; i < g_options.rules_in_list; i++ ) {
+   for ( i = 0; i < g_options.rules_in_list; i++ ) {
         // add pf_ring selection plugin
         g_options.rules[i].plugin_action.plugin_id = 23;
         g_options.rules[i].extended_fields.filter_plugin_id = 23;
@@ -648,38 +648,38 @@ int setPFRingFilter(device_dev_t* pfring_device) {
         plugin_data->pktid_function = BOB;
         plugin_data->selection_function = U_TCP_and_Net;
 
-		if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
-										 &g_options.rules[i]) < 0) {
-			LOGGER_fatal( "setPFRingFilter(%d) failed", i);
-			return -1;
-		}
-		LOGGER_fatal( "setPFRingFilter(%d) succeeded", i);
-	}
-	return 0;
+      if(pfring_add_filtering_rule(pfring_device->device_handle.pfring,
+                               &g_options.rules[i]) < 0) {
+         LOGGER_fatal( "setPFRingFilter(%d) failed", i);
+         return -1;
+      }
+      LOGGER_fatal( "setPFRingFilter(%d) succeeded", i);
+   }
+   return 0;
 }
 
 int8_t setPFRingFilterPolicy(device_dev_t* pfring_device) {
 
-	// check if user supplied filtering policy and if not, set it to ACCEPT
-	if( g_options.filter_policy == -1 )
-		g_options.filter_policy = 1;
+   // check if user supplied filtering policy and if not, set it to ACCEPT
+   if( g_options.filter_policy == -1 )
+      g_options.filter_policy = 1;
 
-	if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring,
-			g_options.filter_policy) < 0) {
-		LOGGER_fatal( "setPFRingFilterPolicy(%d) failed", g_options.filter_policy);
-		return -1;
-	}
-	LOGGER_fatal( "setPFRingFilterPolicy(%d) succeeded", g_options.filter_policy);
-	return 0;
+   if(pfring_toggle_filtering_policy(pfring_device->device_handle.pfring,
+         g_options.filter_policy) < 0) {
+      LOGGER_fatal( "setPFRingFilterPolicy(%d) failed", g_options.filter_policy);
+      return -1;
+   }
+   LOGGER_fatal( "setPFRingFilterPolicy(%d) succeeded", g_options.filter_policy);
+   return 0;
 }
 #endif //PFRING
 
 void print_byte_array_hex( uint8_t* p, int length ) {
-	int i = 0;
-	fprintf( stderr, "bytes(length=%d): ", length );
-	for( i = 0; i < length; ++i )
-		fprintf( stderr, "%02x ", p[i] );
-	fprintf( stderr, "\n" );
+   int i = 0;
+   fprintf( stderr, "bytes(length=%d): ", length );
+   for( i = 0; i < length; ++i )
+      fprintf( stderr, "%02x ", p[i] );
+   fprintf( stderr, "\n" );
 }
 
 

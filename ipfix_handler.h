@@ -47,6 +47,9 @@
 // Prototypes
 // -----------------------------------------------------------------------------
 
+// return ipfix handle
+ipfix_t* ipfix();
+
 void libipfix_init();
 
 void libipfix_open(device_dev_t *if_device, options_t *options);

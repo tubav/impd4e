@@ -153,8 +153,6 @@ void set_defaults_options(options_t *options) {
 	options->hashAsPacketID          = 1;
 	options->use_oid_first_interface = 0;
 
-	options->offset = 0;
-
 	//	options->samplingResultExport = false;
 	//	options->export_sysinfo = false;
 }

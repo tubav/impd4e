@@ -16,10 +16,15 @@ def main():
     console.setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(console)
+    
+    from optparse import OptionParser
 
-    logger.debug("huhu")
-    m = ManagerServer(None)
-    a = SimpleTestAdapter(manager = m.manager)
+    parser = OptionParser()
+    parser.add_option("-r", "--registry_url", dest="registry_url", help="Set URL of the ptm registry", default=None)
+    (options, _args) = parser.parse_args()
+
+    m = ManagerServer(None, registry_url = options.registry_url)
+    _a = SimpleTestAdapter(manager = m.manager, parent = None)
     m.serve_forever()
 
 if __name__ == '__main__':

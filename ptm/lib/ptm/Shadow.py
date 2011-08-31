@@ -45,14 +45,20 @@ logger = logging.getLogger("ptm")
 
 class Shadow(AbstractResourceAdapter):
 	def __init__(self, client, uri, *args, **kw):
-		super(Shadow, self).__init__(*args, **kw)
-		logger.debug("Creating shadow for %s" % (uri, ))
+		#logger.debug(self.__class__.__mro__)
+		super(Shadow, self).__init__(parent = None, manager = None, *args, **kw)
+		#logger.debug("Creating shadow for %s" % (uri, ))
 		self.__marshaller = Marshaller(client)
-		self._proxy = PTMServerProxy(uri, allow_none = True)
+		#self._proxy = PTMServerProxy(uri, allow_none = True)
+		self.__uri = uri
 
 	def get_uri(self):
-		return self._proxy.uri
+		return self.__uri
 	uri = property(get_uri)
+	
+	@property
+	def _proxy(self):
+		return PTMServerProxy(self.uri, allow_none = True)
 
 	def _mangle_id(self, id):
 		if Identifier(id) == Identifier("/"):
@@ -89,13 +95,16 @@ class Shadow(AbstractResourceAdapter):
 		self._proxy.set_configuration(self.__marshaller.pack_identifier(identifier), self.__marshaller.pack_dict(config))
 
 	def get_attribute(self, identifier, name):
-		return self.__marshaller.unpack_value(self._proxy.get_attribute(self.__marshaller.pack_identifier(identifier)), unicode(name))
+		return self.__marshaller.unpack_value(self._proxy.get_attribute(self.__marshaller.pack_identifier(identifier), unicode(name)))
 
 	def set_attribute(self, identifier, name, value):
 		self._proxy.set_attribute(self.__marshaller.pack_identifier(identifier), unicode(name), self.__marshaller.pack_value(value))
 
-	def delete_resource(self, identifier, owner, force = False):
-		self._proxy.delete_resource(self.__marshaller.pack_identifier(identifier), self.__marshaller.pack_owner(owner), bool(force))
+	def delete_resource(self, identifier):
+		self._proxy.delete_resource(self.__marshaller.pack_identifier(identifier))
+
+	def execute_method(self, identifier, name, *args, **kw):
+		return self.__marshaller.unpack_value(self._proxy.execute_method(self.__marshaller.pack_identifier(identifier), unicode(name), self.__marshaller.pack_list(args), self.__marshaller.pack_dict(kw)))
 
 	def notify(self, condition, owner, reference):
 		if not owner:
@@ -105,10 +114,16 @@ class Shadow(AbstractResourceAdapter):
 		self._proxy.notify(condition, owner, reference)
 
 	def __str__(self):
-		return "Shadow for RA at %s" % (self.uri, )
+		return "RA at %s" % (self.uri, )
 	
 	def __unicode__(self):
 		return unicode(self.__str__())
+	
+	def __eq__(self, o):
+		try:
+			return self.uri == o.uri
+		except AttributeError:
+			return False
 
 class HubShadow(Shadow):
 	def signal(self, condition, identifier):
@@ -150,6 +165,10 @@ class HubShadow(Shadow):
 			raise InternalIllegalArgumentError(identifier)
 		identifier = Identifier(identifier, need_abs = True)
 		self._proxy.unregister(unicode(identifier))
+		
+	def get_client(self):
+		return self
+
 		
 class ShadowManager(object):
 	def __init__(self, client, *args, **kw):

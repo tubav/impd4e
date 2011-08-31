@@ -4,14 +4,14 @@ import sys
 print sys.path
 
 from os import path
-from werkzeug import Request, Response, redirect
+from werkzeug import Request, Response, redirect 
 #from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException
 from mako.lookup import TemplateLookup
-from ptm.exc import NoAdapterFoundError
-from T1Client import T1Client
-from T1Entity import T1Entity
-from ptm.Identifier import Identifier
+from ptm.exc import NoAdapterFoundError, IdentifierException
+from ptm.t1client import T1Client, T1Entity
+from ptm.t1client.GlobalIdentifier import GlobalIdentifier
+from ngniutils.logging import LoggerMixin
 
 #ip = cur_ip
 
@@ -24,7 +24,7 @@ from ptm.Identifier import Identifier
 #root_path = path.abspath(path.dirname(__file__))
 types = ("string", "integer", "float", "boolean", "reference")
 #t1C = T1Client("10.147.67.94", "8001")
-t1C = T1Client("ptm:8001")
+t1C = None
 update = 0
 
 def parse_value(type, v):
@@ -38,6 +38,8 @@ def parse_value(type, v):
 		v = int(v)
 	elif type == "float":
 		v = float(v)
+	elif type == "reference":
+		v = t1C.get_entity(v)
 	return v
 
 class ParamChecker(object):
@@ -74,15 +76,14 @@ def check_typename(typename):
 			return "Illegal character in typename: %s" % (c, )
 	return None
 
-class HTMLFrontend(object):
-	def __init__(self, rest_url = None, homedir = None, webcontext = '', *args, **kw):
+class HTMLFrontend(LoggerMixin):
+	def __init__(self, rest_url = None, homedir = None, webcontext = '/', prefix = None, *args, **kw):
 		super(HTMLFrontend, self).__init__(*args, **kw)
-		
 		self.webcontext = webcontext
 		
 		if rest_url:
 			global t1C
-			t1C = T1Client(rest_url)
+			t1C = T1Client(rest_url, prefix = prefix)
 			
 		if not homedir:
 			import ptm.util
@@ -91,9 +92,15 @@ class HTMLFrontend(object):
 		self.template_lookup = TemplateLookup(directories=[path.join(homedir, 'templates')], input_encoding='utf-8')
 
 	def __make_url(self, url):
-		if not url.startswith("/"):
+		if not url.startswith("/") and not url.startswith(self.prefix + GlobalIdentifier.PREFIX_SEPARATOR):
 			return url
+		if not url.startswith("/"):
+			url = "/" + url
 		return self.webcontext + url
+		
+	@property
+	def prefix(self):
+		return t1C.prefix
 	
 	@Request.application
 	def __call__(self, request):
@@ -140,11 +147,17 @@ class HTMLFrontend(object):
 						msg = "Illegal input"
 					else:
 						try:
-							t1C.add(id, config.pop("name", None), typename, config)
+							t1C.add(id, config.get("name", None), typename, config)
 							return redirect(id)
 						except Exception, e:
 							msg = "An error occured: %s" % (e, )
 				else:
+					if req_url.startswith("/"):
+						pspos = req_url.find("./")
+						#raise Exception("huhu", req_url, pspos, slashpos)
+						if pspos >= 0 and pspos <= req_url[1:].find("/"):
+							req_url = req_url[1:]
+					#raise Exception(req_url)
 					entity = t1C.get_entity(req_url)
 		
 					old = entity.config
@@ -173,46 +186,48 @@ class HTMLFrontend(object):
 					else:
 						msg = "No values changed, nothing to do"
 	
-			if req_url.startswith("/add"):
-				id = req_url[4:]
+			if req_url.startswith("/add/"):
+				id = req_url[5:]
 				if request.method != "POST":
-					params = [ ('', '', '', None) for _ in range(5) ]
+					params = [ ('', '', '', None) for _ in range(10) ]
 					typename = ''
 					typeerror = None
 				t_test = self.template_lookup.get_template("add.html")
 				response.data = t_test.render_unicode(url = self.__make_url, request = request, params = params, id = id, typename = typename, types = types, typeerror = typeerror, msg = msg, log = ())
+			elif req_url.startswith("/del/"):
+				id = req_url[5:]
+				t1C.delete(id)
+				parent = id.rpartition("/")
+	
+				return redirect(parent[0] + parent[1])
 			else:
 				if req_url.startswith("/show"):
 					req_url = req_url[5:]
-				if not req_url:
+				if req_url.startswith("/"):
+					pspos = req_url.find("./")
+					#raise Exception("huhu", req_url, pspos, slashpos)
+					if pspos >= 0 and pspos <= req_url[1:].find("/"):
+						req_url = req_url[1:]
+						#raise Exception("huhu", req_url)	
+				elif not req_url:
 					req_url = "/"
 				if req_url.endswith("/"):
 					try:
-						print("listing: " + req_url)
+						self.logger.debug("listing: " + req_url)
 						instances = t1C.list_entities(req_url)
 					except NoAdapterFoundError:
-						instances = False
+						instances = False 
 					template = self.template_lookup.get_template("list.html")
-					#template = template_lookup.get_template("index.html")
-					#t_test = template_lookup.get_template("index.html")
-					response.data = template.render_unicode(url = self.__make_url, request = request, list = instances, req_url = req_url, msg = msg)
-				#if req_url.endswith("/add"):
-				#	t_test = template_lookup.get_template("index.html")
-				#	response.data = t_test.render_unicode(request = request, response = response, t1C = t1C, req_url = req_url, IP = IP)
+					add_url = not req_url.startswith("/") and req_url or req_url[1:]
+					response.data = template.render_unicode(url = self.__make_url, request = request, list = instances, req_url = req_url, msg = msg, add_url = add_url)
 				else:
-				#if req_url.endswith("!"):
-				#	template = template_lookup.get_template("input.html")
-				#	response.data = template.render_unicode(request = request, response = response, t1C = t1C, req_url = req_url, IP = IP)
-				#else:
-			#		template = template_lookup.get_template("page.html")
-			#		response.data = template.render_unicode(request = request, response = response, t1C = t1C, req_url = req_url, IP = IP)
-			#	else:
 					template = self.template_lookup.get_template("instance.html")
-					print("Getting: " + req_url)
+					self.logger.debug("Getting: " + req_url)
 					config = None
 					try:
 						entity = t1C.get_entity(req_url)
 						config = entity.config
+						config["identifier"] = entity.identifier
 						if config["identifier"].startswith("/"):
 							config["identifier"] = config["identifier"].partition("/")[2]
 						for k, v in config.items():
@@ -226,15 +241,22 @@ class HTMLFrontend(object):
 							elif isinstance(v, T1Entity):
 								t = "reference"
 							config[k] = (v, t)
-							p_id = entity.parent_id
+						p_id = entity.parent_id
+						#raise Exception(entity.identifier)
 					except Exception, e:
+						self.logger.exception("Error while rendering")
 						entity = None
 						msg = str(e)
-						p_id = Identifier(req_url).parent
+						try:
+							p_id = GlobalIdentifier(req_url, default_prefix = self.prefix).parent
+						except IdentifierException:
+							self.logger.exception("Error deriving parent url")
+							p_id = GlobalIdentifier.SEPARATOR
 					response.data = template.render_unicode(url = self.__make_url, request = request, p_id = p_id, id = req_url, entity = entity, config = config, req_url = req_url, msg = msg)
 	
 			return response
 		except HTTPException, e:
+			self.logger.excdeption("Error while rendering")
 			return e
 
 def main():

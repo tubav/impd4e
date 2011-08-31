@@ -68,7 +68,7 @@
 		%endif
 		<br />
 		%if p_id != "/":
-			<a href="${url('/show' + p_id)}">Go back to List</a> |
+			<a href="${url('/show/' + p_id)}">Go back to List</a> |
 		%endif
 		<a href="${url('/show/')}">Go back to Root</a>
 		<br />
@@ -98,7 +98,8 @@
 			</table>
 			<br />
 	        <input type="submit" name="submit" value="Update">
-			<input type="button" name="del" value="Delete" onclick="alert('not yet available');" >
+	        <% delurl = url('/del/' + entity.identifier) %>
+			<input type="button" name="del" value="Delete" onclick="window.location.href='${delurl}'" >
 			</form>
 			<a href="${url(entity.identifier)}/">list children of this instance</a>
 		%endif

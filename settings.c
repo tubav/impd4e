@@ -349,30 +349,53 @@ void print_help() {
                 "\t\t\t\t  filtering policy (valid for all filters).\n"
                 "\t\t\t\t  It can be used multiple times.\n"
             #endif // PFRING
-			"   -N  <snaplength>               setup max capturing size in bytes\n"
-			"                                  Default: 80 \n"
-			"\n"
-            #ifndef PFRING
+			"   -C  <Collector IP>             an IPFIX collector address\n"
+			"                                  Default: localhost\n"
+			"   -d <probe name>                a probe name\n"
+			"                                  Default: <hostname>\n"
+			"   -D <location name>             a location name\n"
+			"   -e  <export packet count>      size of export buffer after which packets\n"
+						"                                  are flushed (per device)\n"
+			#ifndef PFRING
 			"   -f  <bpf>                      Berkeley Packet Filter expression (e.g. tcp udp icmp)\n"
 			"\n"
-            #endif
-			"   -I  <interval>                 pktid export interval in seconds. (e.g. 1.5)\n"
-			"                                  Use -I 0 for disabling this export.\n"
-			"                                  Default: 3.0 \n"
-			"   -J  <interval>                 probe stats export interval in seconds. \n"
-			"                                  Measurement is done at each elapsed interval. \n"
-			"                                  Use -J 0 for disabling this export.\n"
-			"                                  Default: 30.0 \n"
+           #endif
+			"   -F  <hash_function>            hash function to use:\n"
+			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
 			"\n"
-			"   -K  <interval>                 interface stats export interval in seconds. \n"
-			"                                  Use -K 0 for disabling this export.\n"
-			"                                  Default: 10.0 \n"
 			"   -G  <interval>                 location export interval in seconds. \n"
 			"                                  Use -G 0 for exporting once at startup.\n"
 			"                                  Default: 60.0 \n"
 			"\n"
+			"   -I  <interval>                 pktid export interval in sec. (Default: 3.0)\n"
+			"                                  Use -I 0 for disabling this export.\n"
+			"\n"
+			"   -J  <interval>                 probe stats export interval in sec (Default: 30.0).\n"
+			"                                  Use -J 0 for disabling this export.\n"
+			"\n"
+			"   -K  <interval>                 interface stats export interval in sec (Default: 10.0). \n"
+			"                                  Use -K 0 for disabling this export.\n"
+			"\n"
+			"   -l <latitude>                  geo location (double): latitude\n"
+			"   -l <lat>:<long>:<interval>     short form\n"
+			"   -L <longitude>                 geo location (double): longitude\n"
+			"   -L <long>:<lat>:<interval>     short form\n"
+			"\n"
 			"   -m  <minimum selection range>  integer - do not use in conjunction with -r \n"
 			"   -M  <maximum selection range>  integer - do not use in conjunction with -r \n"
+			"\n"
+			"   -N  <snaplength>               max capturing size in bytes (Default: 80) \n"
+			"\n"
+			"   -o  <observation domain id>    unique identifier for probe \n"
+			"                                  Default: IP address of the interface\n"
+			"\n"
+			"   -O <offset>                    offset in bytes pointing to the start of the packet \n"
+			"                                  used for tunneled or crooked packets\n"
+			"   -p  <hash function>            use different hash_function for packetID generation:\n"
+			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
+			"\n"
+			"   -P  <Collector Port>           an IPFIX Collector Port\n"
+			"                                  Default: 4739\n"
 			"   -r  <sampling ratio>           in %% (double)\n"
 			"\n"
 			"   -s  <selection function>       which parts of the packet used for hashing (presets)\n"
@@ -392,31 +415,9 @@ void print_help() {
 			"                                    < and > have to be escaped \n"
 			"                                  Example: RAW20,34-45,14+4,4\n"
 			"\n"
-			"   -F  <hash_function>            hash function to use:\n"
-			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\"\n"
-			"   -p  <hash function>            use different hash_function for packetID generation:\n"
-			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
-			"\n"
-			"   -o  <observation domain id>    unique identifier for probe \n"
-			"                                  Default: IP address of the interface\n"
-			"\n"
-			"   -C  <Collector IP>             an IPFIX collector address\n"
-			"                                  Default: localhost\n"
-			"   -P  <Collector Port>           an IPFIX Collector Port\n"
-			"                                  Default: 4739\n"
-			"   -e  <export packet count>      size of export buffer after which packets\n"
-			"                                  are flushed (per device)\n"
-			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\"\n"
+			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\" or \"ls\"\n"
 			"                                  Default: \"min\"\n"
 			"   -u                             use only one oid from the first interface \n"
-			"\n"
-			"   -d <probe name>                a probe name\n"
-			"                                  Default: <hostname>\n"
-			"   -D <location name>             a location name\n"
-			"   -l <latitude>                  geo location (double): latitude\n"
-			"   -l <lat>:<long>:<interval>     short form\n"
-			"   -L <longitude>                 geo location (double): longitude\n"
-			"   -L <long>:<lat>:<interval>     short form\n"
 			"\n"
 			"   -v[expression]                 verbose-level; use multiple times to increase output \n"
 			"                                  filter by function names in comma-separated list at a certain \n"
@@ -602,6 +603,11 @@ int opt_o( char* arg, options_t* options ) {
    return 0;
 }
 
+int opt_O( char* arg, options_t* options ) {
+   options->offset = atoi(arg);
+   return 0;
+}
+
 int opt_t( char* arg, options_t* options ) {
    parseTemplate(arg, options);
    return 0;
@@ -753,6 +759,7 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'F', &opt_F, "selection.hash_function"        },
 	{ 'p', &opt_p, "selection.pktid_function"       },
 	{ 'o', &opt_o, "ipfix.observation_domain_id"    },
+	{ 'O', &opt_O, "selection.offset" },
 	{ 'u', &opt_u, "ipfix.one_odid"                 },
 	{ 'C', &opt_C, "ipfix.collector_ip_address"     },
 	{ 'P', &opt_P, "ipfix.collector_port"           },
@@ -1222,254 +1229,7 @@ void parse_cmdline_v2(int argc, char **argv) {
 // ============================================================================
 // ============================================================================
 
-/**
- * Process command line arguments
- */
-void parse_cmdline(int argc, char **argv) {
 
-	options_t* options = &g_options;
-	int c;
-    #ifdef PFRING
-	char par[] = "c:hv::nyua:J:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:";
-    #else
-	char par[] = "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:";
-    #endif
-	errno = 0;
-
-	options->number_interfaces = 0;
-    #ifdef PFRING
-	options->rules_in_list = 0;
-	options->filter_policy = -1;
-    #endif
-
-	/* check if we have a config file given at first */
-	while (-1 != (c = getopt(argc, argv, par))) {
-		if (c == 'c') { 
-			FILE *cfile = fopen(optarg, "rt");
-			if (!cfile) {
-				char err_string[500];
-				snprintf(err_string, sizeof(err_string)-1, "cannot open config file '%s'", optarg);
-				perror(err_string);
-				exit(1);
-			}
-			read_options_file(cfile);
-			fclose(cfile);
-		}
-	}	    
-
-	struct config_option_t *cfg_ptr;
-
-/*
-	cfg_ptr = g_config_file_options;
-	while (cfg_ptr->opt_letter != '\0') {
-		printf("FOUND '%c' -> \"%s\"\n", cfg_ptr->opt_letter, cfg_ptr->value);
-		cfg_ptr++;
-	}
-*/
-	cfg_ptr = g_config_file_options;
-
-	optind = 1; /* reset getopt to start of parameter list ; from unistd.h */
-	while ( (cfg_ptr->opt_letter != '\0') || (-1 != (c = getopt(argc, argv, par)))) {
-		
-		if (cfg_ptr->opt_letter != '\0') {
-			c = cfg_ptr->opt_letter;
-			optarg = cfg_ptr->value;
-			cfg_ptr++;
-		}
-		
-		switch (c) {
-        #ifdef PFRING
-		case 'a':
-			/* pf_ring filter */
-			parse_pfring_filter(optarg, options);
-			break;
-        #endif
-		case 'c': /* config file */
-			/* ignore config file parameter in this second pass over args */
-			break;
-		case 'C':
-			/* collector port */
-			strcpy(options->collectorIP, optarg);
-			break;
-		case 'e': /* export flush count */
-			options->export_packet_count = atoi(optarg);
-			break;
-		case 'f':
-			options->bpf = strdup(optarg);
-			break;
-		case 'h':
-			print_help();
-			exit(0);
-			break;
-		case 'i': {
-			uint8_t if_idx = options->number_interfaces; // shorter for better reading
-			if (MAX_INTERFACES == options->number_interfaces) {
-				fprintf( stderr, "specify at most %d interfaces with -i\n", MAX_INTERFACES);
-				break;
-			}
-			if (':' != optarg[1]) {
-				fprintf( stderr, "specify interface type with -i\n");
-				fprintf( stderr, "use [i,f,p,s,u]: as prefix - see help\n");
-				fprintf( stderr, "for compatibility reason, assume ethernet as 'i:' is given!\n");
-				if_devices[if_idx].device_type = TYPE_PCAP;
-				if_devices[if_idx].device_name = strdup(optarg);
-			}
-			else {
-				switch (optarg[0]) {
-				case 'i': // ethernet adapter
-					if_devices[if_idx].device_type = TYPE_PCAP;
-					break;
-				case 'p': // pcap-file
-					if_devices[if_idx].device_type = TYPE_PCAP_FILE;
-					break;
-				case 'f': // file
-					if_devices[if_idx].device_type = TYPE_FILE;
-					break;
-				case 's': // inet socket
-					if_devices[if_idx].device_type = TYPE_SOCKET_INET;
-					break;
-				case 'u': // unix domain socket
-					if_devices[if_idx].device_type = TYPE_SOCKET_UNIX;
-					break;
-				#ifdef PFRING
-				case 'r': // use pfring instead of libpcap
-					if_devices[if_idx].device_type = TYPE_PFRING;
-				break;
-				#endif
-				case 'x': // unknown option
-					if_devices[if_idx].device_type = TYPE_UNKNOWN;
-					break;
-				default:
-					LOGGER_fatal( "unknown interface type with -i");
-					LOGGER_fatal( "use [i,f,p,s,u]: as prefix - see help");
-					break;
-				}
-				// skip prefix
-				if_devices[if_idx].device_name=strdup(optarg+2);
-			}
-			// increment the number of interfaces
-			++options->number_interfaces;
-			break;
-		}
-
-		case 'I':
-			options->export_pktid_interval = atof(optarg);
-			break;
-		case 'J':
-			options->export_stats_interval = atof(optarg);
-			break;
-		case 'K':
-			options->export_sampling_interval = atof(optarg);
-			break;
-		case 'G':
-			options->export_location_interval = atof(optarg);
-			break;
-
-		case 'o':
-			options->observationDomainID = atoi(optarg);
-			break;
-		case 't':
-			parseTemplate(optarg, options);
-			break;
-		case 'm':
-			set_sampling_lowerbound(options, optarg);
-			break;
-		case 'M':
-			set_sampling_upperbound(options, optarg);
-			break;
-		case 'r':
-			set_sampling_ratio(options, optarg);
-			break;
-		case 's':
-		case 'S':
-			parseSelFunction(optarg, options);
-			break;
-		case 'F':
-			options->hash_function = parseFunction(optarg);
-			break;
-		case 'p':
-			options->pktid_function = parseFunction(optarg);
-			options->hashAsPacketID = 0;
-			break;
-		case 'P':
-			if ((options->collectorPort = atoi(optarg)) < 0) {
-				LOGGER_fatal( "Invalid -P argument!");
-				exit(1);
-			}
-			break;
-		case 'v':
-         if( (NULL != optarg) && (isdigit(*optarg)) ) {
-            options->verbosity = atoi(optarg);
-         }
-         else {
-            ++options->verbosity;
-            // workaround to use -v as normal (e.g. -vvv) which do not work
-            // with optional parameter
-            if( NULL != optarg ) {
-               while( 'v' == optarg[0] ) {
-                  ++options->verbosity;
-                  ++optarg;
-               }
-               options->verbosity_filter_string = optarg;
-            }
-            //fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
-         }
-			break;
-		case 'd':
-			options->s_probe_name = optarg;
-			break;
-		case 'D':
-			options->s_location_name = optarg;
-			break;
-		case 'l':{
-			char* tok = strtok(optarg, ":");
-			if( NULL != tok ) {
-				options->s_latitude = tok;
-				tok = strtok(NULL, ":");
-				if( NULL != tok ) {
-					options->s_longitude = tok;
-					tok = strtok(NULL, ":");
-					if( NULL != tok && isdigit(*tok) ) {
-						options->export_location_interval = atof(tok);
-					}
-				}
-			}
-		}break;
-		case 'L':{
-			char* tok = strtok(optarg, ":");
-			if( NULL != tok ) {
-				options->s_longitude = tok;
-				tok = strtok(NULL, ":");
-				if( NULL != tok ) {
-					options->s_latitude = tok;
-					tok = strtok(NULL, ":");
-					if( NULL != tok && isdigit(*tok) ) {
-						options->export_location_interval = atof(tok);
-					}
-				}
-			}
-		}break;
-		case 'N':
-			options->snapLength = atoi(optarg);
-			break;
-		case 'u':
-			options->use_oid_first_interface=1;
-			break;
-		case 'n':
-			// TODO parse enable export sampling
-			break;
-		case 'y':
-			// TODO
-			//			options->export_sysinfo = true;
-			break;
-		default:
-			printf("unknown parameter: %d \n", c);
-			break;
-		}
-
-	}
-
-}
 
 
 // -----------------------------------------------------------------------------

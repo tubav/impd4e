@@ -82,7 +82,7 @@
 	<table border="0">
 		%for elem in list:
 			<tr>
-			<td><a href="${url('/show' + req_url[:-1])}${elem.identifier}">${elem.identifier}</a></td>
+			<td><a href="${url('/show/')}${elem.identifier}">${elem.identifier}</a></td>
 			<td></td>
 			</tr>
 		%endfor
@@ -93,7 +93,7 @@
 	<br />
 	%endif
 		<br />
-	<a href="${url('/add' + req_url)}" title="add instance">Add a new resource instance here</a>
+	<a href="${url('/add/' + add_url)}" title="add instance">Add a new resource instance here</a>
 	<br/>
 
 	</body>

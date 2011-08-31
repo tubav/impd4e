@@ -69,6 +69,12 @@ class InstanceNotFound(AdapterError):
 	def __init__(self, id, *args, **kw):
 		super(InstanceNotFound, self).__init__(msg = "An instance with this id does not exist: %s" % (id, ), *args, **kw)
 
+class InstanceLimitReached(AdapterError):
+	__code__ = 2003
+
+class NotResponsible(AdapterError):
+	__code__ = 2004
+
 class ConfigurationError(AdapterError):
 	__code__ = 3000
 
@@ -102,6 +108,9 @@ class ParameterWriteOnlyError(ParameterAccessError):
 	
 class MissingAttributeError(ConfigurationAttributeError):
 	__code__ = 3008
+	
+class NoSuchMethodError(ConfigurationAttributeError):
+	__code__ = 3009
 
 class ApiError(PTMException):
 	__code__ = 4000
@@ -159,13 +168,19 @@ def get_exception(code, msg = None):
 		raise InternalValueError(code)
 		
 	try:
-		return _exceptions[code](msg = msg)
+		cls = _exceptions[code]
 	except KeyError:
 		try:
-			return _exceptions[ code - code % 1000 ](msg = msg)
+			cls = _exceptions[ code - code % 1000 ]
 		except KeyError:
 			return PTMException(msg = msg, code = code)
 	except Exception, e:
 		raise InternalError(msg = "Error creating exception: %s" % (e, ))
+	
+	e = PTMException.__new__(cls)
+	e.args = (msg, )
+	e.__code__ = code
+	
+	return e
 
 __all__ = tuple( [ c .__name__ for c in __all__ ] + [ "get_exception", "convert_exception" ])

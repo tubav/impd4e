@@ -7,6 +7,7 @@ except ImportError:
 	ManagerAdapter = None
 from wsgiref import simple_server
 from wsgi import ManagerWSGIXMLRPCRequestHandler, ThreadingWSGIServer
+from ngniutils.logging import LoggerMixin
 
 class BasicManagerWSGIApplication(ManagerWSGIXMLRPCRequestHandler):
 	def __init__(self, manager, encoding):
@@ -23,7 +24,7 @@ class ManagerWSGIApplication(BasicManagerWSGIApplication):
 		manager = Manager(manager_url = manager_url, registry_url = registry_url)
 		BasicManagerWSGIApplication.__init__(self, manager, encoding);
 
-class BasicManagerServer(object):
+class BasicManagerServer(LoggerMixin):
 	def __init__(self, application, bind_address = None, port = None, *args, **kw):
 		super(BasicManagerServer, self).__init__(*args, **kw)
 		
@@ -34,6 +35,8 @@ class BasicManagerServer(object):
 			port = 8081
 		else:
 			port = int(port)
+			
+		self.logger.info("running on %s:%s" % (bind_address, port))
 			
 		self.__application = application
 		self.__server = simple_server.make_server(bind_address, port, application, server_class = ThreadingWSGIServer)
@@ -48,7 +51,7 @@ class BasicManagerServer(object):
 class ManagerServer(BasicManagerServer):
 	def __init__(self, parent, bind_address = None, port = None, registry_url = None, xenadapter = False, nodeadapter = False, packageadapter = False, networkingadapter = False, systemuseradapter = False, *args, **kw):		
 		if registry_url == None:
-			registry_url = "http://ptmregistry:8000"
+			registry_url = "http://ptm:8000"
 
 		if bind_address is None:
 			bind_address = "0.0.0.0"
@@ -58,9 +61,14 @@ class ManagerServer(BasicManagerServer):
 			import socket
 		
 			hostname = socket.getfqdn()
-			myaddress = socket.gethostbyname(hostname)
-			if myaddress == "127.0.0.1":
-				myaddress = hostname
+			try:
+				myaddress = socket.gethostbyname(hostname)
+			except socket.error, e:
+				if e.errno == 11004:
+					myaddress = "127.0.0.1"
+			else:
+				if myaddress == "127.0.0.1":
+					myaddress = hostname
 				
 		if port is None:
 			port = 8081
@@ -100,7 +108,3 @@ class ManagerServer(BasicManagerServer):
 			ManagerAdapter(manager = manager, parent = parent)
 		
 		super(ManagerServer, self).__init__(application = application, bind_address = bind_address, port = port, *args, **kw)
-
-
-		
-		

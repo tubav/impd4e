@@ -406,7 +406,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
 
       //printf("pre getTTL: caplen: %02d, offset_net: %02d, ipv: %d\n",
       //            header->caplen, if_device->offset[L_NET], layers[L_NET]);
-   ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
+      ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
                         layers[L_NET]);
 
       if_device->export_packet_count++;
@@ -523,26 +523,35 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
    uint32_t copiedbytes;
    uint8_t ttl;
    uint64_t timestamp;
+   int packet_len;
    
    LOGGER_trace("handle packet");
    
    if_device->sampling_delta_count++;
    if_device->totalpacketcount++;
 
+   // apply offset to received packet
+   packet += g_options.offset;
+   packet_len = header->caplen - g_options.offset;
+   packet_len = (0>packet_len)?0:packet_len;
+
+
    if(0){
       int i = 0;
-      for( i=0; i < header->caplen; ++i ) {
-         LOGGER_debug( "%02x ", packet[i]);
+      for( i=0; i < packet_len; ++i ) {
+         fprintf( stderr,  "%02x ", packet[i]);
+         //LOGGER_debug( "%02x ", packet[i]);
       }
+      fprintf( stderr,  "\n");
    }
 
    // selection of viable fields of the packet - depend on the selection function choosen
    // locate protocolsections of ip-stack --> findHeaders() in hash.c
-   copiedbytes = g_options.selection_function(packet, header->caplen,
+   copiedbytes = g_options.selection_function(packet, packet_len,
          if_device->outbuffer, if_device->outbufferLength,
          if_device->offset, layers);
 
-   ttl = getTTL(packet, header->caplen, if_device->offset[L_NET],
+   ttl = getTTL(packet, packet_len, if_device->offset[L_NET],
          layers[L_NET]);
   
    // !!!! no ip-stack found !!!!

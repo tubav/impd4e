@@ -46,6 +46,7 @@ typedef struct options
 {	char     basedir[100];
 	uint8_t  number_interfaces;
 	uint32_t templateID;
+   uint32_t offset;
 	char     collectorIP[256];
 	int16_t  collectorPort;
 	char*    bpf; // berkley packet filter

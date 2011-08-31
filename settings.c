@@ -458,6 +458,10 @@ void make_lower(char *s) {
    }
 }
 
+bool check_file_name( char* arg ) {
+   //TODO: need implementation
+   return true;
+}
 
 int opt_unknown_parameter( char* arg, options_t* options ) {
    LOGGER_warn( "unkown parameter" );
@@ -472,21 +476,25 @@ int opt_a( char* arg, options_t* options ) {
 #endif
 
 int opt_c( char* arg, options_t* options ) {
-   // TODO: create template file
-   //if( "create_template" == arg ) {
-   //   create_template_config_file( arg );
-   //}
-   //else {
-      FILE *cfile = fopen(arg, "rt");
-      if (!cfile) {
-         char err_string[500];
-         snprintf(err_string, sizeof(err_string)-1, "cannot open config file '%s'", arg);
-         perror(err_string);
-         exit(1);
-      }
-      read_options_file_v2(cfile, options);
-      fclose(cfile);
-   //}
+   // TODO: prevent cascading config files to loop
+
+   if( check_file_name( arg ) ) {
+      // TODO: create template file
+      //if( "create_template" == arg ) {
+      //   create_template_config_file( arg );
+      //}
+      //else {
+         FILE *cfile = fopen(arg, "rt");
+         if (!cfile) {
+            char err_string[500];
+            snprintf(err_string, sizeof(err_string)-1, "cannot open config file '%s'", arg);
+            perror(err_string);
+            exit(1);
+         }
+         read_options_file_v2(cfile, options);
+         fclose(cfile);
+      //}
+   }
    return 0;
 }
 
@@ -502,6 +510,11 @@ int opt_e( char* arg, options_t* options ) {
 
 int opt_f( char* arg, options_t* options ) {
    options->bpf = arg;
+   return 0;
+}
+
+int opt_O( char* arg, options_t* options ) {
+   options->offset = atoi( arg );
    return 0;
 }
 
@@ -725,6 +738,7 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'v', &opt_v, "general.verbosity"              },
 	{ 'h', &opt_h, "general.help"                   },
 	{ 'i', &opt_i, "capture.interface"              },
+	{ 'O', &opt_O, "capture.offset"                 },
 	{ 'f', &opt_f, "filter.bpfilter"                },
 	{ 'N', &opt_N, "filter.snaplength"              },
 	{ 'I', &opt_I, "interval.data_export"           },
@@ -748,7 +762,7 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'D', &opt_D, "geotags.location_name"          },
 	{ 'l', &opt_l, "geotags.latitude"               },
 	{ 'L', &opt_L, "geotags.longitude"              },
-	{ 'c', &opt_c, "empty" }, // TODO:something
+	{ 'c', &opt_c, "general.configfile" }, // TODO:something
 	{ 'n', &opt_n, "empty" },
 	{ 'y', &opt_y, "empty" },
 	{ 'F', &opt_F, "empty" },

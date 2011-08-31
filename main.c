@@ -123,9 +123,10 @@ void impd4e_shutdown() {
  * Set default options
  */
 void set_defaults_options(options_t *options) {
-	options->verbosity           = 0;
 	options->verbosity_filter_string = "";
+	options->verbosity           = 0;
 	options->number_interfaces   = 0;
+	options->offset              = 0;
 	options->bpf                 = NULL;
 	options->templateID          = MINT_ID;
 	options->collectorPort       = 4739;

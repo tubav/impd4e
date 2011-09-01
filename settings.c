@@ -1213,7 +1213,7 @@ void parse_pfring_filter(char* arg_string, options_t* options) {
  */
 void parse_cmdline_v2(int argc, char **argv) {
 
-   char par[] = "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:";
+   char par[] = "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:O:";
    char c;
 
    while (-1 != (c = getopt(argc, argv, par))) {

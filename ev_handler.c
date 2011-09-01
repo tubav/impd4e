@@ -506,6 +506,15 @@ inline int set_value(void** field, uint16_t* length, void* value, uint16_t size)
 	return 1;
 }
 
+static void print_array( const u_char *p, int l ) {
+   int i = 0;
+   for( i=0; i < l; ++i ) {
+      fprintf( stderr,  "%02x ", p[i]);
+      //LOGGER_debug( "%02x ", packet[i]);
+   }
+   fprintf( stderr,  "\n");
+}
+
 // formaly known as handle_packet()
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
    device_dev_t* if_device = (device_dev_t*) user_args;
@@ -527,14 +536,8 @@ void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u
 //   packet_len = header->caplen - g_options.offset;
 //   packet_len = (0>packet_len)?0:packet_len;
 
-   if(0){
-      int i = 0;
-      for( i=0; i < packet_len; ++i ) {
-         fprintf( stderr,  "%02x ", packet[i]);
-         //LOGGER_debug( "%02x ", packet[i]);
-      }
-      fprintf( stderr,  "\n");
-   }
+//   print_array( packet, packet_len );
+//   print_array( packet+if_device->offset[L_NET], packet_len-if_device->offset[L_NET] );
 
    // selection of viable fields of the packet - depend on the selection function choosen
    // locate protocolsections of ip-stack --> findHeaders() in hash.c

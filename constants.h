@@ -130,7 +130,7 @@ typedef struct device_dev {
 	ipfix_template_t *ipfixtmpl_min;
 	ipfix_template_t *ipfixtmpl_ts;
 	ipfix_template_t *ipfixtmpl_ts_ttl;
-        ipfix_template_t *ipfixtmpl_ts_ttl_ip;
+	ipfix_template_t *ipfixtmpl_ts_ttl_ip;
 	ipfix_template_t *ipfixtmpl_interface_stats;
 	ipfix_template_t *ipfixtmpl_probe_stats;
 	ipfix_template_t *ipfixtmpl_sync;

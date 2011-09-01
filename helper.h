@@ -85,7 +85,6 @@ int8_t setPFRingFilterPolicy(device_dev_t* pfring_device);
 #endif
 
 #ifndef PFRING
-void determineLinkType(device_dev_t* pcap_device);
 int  set_all_filter(const char* bpf);
 int  set_filter(device_dev_t* pd, const char* bpf);
 void setFilter(device_dev_t* pcap_device);

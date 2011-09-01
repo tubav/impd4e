@@ -47,6 +47,40 @@
 #endif
 
 #ifndef PFRING
+void determineLinkType(device_dev_t* pcap_device) {
+
+   pcap_device->link_type = pcap_datalink(pcap_device->device_handle.pcap);
+   switch (pcap_device->link_type) {
+   case DLT_EN10MB:
+      // Ethernet
+      pcap_device->offset[L_NET] = 14;
+      // TODO: pcap_device->pkt_offset = 14;
+      LOGGER_info("dltype: DLT_EN10M");
+      break;
+   case DLT_ATM_RFC1483:
+      pcap_device->offset[L_NET] = 8;
+      LOGGER_info("dltype: DLT_ATM_RFC1483");
+      break;
+   case DLT_LINUX_SLL:
+      pcap_device->offset[L_NET] = 16;
+      LOGGER_info("dltype: DLT_LINUX_SLL");
+      break;
+   case DLT_RAW:
+      pcap_device->offset[L_NET] = 0;
+      LOGGER_info("dltype: DLT_RAW");
+      break;
+   default:
+      LOGGER_fatal( "Link Type (%d) not supported - default to DLT_RAW", pcap_device->link_type);
+      pcap_device->offset[L_NET] = 0;
+      break;
+   }
+
+   // TODO: hack to apply offset after link layer (e.g. ethernet)
+   pcap_device->offset[L_NET] += g_options.offset;
+}
+#endif
+
+#ifndef PFRING
 void open_pcap_file(device_dev_t* if_dev, options_t *options) {
 
    // todo: parameter check

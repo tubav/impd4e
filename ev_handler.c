@@ -510,23 +510,22 @@ inline int set_value(void** field, uint16_t* length, void* value, uint16_t size)
 void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
    device_dev_t* if_device = (device_dev_t*) user_args;
    //   int16_t headerOffset[4];
-   uint8_t layers[4] = { 0 };
+   uint8_t  layers[4] = { 0 };
    uint32_t hash_result;
    uint32_t copiedbytes;
-   uint8_t ttl;
+   uint8_t  ttl;
    uint64_t timestamp;
-   int packet_len;
+   int packet_len = header->caplen;
    
    LOGGER_trace("handle packet");
    
    if_device->sampling_delta_count++;
    if_device->totalpacketcount++;
 
-   // apply offset to received packet
-   packet += g_options.offset;
-   packet_len = header->caplen - g_options.offset;
-   packet_len = (0>packet_len)?0:packet_len;
-
+//   // apply offset to received packet
+//   packet += g_options.offset;
+//   packet_len = header->caplen - g_options.offset;
+//   packet_len = (0>packet_len)?0:packet_len;
 
    if(0){
       int i = 0;

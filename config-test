@@ -12,9 +12,9 @@
 #   help
 
 [Capture]
-   interface = i:eth0
-   interface = s:localhost:12345
-#   interface = i:lo
+#   interface = i:eth0
+#   interface = s:localhost:12345
+   interface = i:lo
   offset = 14
 
 [Interval]

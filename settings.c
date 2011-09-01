@@ -391,6 +391,7 @@ void print_help() {
 			"\n"
 			"   -O <offset>                    offset in bytes pointing to the start of the packet \n"
 			"                                  used for tunneled or crooked packets\n"
+         "                                  !!! the offset is applied after the link layer (e.g. ethernet header)\n"
 			"   -p  <hash function>            use different hash_function for packetID generation:\n"
 			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
 			"\n"

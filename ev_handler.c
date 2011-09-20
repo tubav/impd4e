@@ -537,12 +537,37 @@ static void print_array( const u_char *p, int l ) {
    fprintf( stderr,  "\n");
 }
 
+static void print_ip4( const u_char *p, int l ) {
+   if( 0x40 != (p[0]&0xf0) ){
+      print_array(p,l);
+      return;
+   }
+   int i = 0;
+   for( i=0; i < l && i < 12; ++i ) {
+      fprintf( stderr,  "%02x ", p[i]);
+   }
+   fprintf(stderr, "\b [");
+   for( ; i < l && i < 16; ++i ) {
+      fprintf( stderr,  "%3d.", p[i]);
+   }
+   fprintf(stderr, "\b] [");
+   for( ; i < l && i < 20; ++i ) {
+      fprintf( stderr,  "%3d.", p[i]);
+   }
+   fprintf(stderr, "\b] ");
+   for( ; i < l; ++i ) {
+      fprintf( stderr,  "%02x ", p[i]);
+   }
+   fprintf( stderr,  "\n");
+}
+
 inline uint8_t get_ttl( const uint8_t *packet, uint16_t packetLength, int16_t offset, netProt_t nettype )
 {
    return (N_IP==nettype)?packet[offset + 8]:0;
 }
 
 // return the packet protocol beyond the link layer (defined by rfc )
+// !! the raw packet is expected (include link layer)
 // return 0 if unknown
 inline uint16_t get_nettype( packet_t *packet, int linktype ) {
    switch (linktype) {
@@ -615,9 +640,6 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
    if ((g_options.sel_range_min <= hash_id) &&
        (g_options.sel_range_max >= hash_id))
    {
-      uint8_t  ttl;
-      uint64_t timestamp;
-
       packet_info->device->export_packet_count++;
       packet_info->device->sampling_size++;
 
@@ -631,9 +653,6 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       else {
          pkt_id = g_options.pktid_function(&packet_info->device->hash_buffer);
       }
-
-      ttl       = get_ttl(packet->ptr, packet->len, offsets[L_NET], layers[L_NET]);
-      timestamp = get_timestamp(packet_info->ts);
 
       ipfix_template_t* template = packet_info->device->ipfixtmpl_min;
       switch (g_options.templateID) {
@@ -658,7 +677,14 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       void*             fields[size];
       uint16_t          lengths[size];
 
-      uint16_t length; // dummy for TS_TTL_PROTO template id
+      uint8_t  ttl       = 0;
+      uint64_t timestamp = 0;
+      uint16_t length    = 0; // dummy for TS_TTL_PROTO template id
+      uint16_t src_port  = 0;
+      uint16_t dst_port  = 0;
+
+      ttl       = get_ttl(packet->ptr, packet->len, offsets[L_NET], layers[L_NET]);
+      timestamp = get_timestamp(packet_info->ts);
 
 //      set_hash( );
 //      set_timestamp();
@@ -685,9 +711,9 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
 
       case TS_TTL_PROTO_ID: {
          if (layers[L_NET] == N_IP) {
-            length = ntohs(*((uint16_t*) (&packet[offsets[L_NET] + 2])));
+            length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 2])));
          } else if (layers[L_NET] == N_IP6) {
-            length = ntohs(*((uint16_t*) (&packet[offsets[L_NET] + 4])));
+            length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 4])));
          } else {
             LOGGER_fatal( "cannot parse packet length" );
             length = 0;
@@ -705,9 +731,9 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
 
       case TS_TTL_PROTO_IP_ID: {          
           if (layers[L_NET] == N_IP) {
-              length = ntohs(*((uint16_t*) (&packet[offsets[L_NET] + 2])));  
+              length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 2])));  
           } else if (layers[L_NET] == N_IP6) {
-              length = ntohs(*((uint16_t*) (&packet[offsets[L_NET] + 4])));
+              length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 4])));
           } else {
               LOGGER_fatal( "cannot parse packet length" );
               length = 0;
@@ -725,25 +751,24 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
           uint32_t ipa = 0;
           if( N_IP == layers[L_NET] ) {
              index += set_value( &fields[index], &lengths[index], 
-                   (uint32_t*) &packet[offsets[L_NET] + 12], 4);
+                   (uint32_t*) &packet->ptr[offsets[L_NET] + 12], 4);
           }
           else {
              index += set_value( &fields[index], &lengths[index], &ipa, 4);
           }
-          uint16_t port = 0;
           switch( layers[L_TRANS] ) {
              case T_TCP:
              case T_UDP:
              //case T_SCTP:
-                port = ntohs(*((uint16_t*) &packet[offsets[L_TRANS]]));
+                src_port = ntohs(*((uint16_t*) &packet->ptr[offsets[L_TRANS]]));
                 break;
              default:
-                port = 0;
+                src_port = 0;
           }
-          index += set_value( &fields[index], &lengths[index], &port, 2);
+          index += set_value( &fields[index], &lengths[index], &src_port, 2);
           if( N_IP == layers[L_NET] ) {
              index += set_value( &fields[index], &lengths[index], 
-                   (uint32_t*) &packet[offsets[L_NET] + 16], 4);
+                   (uint32_t*) &packet->ptr[offsets[L_NET] + 16], 4);
           }
           else {
              index += set_value( &fields[index], &lengths[index], &ipa, 4);
@@ -752,12 +777,12 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
              case T_TCP:
              case T_UDP:
              //case T_SCTP:
-                port = ntohs(*((uint16_t*) &packet[offsets[L_TRANS] + 2]));
+                dst_port = ntohs(*((uint16_t*) &packet->ptr[offsets[L_TRANS] + 2]));
                 break;
              default:
-                port = 0;
+                dst_port = 0;
           }
-          index += set_value( &fields[index], &lengths[index], &port, 2);
+          index += set_value( &fields[index], &lengths[index], &dst_port, 2);
           break;
       }
 
@@ -816,7 +841,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
    if( 0x0800 == info.nettype || // IPv4
        0x86DD == info.nettype )  // IPv6
    {
-      if (1) print_array( pkt.ptr, pkt.len );
+      if (1) print_ip4( pkt.ptr, pkt.len );
       handle_ip_packet(&pkt, &info);
       //LOGGER_trace( "drop" );
    }

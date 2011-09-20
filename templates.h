@@ -91,7 +91,7 @@ export_fields_t export_fields_ts_ttl_proto[] = {
 };
 
 /*
- * when invoked with "-t lp+ip" the following fields are exported
+ * when invoked with "-t ls" the following fields are exported
  * in each IPFIX data record:
  */
 export_fields_t export_fields_ts_ttl_proto_ip[] = {

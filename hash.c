@@ -111,91 +111,79 @@ void print_selection_offsets( struct range_select* p ) {
    while( NULL != (p = p->next) );
 }
 
+inline void append_packet( buffer_t *b, const uint8_t *p, uint32_t count ) {
+   memcpy( b->ptr+b->len, p, count );
+   b->len += count;
+}
+
 
 /** copies the IP Header into the hash input */
 // assume 'findHeaders()' run before calling that function
-uint16_t copy_NetFields( const uint8_t* packet, uint16_t packetLength
-      , uint8_t* outBuffer, uint16_t outBufferLength
-      , int16_t headerOffset[4], uint8_t layers[4] )
+uint32_t copy_NetFields( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4] )
 {   // copy Net_Layer_Fields
 
-   uint16_t length = 0;
-
    if (layers[L_NET] == N_IP) {  // case IPv4
-
       //  we choose the fields of IP Header which are static between hops but are variable between flows
-      memcpy(outBuffer,   packet+headerOffset[L_NET],   8);
-      memcpy(outBuffer+8, packet+headerOffset[L_NET]+9,  1);
-      memcpy(outBuffer+9, packet+headerOffset[L_NET]+12, 8);
-      length=17;
+      append_packet( buffer, packet->ptr+headerOffset[L_NET],   8);
+      append_packet( buffer, packet->ptr+headerOffset[L_NET]+9,  1);
+      append_packet( buffer, packet->ptr+headerOffset[L_NET]+12, 8);
+   }
 
-   }
    if (layers[L_NET] == N_IP6)  { // case IPv6
-      memcpy(outBuffer,   packet+headerOffset[L_NET],   7);
-      memcpy(outBuffer+7, packet+headerOffset[L_NET]+8, 32);
-      length +=39;
+      append_packet( buffer, packet->ptr+headerOffset[L_NET],   7);
+      append_packet( buffer, packet->ptr+headerOffset[L_NET]+8, 32);
    }
-   return length;
+
+   return buffer->len;
 }
 
 
 /** copy recommended 8 bytes -- only TCP UDP ICMP supported */
 
-uint16_t copyFields_Rec( const uint8_t *packet,   uint16_t packetLength
-      , uint8_t *outBuffer,     uint16_t outBufferLength
-      , int16_t headerOffset[4], uint8_t layers[4] ) { // these are just pointer, the size doesn't matter
-
-   uint16_t copiedbytes=0;
+uint32_t copyFields_Rec( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4] ) { // these are just pointer, the size doesn't matter
 
    // with PF_RING header information is passed from kernel to userspace
    // so there is no need to parse the packet again
 #ifndef PFRING
    // find headers of the IP STACK
-   findHeaders(packet, packetLength, headerOffset, layers);
+   findHeaders(packet->ptr, packet->len, headerOffset, layers);
 #endif
 
    if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
       if (layers[L_NET] == N_IP) {
-         memcpy(outBuffer,packet+headerOffset[L_NET]+4,2); // IP ID
-         copiedbytes+=2;
+         append_packet( buffer, packet->ptr+headerOffset[L_NET]+4,2); // IP ID
          if (layers[L_TRANS] == T_TCP) {
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS]+6,2);
-            copiedbytes+=2;
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS]+10,2);
-            copiedbytes+=2;
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS]+16,2);
-            copiedbytes+=2;
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS]+6,2);
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS]+10,2);
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS]+16,2);
          }
          if (layers[L_TRANS] == T_UDP) {
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS],2);
-            copiedbytes+=2;
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS]+3,1);
-            copiedbytes+=1;
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS]+5,3);
-            copiedbytes+=3;
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS],2);
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS]+3,1);
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS]+5,3);
          }
          if ((layers[L_TRANS] == T_ICMP) || (layers[L_TRANS] == T_ICMP6)) {
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS]+2,2);
-            copiedbytes+=2;
-            memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS]+12,4);
-            copiedbytes+=4;
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS]+2,2);
+            append_packet( buffer, packet->ptr+headerOffset[L_TRANS]+12,4);
          }
       }
    }
 
-   return copiedbytes;
+   return buffer->len;
 }
 
 
 /** copies the IP Header into the hash input */
 
-uint16_t copyFields_Only_Net( const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4]
+uint32_t copyFields_Only_Net( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4]
       )
 {   // copy Net_Layer_Fields
-
-   uint16_t copiedbytes = 0;
 
    // with PF_RING header information is passed from kernel to userspace
    // so there is no need to parse the packet again
@@ -203,139 +191,134 @@ uint16_t copyFields_Only_Net( const uint8_t *packet, uint16_t packetLength,
    // find headers of the IP STACK
    // todo: probably not needed here; just case for IP which used to be known already
    // todo: or it can be simplified
-   findHeaders(packet, packetLength, headerOffset, layers);
+   findHeaders(packet->ptr, packet->len, headerOffset, layers);
 #endif
-   copiedbytes = copy_NetFields( packet,      packetLength
-         , outBuffer,   outBufferLength
+    copy_NetFields( packet
+         , buffer
          , headerOffset, layers);
 
-   return copiedbytes;
+   return buffer->len;
 }
 
 /** copies the IP Header and Transport Header (only TCP,ICMP,UDP) into the Hash Input */
 
-uint16_t copyFields_U_TCP_and_Net( const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4]
+uint32_t copyFields_U_TCP_and_Net( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4]
       )
 {
-   uint16_t  copiedbytes=0;
    int     piece_length = 0;
 
    // with PF_RING header information is passed from kernel to userspace
    // so there is no need to parse the packet again
    //#ifndef PFRING
    // find headers of the IP STACK
-   findHeaders(packet, packetLength, headerOffset, layers);
+   findHeaders(packet->ptr, packet->len, headerOffset, layers);
    //#endif
-   copiedbytes = copy_NetFields( packet,      packetLength
-         , outBuffer,   outBufferLength
+   copy_NetFields( packet
+         , buffer
          , headerOffset, layers);
 
    // check if there is a transport layer included in the packet
    if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
       if ( (layers[L_TRANS] == T_TCP) || (layers[L_TRANS] == T_ICMP) || (layers[L_TRANS] == T_ICMP6) ) {
 #ifndef PFRING
-         piece_length = min(20,packetLength-(headerOffset[L_TRANS]));
+         piece_length = min(20,packet->len-(headerOffset[L_TRANS]));
 #else
-         piece_length = hash_min(20,packetLength-(headerOffset[L_TRANS]));
+         piece_length = hash_min(20,packet->len-(headerOffset[L_TRANS]));
 #endif
-         memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS],piece_length);
-         copiedbytes += piece_length;
+         append_packet( buffer, packet->ptr+headerOffset[L_TRANS],piece_length);
       }
       if (layers[L_TRANS] == T_UDP) {
 #ifndef PFRING
-         piece_length = min(8,packetLength-(headerOffset[L_TRANS]));
+         piece_length = min(8,packet->len-(headerOffset[L_TRANS]));
 #else
-         piece_length = hash_min(8,packetLength-(headerOffset[L_TRANS]));
+         piece_length = hash_min(8,packet->len-(headerOffset[L_TRANS]));
 #endif
-         memcpy(outBuffer+copiedbytes,packet+headerOffset[L_TRANS],piece_length);
-         copiedbytes += piece_length;
+         append_packet( buffer, packet->ptr+headerOffset[L_TRANS],piece_length);
       }
    }
    else {
-      copiedbytes = 0;
+      buffer->len = 0;
    }
 
-   return copiedbytes;
+   return buffer->len;
 }
 
 /** copy everything that is in the packet except variable fields into the hash input */
-
-uint16_t copyFields_Packet( const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4]
+uint32_t copyFields_Packet( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4]
       )
 {
-   uint16_t copiedbytes = 0;
    int piecelength     = 0;
 
    // with PF_RING header information is passed from kernel to userspace
    // so there is no need to parse the packet again
 #ifndef PFRING
    // find headers of the IP STACK
-   findHeaders(packet, packetLength, headerOffset, layers);
+   findHeaders(packet->ptr, packet->len, headerOffset, layers);
 #endif
-   copiedbytes = copy_NetFields( packet,      packetLength
-         , outBuffer,   outBufferLength
+   copy_NetFields( packet
+         , buffer
          , headerOffset, layers);
 
 #ifndef PFRING
-   piecelength = min(packetLength-20, 50);
+   piecelength = min(packet->len-20, 50);
 #else
-   piecelength = hash_min(packetLength-20, 50);
+   piecelength = hash_min(packet->len-20, 50);
 #endif
-   memcpy(outBuffer+copiedbytes,packet+headerOffset[L_NET]+20,piecelength);
+   append_packet( buffer, packet->ptr+headerOffset[L_NET]+20, piecelength);
 
-   return (copiedbytes+packetLength-20);
+   return buffer->len;
 }
 
-uint16_t copyFields_Raw(const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4])
+uint32_t copyFields_Raw( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4])
 {
-   LOGGER_debug( "copyFields_Raw(): pL=%d, bL=%d", packetLength, outBufferLength);
+   LOGGER_debug( "copyFields_Raw(): pL=%d, bL=%d", packet->len, buffer->size);
 
-   return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
+   return copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
 }
 
-uint16_t copyFields_Link(const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4])
+uint32_t copyFields_Link( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4])
 {
-   LOGGER_debug( "copyFields_Link(): pL=%d, bL=%d", packetLength, outBufferLength);
+   LOGGER_debug( "copyFields_Link(): pL=%d, bL=%d", packet->len, buffer->size);
 
-   return copyFields_Select( packet, packetLength, outBuffer, outBufferLength );
+   return copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
 }
 
 
-uint16_t copyFields_Net(const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4])
+uint32_t copyFields_Net( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4])
 {
-   LOGGER_debug( "copyFields_Net(): pL=%d, bL=%d", packetLength, outBufferLength);
+   LOGGER_debug( "copyFields_Net(): pL=%d, bL=%d", packet->len, buffer->size);
    LOGGER_error( "copyFields_Select(): not yet implemented");
    // TODO:
    return 0; // length;
 }
 
 
-uint16_t copyFields_Trans(const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4])
+uint32_t copyFields_Trans( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4])
 {
-   LOGGER_debug( "copyFields_Trans(): pL=%d, bL=%d", packetLength, outBufferLength);
+   LOGGER_debug( "copyFields_Trans(): pL=%d, bL=%d", packet->len, buffer->size);
    LOGGER_error( "copyFields_Select(): not yet implemented");
    // TODO:
    return 0; // length;
 }
 
 
-uint16_t copyFields_Payload(const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength,
-      int16_t headerOffset[4], uint8_t layers[4])
+uint32_t copyFields_Payload( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4])
 {
-   LOGGER_debug(  "copyFields_Payload(): pL=%d, bL=%d", packetLength, outBufferLength);
+   LOGGER_debug(  "copyFields_Payload(): pL=%d, bL=%d", packet->len, buffer->size);
    LOGGER_error( "copyFields_Select(): not yet implemented");
    // TODO:
    return 0; // length;
@@ -455,23 +438,26 @@ void parseRange( char* arg ) {
 
 //
 //
-uint32_t calcHashValue_BOB( uint8_t *dataBuffer, uint16_t dataBufferLength )
-{   uint32_t result;
-   result = BOB_Hash(dataBuffer,dataBufferLength, initval);
+uint32_t calcHashValue_BOB( buffer_t *b )
+{   
+   uint32_t result;
+   result = BOB_Hash(b->ptr, b->len, initval);
    return result;
 }
 
-uint32_t calcHashValue_Hsieh( uint8_t *dataBuffer, uint16_t dataBufferLength )
-{   uint32_t result;
-   result = Hsieh_Hash((char*)dataBuffer,dataBufferLength);
+uint32_t calcHashValue_Hsieh( buffer_t *b )
+{   
+   uint32_t result;
+   result = Hsieh_Hash((char*)b->ptr, b->len);
    return result;
 }
 
-uint32_t calcHashValue_OAAT(uint8_t *dataBuffer, uint16_t dataBufferLength){
+uint32_t calcHashValue_OAAT( buffer_t *b )
+{
    uint32_t   hash, i;
-   for (hash=0, i=0; i<dataBufferLength; ++i)
+   for (hash=0, i=0; i<b->len; ++i)
    {
-      hash += dataBuffer[i];
+      hash += b->ptr[i];
       hash += (hash << 10);
       hash ^= (hash >> 6);
    }
@@ -481,8 +467,9 @@ uint32_t calcHashValue_OAAT(uint8_t *dataBuffer, uint16_t dataBufferLength){
    return hash;
 }
 
-uint32_t calcHashValue_SBOX(uint8_t *dataBuffer,uint16_t dataBufferLength)
-{   uint64_t sbox[256] = {
+uint32_t calcHashValue_SBOX( buffer_t *b )
+{   
+   uint64_t sbox[256] = {
    0xF53E1837, 0x5F14C86B, 0x9EE3964C, 0xFA796D53,
    0x32223FC3, 0x4D82BC98, 0xA0C7FA62, 0x63E2C982,
    0x24994A5B, 0x1ECE7BEE, 0x292B38EF, 0xD5CD4E56,
@@ -548,35 +535,30 @@ uint32_t calcHashValue_SBOX(uint8_t *dataBuffer,uint16_t dataBufferLength)
    0xA0B38F96, 0x51D39199, 0x37A6AD75, 0xDF84EE41,
    0x3C034CBA, 0xACDA62FC, 0x11923B8B, 0x45EF170A,
                          };
-uint32_t hash = 0;
-uint16_t i;
-for (i = 0; i< dataBufferLength; i++ )
+   uint32_t hash = 0;
+   uint16_t i;
+   for (i = 0; i< b->len; i++ )
+   {
+      hash ^= sbox[b->ptr[i]];
+      hash *= 3;
+   }
+   return hash;
+}
+
+
+
+uint32_t calcHashValue_TWMXRSHash( buffer_t *b )
 {
-   hash ^= sbox[dataBuffer[i]];
-   hash *= 3;
-}
-return hash;
-}
-
-
-
-uint32_t calcHashValue_TWMXRSHash(uint8_t *dataBuffer, uint16_t dataBufferLength) {
    uint32_t result;
-   result = TWMXHash(dataBuffer,dataBufferLength, initval);
+   result = TWMXHash(b->ptr, b->len, initval);
    return result;
 }
 
 
-uint8_t getTTL( const uint8_t *packet, uint16_t packetLength, int16_t offset, netProt_t nettype )
-{
-   if( N_IP == nettype ) return packet[offset + 8];
-   else return 0;
-}
-
 // with PF_RING header information is passed from kernel to userspace
 // so there is no need to parse the packet again
 //#ifndef PFRING
-void findHeaders( const uint8_t *packet, uint16_t packetLength, int16_t *headerOffset, uint8_t *layers )
+void findHeaders( const uint8_t *packet, uint16_t packetLength, uint32_t *headerOffset, uint8_t *layers )
 {
    unsigned short offs = headerOffset[L_NET];
    int net_type = 0;

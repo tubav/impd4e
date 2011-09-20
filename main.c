@@ -119,51 +119,14 @@ void impd4e_shutdown() {
 	ipfix_cleanup();
 }
 
-/**
- * Set default options
- */
-void set_defaults_options(options_t *options) {
-	options->verbosity_filter_string = "";
-	options->verbosity           = 0;
-	options->number_interfaces   = 0;
-	options->offset              = 0;
-	options->bpf                 = NULL;
-	options->templateID          = MINT_ID;
-	options->collectorPort       = 4739;
-	strcpy(options->collectorIP, "localhost");
-	options->observationDomainID = 0;
-	options->hash_function       = calcHashValue_BOB;
-	options->selection_function  = copyFields_U_TCP_and_Net;
-	options->sel_range_min       = 0x19999999; // (2^32 / 10)
-	options->sel_range_max       = 0x33333333; // (2^32 / 5)
-	options->snapLength          = 80;
-
-	options->s_probe_name     = NULL; // will be set to host name if not given by cmd line
-	options->s_location_name  = "unknown";
-	options->s_latitude       = "unknown";
-	options->s_longitude      = "unknown";
-	options->ipAddress        = 0x00000000; //0.0.0.0
-
-	options->export_packet_count      = 1000;
-	options->export_pktid_interval    =  3.0; /* seconds */
-	options->export_sampling_interval = 10.0; /* seconds */
-	options->export_stats_interval    = 30.0; /* seconds */
-	options->export_location_interval = 60.0; /* seconds */
-
-	options->hashAsPacketID          = 1;
-	options->use_oid_first_interface = 0;
-
-	//	options->samplingResultExport = false;
-	//	options->export_sysinfo = false;
-}
-
 
 void set_defaults_device(device_dev_t* dev) {
 
 	// allocate memory for outbuffer; depend on cmd line options
 	// just for the real amount of interfaces used
-	dev->outbufferLength = g_options.snapLength;
-	dev->outbuffer       = calloc( g_options.snapLength, sizeof(uint8_t) );
+	dev->hash_buffer.size = g_options.snapLength;
+	dev->hash_buffer.ptr  = calloc( g_options.snapLength, sizeof(uint8_t) );
+	dev->hash_buffer.len  = 0;
 
 }
 

@@ -101,6 +101,8 @@ void print_help();
 void parse_cmdline(int argc, char **argv);
 void parse_cmdline_v2(int argc, char **argv);
 
+void set_defaults_options(options_t *options);
+
 // todo: use getter instead
 extern options_t     g_options;
 

@@ -151,7 +151,8 @@ typedef enum {
    T_RSVP    = 46,
    T_GRE     = 47,
    T_MOBILE  = 55,
-   T_ICMP6   = 58
+   T_ICMP6   = 58,
+   T_SCTP    = 132
 } transProt_t;
 
 typedef enum {

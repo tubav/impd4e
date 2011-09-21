@@ -561,9 +561,64 @@ static void print_ip4( const u_char *p, int l ) {
    fprintf( stderr,  "\n");
 }
 
-inline uint8_t get_ttl( const uint8_t *packet, uint16_t packetLength, int16_t offset, netProt_t nettype )
+inline uint8_t get_ttl( packet_t *p, uint32_t offset, netProt_t nettype )
 {
-   return (N_IP==nettype)?packet[offset + 8]:0;
+   switch( nettype ) {
+      case N_IP: {
+         return p->ptr[offset+8];
+      }
+      case N_IP6: {
+         return p->ptr[offset+7];
+      }
+      default: {
+         return 0;
+      }
+   }
+}
+
+inline uint16_t get_ip_length( packet_t *p, uint32_t offset, netProt_t nettype )
+{
+   switch( nettype ) {
+      case N_IP: {
+         return ntohs(*((uint16_t*) (&p->ptr[offset + 2])));
+      }
+      case N_IP6: {
+         return ntohs(*((uint16_t*) (&p->ptr[offset + 4])));
+      }
+      default: {
+         LOGGER_fatal( "cannot parse packet length" );
+         return 0;
+      }
+   }
+}
+
+inline uint8_t* get_ipa( packet_t *p, uint32_t offset, netProt_t nettype )
+{
+   static uint32_t unknown_ipa = 0;
+   switch( nettype ) {
+      case N_IP: {
+         return p->ptr+offset + 12;
+      }
+      case N_IP6:
+      default: {
+         return (uint8_t*) &unknown_ipa;
+      }
+   }
+}
+
+inline uint16_t get_port( packet_t *p, uint32_t offset, transProt_t transtype )
+{
+   switch( transtype ) {
+      case T_UDP: 
+      case T_TCP: 
+      case T_SCTP: 
+      {
+         return ntohs(*((uint16_t*) (&p->ptr[offset])));
+      }
+      default: {
+         return 0;
+      }
+   }
 }
 
 // return the packet protocol beyond the link layer (defined by rfc )
@@ -613,6 +668,7 @@ void handle_default_packet( packet_t *packet, packet_info_t *packet_info ) {
 void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
    uint32_t hash_id = 0;
    uint32_t pkt_id  = 0;
+
    uint32_t offsets[4] = {0}; // layer offsets for: link, net, transport, payload
    uint8_t  layers[4]  = {0}; // layer protocol types for: link, net, transport, payload
 
@@ -682,8 +738,9 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       uint16_t length    = 0; // dummy for TS_TTL_PROTO template id
       uint16_t src_port  = 0;
       uint16_t dst_port  = 0;
+      uint8_t  *src_ipa  = 0;
+      uint8_t  *dst_ipa  = 0;
 
-      ttl       = get_ttl(packet->ptr, packet->len, offsets[L_NET], layers[L_NET]);
       timestamp = get_timestamp(packet_info->ts);
 
 //      set_hash( );
@@ -702,6 +759,7 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
 
       case MINT_ID: {
+         ttl       = get_ttl(packet, offsets[L_NET], layers[L_NET]);
          int index = 0;
          index += set_value( &fields[index], &lengths[index], &timestamp, 8);
          index += set_value( &fields[index], &lengths[index], &hash_id, 4);
@@ -710,14 +768,8 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
 
       case TS_TTL_PROTO_ID: {
-         if (layers[L_NET] == N_IP) {
-            length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 2])));
-         } else if (layers[L_NET] == N_IP6) {
-            length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 4])));
-         } else {
-            LOGGER_fatal( "cannot parse packet length" );
-            length = 0;
-         }
+         ttl       = get_ttl(packet, offsets[L_NET], layers[L_NET]);
+         length    = get_ip_length(packet, offsets[L_NET], layers[L_NET]);
 
          int index = 0;
          index += set_value( &fields[index], &lengths[index], &timestamp, 8);
@@ -730,60 +782,25 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
 
       case TS_TTL_PROTO_IP_ID: {          
-          if (layers[L_NET] == N_IP) {
-              length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 2])));  
-          } else if (layers[L_NET] == N_IP6) {
-              length = ntohs(*((uint16_t*) (&packet->ptr[offsets[L_NET] + 4])));
-          } else {
-              LOGGER_fatal( "cannot parse packet length" );
-              length = 0;
-          }
-          
-          int index = 0;
-          index += set_value( &fields[index], &lengths[index], &timestamp, 8);
-          index += set_value( &fields[index], &lengths[index], &hash_id, 4);
-          index += set_value( &fields[index], &lengths[index], &ttl, 1);
-          index += set_value( &fields[index], &lengths[index], &length, 2);
-          index += set_value( &fields[index], &lengths[index], &layers[L_TRANS], 1);
-          index += set_value( &fields[index], &lengths[index], &layers[L_NET], 1);
-          // this needs to be IPv4 and UDP or TCP or SCTP (not yet supported)
-          // TODO: switch template members
-          uint32_t ipa = 0;
-          if( N_IP == layers[L_NET] ) {
-             index += set_value( &fields[index], &lengths[index], 
-                   (uint32_t*) &packet->ptr[offsets[L_NET] + 12], 4);
-          }
-          else {
-             index += set_value( &fields[index], &lengths[index], &ipa, 4);
-          }
-          switch( layers[L_TRANS] ) {
-             case T_TCP:
-             case T_UDP:
-             //case T_SCTP:
-                src_port = ntohs(*((uint16_t*) &packet->ptr[offsets[L_TRANS]]));
-                break;
-             default:
-                src_port = 0;
-          }
-          index += set_value( &fields[index], &lengths[index], &src_port, 2);
-          if( N_IP == layers[L_NET] ) {
-             index += set_value( &fields[index], &lengths[index], 
-                   (uint32_t*) &packet->ptr[offsets[L_NET] + 16], 4);
-          }
-          else {
-             index += set_value( &fields[index], &lengths[index], &ipa, 4);
-          }
-          switch( layers[L_TRANS] ) {
-             case T_TCP:
-             case T_UDP:
-             //case T_SCTP:
-                dst_port = ntohs(*((uint16_t*) &packet->ptr[offsets[L_TRANS] + 2]));
-                break;
-             default:
-                dst_port = 0;
-          }
-          index += set_value( &fields[index], &lengths[index], &dst_port, 2);
-          break;
+         ttl       = get_ttl(packet, offsets[L_NET], layers[L_NET]);
+         length    = get_ip_length(packet, offsets[L_NET], layers[L_NET]);
+         src_port  = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
+         dst_port  = get_port(packet, offsets[L_TRANS]+2, layers[L_TRANS]);
+         src_ipa   = get_ipa(packet, offsets[L_NET], layers[L_NET]);
+         dst_ipa   = get_ipa(packet, offsets[L_NET]+4, layers[L_NET]);
+         
+         int index = 0;
+         index += set_value( &fields[index], &lengths[index], &timestamp, 8);
+         index += set_value( &fields[index], &lengths[index], &hash_id,   4);
+         index += set_value( &fields[index], &lengths[index], &ttl,       1);
+         index += set_value( &fields[index], &lengths[index], &length,    2);
+         index += set_value( &fields[index], &lengths[index], &layers[L_TRANS], 1);
+         index += set_value( &fields[index], &lengths[index], &layers[L_NET],   1);
+         index += set_value( &fields[index], &lengths[index], src_ipa,   4);
+         index += set_value( &fields[index], &lengths[index], &src_port, 2);
+         index += set_value( &fields[index], &lengths[index], dst_ipa,   4);
+         index += set_value( &fields[index], &lengths[index], &dst_port, 2);
+         break;
       }
 
       default:

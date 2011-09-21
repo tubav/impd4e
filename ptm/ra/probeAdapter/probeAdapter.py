@@ -57,28 +57,28 @@ cmd_download_impd4e = "git clone git://impd4e.git.sourceforge.net/gitroot/impd4e
 cmd_install_impd4e = "./configure ; make ; sudo make install ; cd .."
 
 class probeAdapter(AbstractResourceAdapter):
-        '''
-        classdocs
-        '''
+	'''
+	classdocs
+	'''
 
-        def __init__(self, manager, *args, **kw):
-                super(probeAdapter, self).__init__(*args, **kw)
-                self.__instances = set("0")
-                manager.register_adapter("/probeResource", self)
+	def __init__(self, manager, *args, **kw):
+		super(probeAdapter, self).__init__(*args, **kw)
+		self.__instances = set("0")
+		manager.register_adapter("/probeResource", self)
 		# Print the IP-Address of this machine
 		output = Popen(["ifconfig"], stdout=PIPE).communicate()[0]
-    		indexIPStart = output.find("inet addr")+10
-    		indexIPEnd = output.find("Bcast")
+		indexIPStart = output.find("inet addr")+10
+		indexIPEnd = output.find("Bcast")
 		global IPAddress
-    		IPAddress = output[indexIPStart:indexIPEnd].strip(' ')
-                logger.debug("--- The IP-Address of this machine is: "+IPAddress+" ---")
+		IPAddress = output[indexIPStart:indexIPEnd].strip(' ')
+		logger.debug("--- The IP-Address of this machine is: "+IPAddress+" ---")
 
-        def list_resources(self, parent, typename):
-                assert(typename == "probeResource" or not typename)
-                assert(parent == None)
-                return [ Identifier("/probeResource-" + i) for i in self.__instances ]
+	def list_resources(self, parent, typename):
+		assert(typename == "probeResource" or not typename)
+		assert(parent == None)
+		return [ Identifier("/probeResource-" + i) for i in self.__instances ]
 
-        def add_resource(self, parent_id, name, typename, config, owner = None):
+	def add_resource(self, parent_id, name, typename, config, owner = None):
 	
 		assert(typename == "probeResource")
 
@@ -91,9 +91,9 @@ class probeAdapter(AbstractResourceAdapter):
 		samplingRatio = "100.0"
 		install = False
 		hostname = "empty"
-                public_ip = "empty"
-                password = "empty"
-                resource = "empty"
+		public_ip = "empty"
+		password = "empty"
+		resource = "empty"
 		username = "root" # default username
 
 		configLength = len(config)
@@ -121,18 +121,18 @@ class probeAdapter(AbstractResourceAdapter):
 			install = True
 
 		if config.has_key("resource"):
-                        resource = config["resource"]
+			resource = config["resource"]
 
 		if config.has_key("username"):
 			username = config["username"]
 
 		if config.has_key("target"):
-                        if resource != "empty":
-                                target = config["target"]
-                                configuration = target.get_adapter().get_configuration(resource)
-                                hostname = configuration["hostname"]
-                                public_ip = configuration["public_ip"]
-                                password = configuration["password"]
+			if resource != "empty":
+				target = config["target"]
+				configuration = target.get_adapter().get_configuration(resource)
+				hostname = configuration["hostname"]
+				public_ip = configuration["public_ip"]
+				password = configuration["password"]
 
 		# Print the entered parameters
 		logger.debug("--------------------------------------------------")
@@ -152,31 +152,31 @@ class probeAdapter(AbstractResourceAdapter):
 		logger.debug("--------------------------------------------------")
 
 		# Collector Parsing
-    		indexCollectorSplit = collector.find(":")
-    		collectorIP = collector[0:indexCollectorSplit]
-    		collectorPort = collector[indexCollectorSplit+1:len(collector)]		
+		indexCollectorSplit = collector.find(":")
+		collectorIP = collector[0:indexCollectorSplit]
+		collectorPort = collector[indexCollectorSplit+1:len(collector)]		
 
 		# Enumerate the probe instance
 		n = "0"
-                if not name:
+		if not name:
 			if config.has_key("oid"):
 				n = oid
 				name = n
 
-		  	else:
-                        	i = 0
-                        	while True:
-                                	n = str(i)
-                                	if n not in self.__instances:
-                                        	break
-                                	i += 1
-                        	name = n
+			else:
+				i = 0
+				while True:
+					n = str(i)
+					if n not in self.__instances:
+						break
+					i += 1
+				name = n
 				oid = name
-                else:
-                       if name in self.__instances:
-                                raise DuplicateNameError(parent_id, typename, name)
+		else:
+			if name in self.__instances:
+				raise DuplicateNameError(parent_id, typename, name)
 
-                self.__instances.add(n)
+		self.__instances.add(n)
 
 		# Writing the command
 		cmd = "sudo /usr/bin/impd4e -i i:"+interface+" -C "+collectorIP+" -P "+collectorPort+" -o "+oid+" -l "+location+" -r "+samplingRatio
@@ -190,46 +190,46 @@ class probeAdapter(AbstractResourceAdapter):
 			# Run the probe on another machine
 			self.run_remote(cmd,oid,username,public_ip,password,install)
 			
-                return name
+		return name
 
 	def execute_command(self,channel,cmd,password,username):
 
-    		channel.send(cmd)
+		channel.send(cmd)
 
-    		resp = ""
-    		while (resp.find(username+"@") == -1):
-        		resp = channel.recv(1000000)
-        		logger.debug(resp)
+		resp = ""
+		while (resp.find(username+"@") == -1):
+			resp = channel.recv(1000000)
+			logger.debug(resp)
 
-        		if resp.find("password") != -1:
-            			logger.debug("--- password needed! ---")
-            			channel.send(password+"\n")
+			if resp.find("password") != -1:
+				logger.debug("--- password needed! ---")
+				channel.send(password+"\n")
 
 	def wait_for_new_execute(self,channel,password,username):
 
-    		resp = ""
-    		while (resp.find(username+"@") == -1):
-        		resp = channel.recv(1000000)
-        		logger.debug(resp)
+		resp = ""
+		while (resp.find(username+"@") == -1):
+			resp = channel.recv(1000000)
+			logger.debug(resp)
 
 			if resp.find("password") != -1:
-                                logger.debug("--- password needed! ---")
-                                channel.send(password+"\n")
+				logger.debug("--- password needed! ---")
+				channel.send(password+"\n")
 
 	def command_available(self,channel,cmd,username):
 
-    		channel.send(cmd)
-    		available = True
-    
-    		resp = ""
-    		while (resp.find(username+"@") == -1):
-        		resp = channel.recv(1000000)
-        		logger.debug(resp)
+		channel.send(cmd)
+		available = True
 
-        		if (resp.find("command not found") != -1 or resp.find("not installed") != -1):
-            			available = False
+		resp = ""
+		while (resp.find(username+"@") == -1):
+			resp = channel.recv(1000000)
+			logger.debug(resp)
 
-    		return available
+			if (resp.find("command not found") != -1 or resp.find("not installed") != -1):
+				available = False
+
+		return available
 
 	def run_remote(self,cmd,oid,username,public_ip,password,install):
 		logger.debug("--- starting impd4e on machine "+public_ip+" ...")
@@ -244,9 +244,9 @@ class probeAdapter(AbstractResourceAdapter):
 		global cmd_download_libipfix
 		global cmd_install_libipfix
 		global cmd_install_software_properties
-                global cmd_add_repo
-                global cmd_update
-                global cmd_install_impd4e
+		global cmd_add_repo
+		global cmd_update
+		global cmd_install_impd4e
 		cmd_execute = "screen -m -d -S probe"+oid+" "+cmd
 		logger.debug(cmd_execute)
 
@@ -265,26 +265,26 @@ class probeAdapter(AbstractResourceAdapter):
 			
 			# Check out the distribution
 			sftp = client.open_sftp()
-                        files = sftp.listdir("/etc/")
-                        found_fedora = False
+			files = sftp.listdir("/etc/")
+			found_fedora = False
 			found_debian = False
-                        for file in files:
-                                if (file.find("fedora") != -1):
-                                        found_fedora = True
-                                        break
+			for file in files:
+				if (file.find("fedora") != -1):
+					found_fedora = True
+					break
 				if (file.find("debian") != -1):
 					found_debian = True
 					break
 			
 			if (found_fedora == True):
 				cmd_install_screen = "sudo yum "+cmd_install_screen
-                                cmd_install_git_core = "sudo yum "+cmd_install_git_core
+				cmd_install_git_core = "sudo yum "+cmd_install_git_core
 				cmd_install_libpcap = "sudo yum "+cmd_install_libpcap
 
 			elif (found_debian == True):
 				cmd_install_screen = "sudo apt-get "+cmd_install_screen
-                                cmd_install_git_core = "sudo apt-get "+cmd_install_git_core
-                                cmd_install_libpcap = "sudo apt-get "+cmd_install_libpcap
+				cmd_install_git_core = "sudo apt-get "+cmd_install_git_core
+				cmd_install_libpcap = "sudo apt-get "+cmd_install_libpcap
 
 			else:
 				# Check out which package managers are available
@@ -292,13 +292,13 @@ class probeAdapter(AbstractResourceAdapter):
 				yum_available = command_available(channel,"yum\n")
 				if (apt_available == True):
 					cmd_install_screen = "sudo apt-get "+cmd_install_screen
-                                	cmd_install_git_core = "sudo apt-get "+cmd_install_git_core
-                                	cmd_install_libpcap = "sudo apt-get "+cmd_install_libpcap
+					cmd_install_git_core = "sudo apt-get "+cmd_install_git_core
+					cmd_install_libpcap = "sudo apt-get "+cmd_install_libpcap
 
 				elif (yum_available == True):
 					cmd_install_screen = "sudo yum "+cmd_install_screen
-                                	cmd_install_git_core = "sudo yum "+cmd_install_git_core
-                                	cmd_install_libpcap = "sudo yum "+cmd_install_libpcap
+					cmd_install_git_core = "sudo yum "+cmd_install_git_core
+					cmd_install_libpcap = "sudo yum "+cmd_install_libpcap
 
 				else:	
 					raise Exception("No apt or yum found, so the probe can't be installed automatically. Try to install impd4e manually.")
@@ -340,44 +340,44 @@ class probeAdapter(AbstractResourceAdapter):
 		logger.debug("--- impd4e started on this machine! ---")
 
 
-        def have_resource(self, identifier):
-                assert(identifier.parent == None)
-                assert(identifier.typename == "probeResource")
-                return identifier.name in self.__instances
+	def have_resource(self, identifier):
+		assert(identifier.parent == None)
+		assert(identifier.typename == "probeResource")
+		return identifier.name in self.__instances
 
 
-        def get_resource(self, identifier):
-                return identifier
+	def get_resource(self, identifier):
+		return identifier
 
 
-        def get_configuration(self, identifier):
-                assert(identifier.parent == None)
-                assert(identifier.typename == "probeResource")
+	def get_configuration(self, identifier):
+		assert(identifier.parent == None)
+		assert(identifier.typename == "probeResource")
 
-                if not self.have_resource(identifier):
-                        raise InstanceNotFound(identifier)
+		if not self.have_resource(identifier):
+			raise InstanceNotFound(identifier)
 
-                return {}
-
-
-        def set_configuration(self, identifier, config):
-                assert(identifier.parent == None)
-                assert(identifier.typename == "probeResource")
-                return
+		return {}
 
 
-        def get_attribute(self, identifier, name):
-                assert(identifier.parent == None)
-                assert(identifier.typename == "probeResource")
-                raise ConfigurationAttributeError(name)
+	def set_configuration(self, identifier, config):
+		assert(identifier.parent == None)
+		assert(identifier.typename == "probeResource")
+		return
 
 
-        def set_attribute(self, identifier, name, value):
-                assert(identifier.parent == None)
-                                                                 
-                                                                         
-        def delete_resource(self, identifier, owner, force = False):
-                assert(identifier.parent == None)
-                assert(identifier.typename == "probeResource")
-                self.__instances.pop(identifier.resourcename)
+	def get_attribute(self, identifier, name):
+		assert(identifier.parent == None)
+		assert(identifier.typename == "probeResource")
+		raise ConfigurationAttributeError(name)
+
+
+	def set_attribute(self, identifier, name, value):
+		assert(identifier.parent == None)
+								 
+									 
+	def delete_resource(self, identifier, owner, force = False):
+		assert(identifier.parent == None)
+		assert(identifier.typename == "probeResource")
+		self.__instances.pop(identifier.resourcename)
 

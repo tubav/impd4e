@@ -265,6 +265,7 @@ void parseSelFunction(char *arg_string, options_t *options) {
                         , { HASH_INPUT_IPTP,   copyFields_U_TCP_and_Net }
                         , { HASH_INPUT_PACKET, copyFields_Packet }
                         , { HASH_INPUT_RAW,    copyFields_Raw }
+                        , { HASH_INPUT_LAST,   copyFields_Last }
                         , { HASH_INPUT_LINK,   copyFields_Link }
                         , { HASH_INPUT_NET,    copyFields_Net }
                         , { HASH_INPUT_TRANS,  copyFields_Trans }
@@ -405,7 +406,7 @@ void print_help() {
 			"                                  Default: \"IP+TP\"\n"
 			"   -S  <selection function>       which parts of the packet used for hashing (byte selection)\n"
 			"                                  <keyword><offset list>\n"
-			"                                  keywords: \"RAW\", \"LINK\", \"NET\", \"TRANS\", \"PAYLOAD\"\n"
+			"                                  keywords: \"RAW\", \"LAST\", \"LINK\", \"NET\", \"TRANS\", \"PAYLOAD\"\n"
 			"                                  offset list: comma seperated list with byte offsets and offset ranges\n"
 			"                                      , add another offset/offset range\n"
 			"                                      - range modifier (include borders)\n"

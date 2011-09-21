@@ -282,6 +282,18 @@ uint32_t copyFields_Raw( packet_t *packet,
    return copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
 }
 
+// contrary to the copyFields_Select, this functions copies data from the
+// end of a packet, instead of the beginning. So if offset=20 it refers to
+// packetLength - offset as start position of copy operation
+uint32_t copyFields_Last( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4])
+{
+   LOGGER_debug( "copyFields_Raw(): pL=%d, bL=%d", packet->len, buffer->size);
+
+   return copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
+}
+
 uint32_t copyFields_Link( packet_t *packet,
       buffer_t *buffer,
       uint32_t headerOffset[4], uint8_t layers[4])
@@ -363,6 +375,44 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
    //print_byte_array_hex( b, written );
 
    return written;
+}
+
+// contrary to the copyFields_Select, this functions copies data from the
+// end of a packet, instead of the beginning. So if offset=20 it refers to
+// packetLength - offset as start position of copy operation
+uint16_t copyFields_Select_reverse(const uint8_t *packet, uint16_t packetLength,
+      uint8_t *b, uint16_t bLen )
+{
+    struct range_select* range = rSel;
+    uint16_t written = 0;
+
+    do {
+        LOGGER_info(  "sizes: pL=%d, bL=%d, oS=%d, oL=%d"
+                    , packetLength, bLen, range->offset, range->length );
+
+        int write = range->offset;
+        if ( !(packetLength < write) ) {
+#ifndef PFRING
+            write = (0==range->length)?write:min(write,range->length);
+            write = min(write, bLen);
+#else
+            write = (0==range->length)?write:hash_min(write,range->length);
+            write = hash_min(write, bLen);
+#endif
+            LOGGER_debug( "-> write: %d", write );
+
+            memcpy( b+written, (packet + (packetLength - range->offset)), write );
+            written += write;
+            bLen    -= write;
+        }
+        else {
+            LOGGER_info(  "range selection out of range: pL=%d, oS=%d, oL=%d"
+                    , packetLength, range->offset, range->length );
+        }
+    }
+    while ( (0 < bLen) && (NULL != (range = range->next)) );
+
+    return written;
 }
 
 //

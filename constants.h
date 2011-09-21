@@ -96,6 +96,7 @@ typedef union device {
 #define HASH_INPUT_IPTP    "IP+TP"
 #define HASH_INPUT_PACKET  "PACKET"
 #define HASH_INPUT_RAW     "RAW"
+#define HASH_INPUT_LAST    "LAST"
 #define HASH_INPUT_LINK    "LINK"
 #define HASH_INPUT_NET     "NET"
 #define HASH_INPUT_TRANS   "TRANS"

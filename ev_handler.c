@@ -741,8 +741,6 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       uint8_t  *src_ipa  = 0;
       uint8_t  *dst_ipa  = 0;
 
-      timestamp = get_timestamp(packet_info->ts);
-
 //      set_hash( );
 //      set_timestamp();
 //      set_ip_ttl();
@@ -752,6 +750,8 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       
       switch (g_options.templateID) {
       case TS_ID: {
+         timestamp = get_timestamp(packet_info->ts);
+
          int index = 0;
          index += set_value( &fields[index], &lengths[index], &timestamp, 8);
          index += set_value( &fields[index], &lengths[index], &hash_id, 4);
@@ -759,7 +759,9 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
 
       case MINT_ID: {
+         timestamp = get_timestamp(packet_info->ts);
          ttl       = get_ttl(packet, offsets[L_NET], layers[L_NET]);
+
          int index = 0;
          index += set_value( &fields[index], &lengths[index], &timestamp, 8);
          index += set_value( &fields[index], &lengths[index], &hash_id, 4);
@@ -768,6 +770,7 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
 
       case TS_TTL_PROTO_ID: {
+         timestamp = get_timestamp(packet_info->ts);
          ttl       = get_ttl(packet, offsets[L_NET], layers[L_NET]);
          length    = get_ip_length(packet, offsets[L_NET], layers[L_NET]);
 
@@ -782,6 +785,7 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
 
       case TS_TTL_PROTO_IP_ID: {          
+         timestamp = get_timestamp(packet_info->ts);
          ttl       = get_ttl(packet, offsets[L_NET], layers[L_NET]);
          length    = get_ip_length(packet, offsets[L_NET], layers[L_NET]);
          src_port  = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
@@ -858,7 +862,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
    if( 0x0800 == info.nettype || // IPv4
        0x86DD == info.nettype )  // IPv6
    {
-      if (1) print_ip4( pkt.ptr, pkt.len );
+      if (0) print_ip4( pkt.ptr, pkt.len );
       handle_ip_packet(&pkt, &info);
       //LOGGER_trace( "drop" );
    }

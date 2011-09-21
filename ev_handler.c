@@ -165,6 +165,24 @@ void sigalrm_cb (EV_P_ ev_signal *w, int revents) {
    LOGGER_info("Signal ALRM received");
 }
 
+void user_input_cb(EV_P_ ev_io *w, int revents) {
+   char  buffer[129];
+   int32_t length = 128;
+
+   if( NULL != fgets(buffer, length, stdin) ) {
+      //fscanf( stdin, "%5c", buffer );
+      //LOGGER_info("user input: %s\n", buffer);
+      fprintf(stdout,"user input: %s", buffer);
+      if( 0 == strncmp(buffer, "exit", 4) ||
+          0 == strncmp(buffer, "quit", 4) )
+      { exit(0); }
+
+      char msg[strlen(buffer+1+7)];
+      sprintf( msg, "mid:1 -%s", buffer );
+      runtime_configuration_cb( msg );
+   }
+}
+
 /**
  * Setups and starts main event loop.
  */
@@ -223,6 +241,11 @@ void event_loop() {
    );
    // trigger first after 'after' then after 'repeat'
    ev_timer_start(loop, &events.export_timer_location);
+
+   // listen to standart input
+   ev_io event_io;
+   ev_io_init(&event_io, user_input_cb, STDIN_FILENO, EV_READ);
+   ev_io_start(loop, &event_io);
 
    /*   packet watchers */
    event_setup_pcapdev(loop);

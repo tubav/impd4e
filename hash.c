@@ -56,17 +56,10 @@
 
 
 // PFRING also defines min(x,y)
-#ifndef PFRING
-#define min(X, Y)            \
-   ({ typeof (X) x_ = (X);        \
+#define hash_min(X, Y)          \
+   ({ typeof (X) x_ = (X);      \
     typeof (Y) y_ = (Y);        \
     (x_ < y_) ? x_ : y_; })
-#else
-#define hash_min(X, Y)            \
-   ({ typeof (X) x_ = (X);        \
-    typeof (Y) y_ = (Y);        \
-    (x_ < y_) ? x_ : y_; })
-#endif
 
 const uint32_t initval=0x32545;
 
@@ -222,19 +215,11 @@ uint32_t copyFields_U_TCP_and_Net( packet_t *packet,
    // check if there is a transport layer included in the packet
    if ((headerOffset[L_TRANS] != -1) && (layers[L_TRANS] != T_UNKNOWN) ) {
       if ( (layers[L_TRANS] == T_TCP) || (layers[L_TRANS] == T_ICMP) || (layers[L_TRANS] == T_ICMP6) ) {
-#ifndef PFRING
-         piece_length = min(20,packet->len-(headerOffset[L_TRANS]));
-#else
          piece_length = hash_min(20,packet->len-(headerOffset[L_TRANS]));
-#endif
          append_packet( buffer, packet->ptr+headerOffset[L_TRANS],piece_length);
       }
       if (layers[L_TRANS] == T_UDP) {
-#ifndef PFRING
-         piece_length = min(8,packet->len-(headerOffset[L_TRANS]));
-#else
          piece_length = hash_min(8,packet->len-(headerOffset[L_TRANS]));
-#endif
          append_packet( buffer, packet->ptr+headerOffset[L_TRANS],piece_length);
       }
    }
@@ -263,11 +248,7 @@ uint32_t copyFields_Packet( packet_t *packet,
          , buffer
          , headerOffset, layers);
 
-#ifndef PFRING
-   piecelength = min(packet->len-20, 50);
-#else
    piecelength = hash_min(packet->len-20, 50);
-#endif
    append_packet( buffer, packet->ptr+headerOffset[L_NET]+20, piecelength);
 
    return buffer->len;
@@ -351,14 +332,8 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
       // calculate copy range, prevent segmentation faults
       int write = packetLength - range->offset;
       if( 0 < write ) {
-         //     write = min((0==range->length)?write:range->length, bLen);
-#ifndef PFRING
-         write = (0==range->length)?write:min(write,range->length);
-         write = min(write, bLen);
-#else
          write = (0==range->length)?write:hash_min(write,range->length);
          write = hash_min(write, bLen);
-#endif
          LOGGER_debug( "-> write: %d", write );
 
          memcpy( b+written, packet+range->offset, write );
@@ -392,13 +367,8 @@ uint16_t copyFields_Select_reverse(const uint8_t *packet, uint16_t packetLength,
 
         int write = range->offset;
         if ( !(packetLength < write) ) {
-#ifndef PFRING
-            write = (0==range->length)?write:min(write,range->length);
-            write = min(write, bLen);
-#else
             write = (0==range->length)?write:hash_min(write,range->length);
             write = hash_min(write, bLen);
-#endif
             LOGGER_debug( "-> write: %d", write );
 
             memcpy( b+written, (packet + (packetLength - range->offset)), write );
@@ -740,15 +710,5 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, uint32_t *header
 //      }
 //   }
 // }
-
-
-
-
-
-
-
-
-
-
 
 

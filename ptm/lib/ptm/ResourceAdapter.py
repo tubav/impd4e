@@ -1,10 +1,38 @@
+"""
+Copyright (C) 2010 FhG Fokus
+
+This file is part of the open source Teagle implementation.
+
+Licensed under the Apache License, Version 2.0 (the "License"); 
+
+you may not use this file except in compliance with the License. 
+
+You may obtain a copy of the License at 
+
+
+
+http://www.apache.org/licenses/LICENSE-2.0 
+
+Unless required by applicable law or agreed to in writing, software 
+
+distributed under the License is distributed on an "AS IS" BASIS, 
+
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+
+See the License for the specific language governing permissions and 
+
+limitations under the License. 
+
+For further information please contact teagle@fokus.fraunhofer.de
+"""
+
 #! /usr/bin/env python
 
 import logging
 from Identifier import Identifier
 from Resource import ResourceProxy
 from Resource import BasicResource, Resource
-from exc import PTMException, InstanceNotFound, ConfigurationAttributeError
+from exc import PTMException, InstanceNotFound, ConfigurationAttributeError, IdentifierException, ConfigurationTypeError, InternalError, InstanceLimitReached, NoSuchMethodError
 from abc import ABCMeta, abstractmethod
 
 logger = logging.getLogger("ptm")
@@ -18,7 +46,7 @@ class AbstractResourceAdapter(object):
 	#TODO: This does not belong here
 	def get_client(self):
 		#raise NotImplementedError()
-		return self.adapter.client
+		return self.client
 	def __get_client(self):
 		return self.get_client()
 	client = property(__get_client)
@@ -31,7 +59,11 @@ class AbstractResourceAdapter(object):
 	logger = property(__get_logger)
 
 	@abstractmethod
-	def add_resource(self, parent_id, name, typename, config, owner = None):
+	def __init__(self, manager = None, parent = None, *args, **lw):
+		pass
+
+	@abstractmethod
+	def add_resource(self, parent, name, typename, config, owner = None):
 		raise NotImplementedError()
 
 	@abstractmethod
@@ -65,35 +97,43 @@ class AbstractResourceAdapter(object):
 	@abstractmethod
 	def delete_resource(self, identifier):
 		raise NotImplementedError()
+	
+	def execute_method(self, identifier, name, *args, **kw):
+		raise NoSuchMethodError("method %s not supported on %s" % (name, identifier))
 
-	def notify(self, condition, owner, ref):
+	def notify(self, condengineition, owner, ref):
 		return
+	
+	@classmethod
+	def get_homedir(klass):
+		from util import get_ptm_home
+		return get_ptm_home() / klass.__name__
+	
 
-class BasicResourceAdapter(AbstractResourceAdapter):
-	def __init__(self, manager, parent = None, *args, **kw):
-		super(BasicResourceAdapter, self).__init__(*args, **kw)
-		self._manager = manager
+	
+class AbstractBasicResourceAdapter(AbstractResourceAdapter):
+	def __init__(self, manager, parent = None, parent_type = "", types = (), *args, **kw):
+		super(AbstractBasicResourceAdapter, self).__init__(manager = manager, parent = parent, *args, **kw)
+		
+		self.__manager = manager
 
-		if parent is not None:
-			self.__parent_id = Identifier(parent, need_full = True)
-		else:
-			self.__parent_id = None
+		self.__parent_id = Identifier(parent)
+		if self.__parent_id != None and self.__parent_id.is_adapter:
+			raise IdentifierException("Need a full id for parent, not: %s" % (self.__parent_id, ))
 
-	def _mangle_id(self, identifier):
-		if self.parent_id is None:
-			return Identifier(Identifier.SEPARATOR).relpath_to(identifier)
-		identifier =  self.parent_id.relpath_to(identifier)
+		if parent_type != "" and parent_type != self.__parent_id.typename:
+			raise ConfigurationTypeError("parent is of wrong type (%s) need (%s)." % (self.__parent_id.typename, parent_type))
 			
-		if identifier.is_manager:
-			identifier = identifier.parent
-		return identifier
-
+		for t in types:
+			self.register(t)
+			
 	def get_manager(self):
-		return self._manager
-	manager = property(get_manager)
+		return self.__manager
+	_manager = manager = property(get_manager)
 
 	def get_client(self):
 		return self.manager.client
+	client = property(get_client)
 
 	def get_parent_id(self):
 		return self.__parent_id
@@ -106,16 +146,42 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 	def get_parent(self):
 		return self.__parent_id and self.client.get_resource(self.__parent_id) or None
 	parent = property(get_parent)
+	
+	def get_logger(self):
+		return logger
+	logger = property(get_logger)
 
-	def add_resource(self, parentId, name, typename, config, owner = None):
-		parentId = self._mangle_id(parentId)
+	def register(self, identifier):
+		identifier = Identifier(identifier, need_name = False)
+		if identifier.is_absolute:
+			identifier = Identifier(self.parent_id).relpath_to(identifier)
+		identifier = self.parent_id / identifier
+
+		self.manager.register_adapter(identifier, self)
+
+class BasicResourceAdapter(AbstractBasicResourceAdapter):	
+	def _mangle_id(self, identifier):
+
+		identifier = Identifier(identifier)
+		#if self.parent_id is None:
+		#	return Identifier(Identifier.SEPARATOR).relpath_to(identifier)
+		#identifier =  self.parent_id.relpath_to(identifier)
+			
+		if identifier.is_adapter:
+			identifier = identifier.parent
+
+		return identifier
+
+	def add_resource(self, parent, name, typename, config, owner = None):
+		parentId = self._mangle_id(parent)
 #		name = config.get("name", name)
+
 #		config["name"] = name
 		e = self._add_resource(parentId, name, typename, config)
 		if e is None:
 			raise PTMException("Error adding resource. RA returned None. Most likely a bug in the RA. Assuming that add failed.")
 		logger.debug("Got a resource: %s" % (e, ))
-		self.acquire_resource(e, owner, False)
+		#self.acquire_resource(e, owner, False)
 		if not isinstance(e, Resource):
 			e = Identifier(e, need_name = True)
 			if not e.is_absolute:
@@ -123,13 +189,14 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 			e = ResourceProxy(adapter = self.client.get_adapter(e), identifier = e)
 		return e
 
+	@abstractmethod
 	def _add_resource(self, parentId, name, typename, config):
 		raise NotImplementedError()
 
 	def get_resource(self, identifier):
 		logger.debug("RA.get_resource %s", (identifier, ))
 		mangled = self._mangle_id(identifier)
-		logger.debug("mangled %s", (identifier, ))
+		logger.debug("mangled %s", (mangled, ))
 		if not mangled:
 			raise ValueError("I need a full id, not %s" % (identifier, ))
 		e =  self._get_resource(mangled)
@@ -137,6 +204,7 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 			raise Exception("Adapter returned nothing for %s", identifier)
 		return e
 
+	@abstractmethod
 	def _get_resource(self, identifier):
 		raise NotImplementedError()
 
@@ -169,6 +237,7 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 		parent_id = self._mangle_id(parent_id)
 		return self._list_resources(parent_id, type)
 
+	@abstractmethod
 	def _list_resources(self, parent_id, type = None):
 		raise NotImplementedError()
 
@@ -201,6 +270,7 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 		identifier = Identifier(identifier, need_full = True)
 		return self._set_attribute(identifier, name, value)
 
+	@abstractmethod
 	def _set_attribute(self, identifier, name, value):
 		return self.get_resource(identifier)._set_attribute(name, value)
 
@@ -214,6 +284,12 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 		self._delete_children(identifier)
 		self._delete_resource(identifier)
 
+	def execute_method(self, identifier, name, *args, **kw):
+		identifier = Identifier(identifier, need_full = True)
+		return self._execute_method(identifier, name, *args, **kw)
+	
+	def _execute_method(self, identifier, name, *args, **kw):
+		raise NotImplementedError()
 
 	def _delete_children(self, identifier):
 		try:
@@ -227,6 +303,7 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 			logger.exception("Error while deleting %s (error while listing children)", (identifier, ))
 			raise
 
+	@abstractmethod
 	def _delete_resource(self, identifier):
 		raise NotImplementedError()
 
@@ -243,14 +320,6 @@ class BasicResourceAdapter(AbstractResourceAdapter):
 		identifier = Identifier(identifier)
 		return self.parent_id is None or not identifier.is_absolute or identifier.dirname == self.parent_id.submanager.dirname or identifier.identifier.startswith(self.parent_id.submanager)
 
-	def register(self, identifier):
-		identifier = Identifier(identifier, need_name = False)
-		if identifier.is_absolute:
-			identifier = Identifier(self.parent_id).relpath_to(identifier)
-		identifier = self.parent_id / identifier
-
-		self.manager.register_adapter(identifier, self)
-
 class DelegateMixin(object):
 	def _delete_resource(self, identifier, force):
 		self.get_resource(identifier).delete()
@@ -266,32 +335,194 @@ class MangleConfigMixin(object):
 		self.__keys = keys
 		self.__prune = prune
 
-        def add_resource(self, parentId, name, typename, config):
-                config = self.mangle_config(config)
-                return super(MangleConfigMixin, self).add_resource(config = config, parentId = parentId, name = name, typename = typename)
+	def add_resource(self, parent, name, typename, config, owner = None):
+		config = self.mangle_config(config)
+		return super(MangleConfigMixin, self).add_resource(config = config, parent = parent, name = name, typename = typename, owner = owner)
 
-        def mangle_config(self, config):
-                for k in self.__keys:
-                        if k not in config:
-                                raise KeyError("Missing configuration key '%s' in: %s" % (k, config))
+	def mangle_config(self, config):
+		for k in self.__keys:
+			if k not in config:
+				raise KeyError("Missing configuration key '%s' in: %s" % (k, config))
+		
+		if self.__prune:
+			for k in config.keys():		
+				if k not in self.__keys:
+					logger.warn("Discarding configuration key: " + str(k))
+					del config[k]
+		
+		return config
 
-                if self.__prune:
-                        for k in config.keys():
-                                if k not in self.__keys:
-                                        logger.warn("Discarding configuration key: " + str(k))
-                                        del config[k]
+try:
+	from fcntl import LOCK_EX, LOCK_SH
+except ImportError:
+	pass
+else:
+	class ShelveConfigAdapter(BasicResourceAdapter):
+		def __init__(self, parent, manager, shelf_path = None, *args, **kw):		
+			super(ShelveConfigAdapter, self).__init__(parent = parent, manager = manager, *args, **kw)
+			
+			if shelf_path is None:
+				shelf_path = self.get_storage_dir() / self.__quote() 
+			else: 
+				from path import path as Path
+				shelf_path = Path(shelf_path)
+				if not shelf_path.isabs():
+					shelf_path = self.get_storage_dir() / shelf_path
+				if shelf_path.isdir():
+					shelf_path = shelf_path / self.__quote()
+					
+			#logger.debug("shelf path: %s" % (shelf_path, ))
+			self.__shelf_path = shelf_path
+			
+		def __quote(self):
+			from urllib import quote_plus
+			#logger.debug("Quoting: %s" % (self.parent_id, ))
+			q = quote_plus(unicode(self.parent_id)) + "_config.shelve"
+			#logger.debug("quoted: %s" % (q, ))
+			return q
+		
+		@classmethod
+		def get_storage_dir(cls):
+			try:
+				return cls.__storage_dir
+			except AttributeError:
+				import util
+				cls.__storage_dir = util.get_storage_dir() / cls.__name__
+				cls.__storage_dir.forcedir()
+				return cls.__storage_dir
+			
+		def __open(self, mode = LOCK_EX):
+			from teagleutils.LockingShelf import LockingShelf 
+			return LockingShelf(self.__shelf_path, mode = mode, writeback = True)
+				
+		def add_resource(self, parent, name, typename, config, owner = None):
+			e = super(ShelveConfigAdapter, self).add_resource(parent, name, typename, config, owner)
+			self._store(e)
+			return e
+			
+		def _store(self, e):
+			id = Identifier(e, need_full = True)
+			
+			if hasattr(e, "_get_configuration"):
+				config = e._get_configuration()
+			else:
+				config = self._get_configuration(id)
 
-                return config
+			with self.__open() as s:
+				id = str(id)
+				if id in s:
+					self.logger.warn("Overwriting stored config for %s" % (id, ))
+				s[id] = config
+				logger.debug("s now: %s" % (s.keys(), ))
+			
+			with self.__open() as s:	
+				logger.debug("s now: %s" % (s.keys(), ))
+
+		def _get_resource(self, identifier):
+			identifier = str(identifier)
+			logger.debug("_get: %s" % (identifier, ))
+			with self.__open(LOCK_SH) as s:
+				if identifier not in s.keys():
+					raise InstanceNotFound(identifier)
+				return identifier
+			
+		def get_configuration(self, identifier):
+			identifier = str(Identifier(identifier, need_full = True))
+			with self.__open(LOCK_SH) as s:
+				try:
+					return s.__getitem__(identifier)
+				except KeyError:
+					logger.debug(s.keys())
+					raise InstanceNotFound(identifier)
+				
+		def _list_resources(self, parent, typename):
+			with self.__open(LOCK_SH) as s:
+				keys = s.keys()
+				return [ i for i in keys if (not typename or typename == Identifier(i).typename ) ]
+			
+		def delete_resource(self, identifier):
+			identifier = Identifier(identifier, need_full = True)
+			super(ShelveConfigAdapter, self).delete_resource(identifier)
+			with self.__open() as s:
+				s.pop(str(identifier))
+
+class NumericNameMixin(object):
+	def __init__(self, name_min = 0, name_max = None, *args, **kw):
+		super(NumericNameMixin, self).__init__(*args, **kw)
+		
+		if name_min is not None:
+			name_min = int(name_min)
+		if name_max is not None:
+			name_max = int(name_max)
+		
+		if name_min is not None and name_max is not None and name_max < name_min:
+			raise InternalError("name_max (%d) is less than name_min (%d)" % (name_max, name_min))
+			
+		self.__min = name_min
+		self.__max = name_max
+		self.__last = {}
+		
+	def generate_name(self, parent_id, typename):
+		parent_id = Identifier(parent_id)	
+		if not typename:
+			typename = None
+		base = parent_id / typename
+		
+		start = self.__get_last(parent_id, typename)
+
+		n = self.__generate(base, start, self.__max)
+		
+		if n is None:
+			if start != self.__min:
+				n = self.__generate(base, self.__min, start)
+			
+			if n is None:
+				raise InstanceLimitReached()
+
+		logger.debug("generated: %s" % (n, ))
+		logger.debug("%s %s %s" % (parent_id, typename, n))
+		self.__last[parent_id][typename] = n + 1
+				
+		return unicode(n)
+		
+		
+		
+	def __generate(self, base, _min, _max):
+		logger.debug("Generate: %d - %d" % (_min, _max))
+		while _min <= _max:
+			if not self.have_resource(base - _min):
+				return _min
+			_min += 1
+			
+		return None
+		
+	def __get_last(self, parent_id, typename):
+		try:
+			parent = self.__last[parent_id]
+		except KeyError:
+			parent = {}
+			self.__last[parent_id] = parent
+			
+		try:
+			type = parent[typename]
+		except KeyError:
+			type = self.__min
+			parent[typename] = type
+			
+		return type
 
 		
 class AbsoluteParentMixin(object):
 	def _mangle_id(self, identifier):
 		identifier = super(AbsoluteParentMixin, self)._mangle_id(identifier)
+		if identifier.is_absolute:
+			return identifier
 		identifier = self.base_id / identifier
-		if identifier.is_manager: 
+		if identifier.is_adapter: 
 			identifier = identifier.parent
 		if not identifier:
 			return None
+		#raise Exception(Identifier)
 		return identifier
 
 
@@ -468,6 +699,11 @@ class ReflectiveResourceAdapterBase(AbsoluteParentMixin, ResourceAdapter):
 		if fullinfo:
 			return (vars, signature[2])
 		return vars
+	
+	def _execute_method(self, identifier, name, *args, **kw):
+		e = self.get_resource(identifier)
+		m = getattr(e, name)
+		return m(*args, **kw)
 
 	def _check_params(self, klass, name, strict = False, needle = ("identifier", "adapter")):
 		info = self._get_parameters(klass, name, True)
@@ -519,13 +755,8 @@ class ReflectiveAddAdapterBase(ReflectiveResourceAdapterBase):
 
 	def _mangle_name(self, parentId, name, klass):
 		if not name:
-			try:
-				return klass.generate_name(parentId)
-			except AttributeError:
-				name = self.generate_name(parentId, klass.get_typename())
-
+			name = self.generate_name(parentId, klass.get_typename())
 		return name
-
 
 class ReflectiveAddAdapter(ReflectiveAddAdapterBase):
 	def _add_type(self, identifier, name, klass):
@@ -547,7 +778,7 @@ class ReflectiveConstructorAddAdapter(ReflectiveAddAdapterBase):
 		klass = self.get_type(typename)
 #		name = self._mangle_name(name, klass)
 		kw = self._mangle_args(klass, kw)
-		return klass(parent = parentId, name = name, adapter = self, **kw)
+		return klass(parent = parentId, name = name, type = typename, adapter = self, **kw)
 
 class ReflectiveGetAdapter(ReflectiveResourceAdapterBase):
 	def _add_type(self, identifier, name, klass):
@@ -578,10 +809,12 @@ class ReflectiveListAdapter(ReflectiveResourceAdapterBase):
 		self._check_params(klass, "list_instances", True, needle = ("parent", "adapter"))
 		return super(ReflectiveListAdapter, self)._add_type(identifier, name, klass)
 
-	def _list_entities(self, parent_id, typename = None):
+	def _list_resources(self, parent_id, typename = None):
 		if typename:
 			return self.get_type(typename).list_instances(parent = parent_id, adapter = self)
-		return reduce(list.__add__, [ [ i for i in klass.list_instances(parent = parent_id, adapter = self) if i.typename == klass.get_typename() ] for klass in self.types] , [])
+		res =  reduce(list.__add__, [ list(klass.list_instances(parent = parent_id, adapter = self)) for klass in self.types] , [])
+		#raise Exception(res)
+		return res
 
 class ReflectiveResourceAdapter(ReflectiveGetAdapter, ReflectiveListAdapter, ReflectiveAddAdapter):
 	pass

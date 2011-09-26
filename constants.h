@@ -49,7 +49,7 @@
 #include <pfring.h>
 #endif
 
-#include "hash.h" // todo:
+//#include "hash.h" // todo:
 
 
 #ifndef MAX_INTERFACES
@@ -64,29 +64,130 @@
 #define MAX_RULES 256
 #endif // PFRING
 
-typedef uint32_t (*hashFunction)(uint8_t*,uint16_t);
-typedef uint16_t (*selectionFunction) (const uint8_t *, uint16_t , uint8_t *, uint16_t, int16_t *, uint8_t*);
-
-typedef void (*device_handler)(u_char*, void* , const u_char* );
 
 
-typedef struct {
+typedef struct buffer_s {
 	uint8_t*       ptr;
 	uint32_t       len;
-	const uint32_t max_len;
+	uint32_t       size;
 }
 buffer_t;
 
 typedef union device {
-    #ifndef PFRING
+	#ifndef PFRING
 	pcap_t* pcap;
-    #endif
+	#endif
 	char*   pcap_file;
 	int     socket;
 	#ifdef PFRING
 	pfring* pfring;
 	#endif
 } device_t;
+
+// hash functions for parsing
+#define HASH_FUNCTION_BOB   "BOB"
+#define HASH_FUNCTION_OAAT  "OAAT"
+#define HASH_FUNCTION_TWMX  "TWMX"
+#define HASH_FUNCTION_HSIEH "HSIEH"
+
+//hash input selection functions for parsing
+#define HASH_INPUT_REC8    "REC8"
+#define HASH_INPUT_IP      "IP"
+#define HASH_INPUT_IPTP    "IP+TP"
+#define HASH_INPUT_PACKET  "PACKET"
+#define HASH_INPUT_RAW     "RAW"
+#define HASH_INPUT_LAST    "LAST"
+#define HASH_INPUT_LINK    "LINK"
+#define HASH_INPUT_NET     "NET"
+#define HASH_INPUT_TRANS   "TRANS"
+#define HASH_INPUT_PAYLOAD "PAYLOAD"
+#define HASH_INPUT_SELECT  "SELECT"
+
+// template definition
+#define MINT_ID             0
+#define TS_TTL_PROTO_ID     1
+#define TS_ID               2
+#define TS_TTL_PROTO_IP_ID  3
+
+#define MIN_NAME              "min"
+#define TS_TTL_RROTO_NAME     "lp"
+#define TS_NAME               "ts"
+#define TS_TTL_RROTO_IP_NAME  "ls"
+
+typedef enum {
+	L_LINK = 0,
+	L_NET,
+	L_TRANS,
+	L_PAYLOAD
+} OSIlayer_t;
+
+
+typedef enum {
+    L_UNKNOWN = 0,
+    L_ETHERNET,
+    L_ATM_RFC1483
+} linkProt_t;
+
+typedef enum {
+   N_UNKNOWN = 0,
+   N_IP = 4,
+   N_IP6 = 6
+} netProt_t;
+
+typedef enum {
+   T_UNKNOWN = 0,
+   T_ICMP    = 1,
+   T_IGMP    = 2,
+   T_GGP     = 3,
+   T_IPIP    = 4,
+   T_STREAM  = 5,
+   T_TCP     = 6,
+   T_EGP     = 8,
+   T_IGP     = 9,
+   T_UDP     = 17,
+   T_MUX     = 18,
+   T_IDPR    = 35,
+   T_IPV6    = 41,
+   T_IDRP    = 45,
+   T_RSVP    = 46,
+   T_GRE     = 47,
+   T_MOBILE  = 55,
+   T_ICMP6   = 58,
+   T_SCTP    = 132
+} transProt_t;
+
+typedef enum {
+   P_NONE = 0,
+   P_EXISTS = 1
+} payload_t;
+
+typedef enum hash_function {
+	FUNCTION_BOB		 = 0x001,
+	FUNCTION_TWMX		= 0x002,
+	FUNCTION_OAAT		= 0x003,
+	FUNCTION_SBOX		= 0x004,
+} hash_function_t;
+
+
+typedef enum hash_input_selection {
+	INPUT_8_RECOMMENDED_BYTES = 0x001,
+	INPUT_IP_HEADER           = 0x002,
+	INPUT_IP_TRANSPORT_HEADER = 0x003,
+	INPUT_WHOLE_PACKET        = 0x004,
+} hash_input_selection_t;
+
+
+// log level
+// TODO: move to logger sources
+enum {
+	  ALWAYS=0
+	, ERROR=1
+	, CRITICAL=1
+	, WARNING=2
+	, INFO
+	, DEBUG
+	, ALL
+};
 
 typedef enum {
 	  TYPE_UNKNOWN
@@ -102,8 +203,8 @@ typedef enum {
 } device_type_t;
 
 typedef struct device_desc {
-	device_type_t	  type;
-	char*    		  name;	// network adapter; file-name; socket-name; depends on device type
+	device_type_t     type;
+	char*             name;	// network adapter; file-name; socket-name; depends on device type
 	device_t          handle;
 } device_desc_t;
 
@@ -118,8 +219,8 @@ typedef struct device_dev {
 	char*             device_name;	// network adapter; file-name; socket-name; depends on device type
 	device_t          device_handle;
     #ifndef PFRING
-	bpf_u_int32       IPv4address; // network byte order
-	bpf_u_int32       mask;
+    bpf_u_int32       IPv4address; // network byte order
+    bpf_u_int32       mask;
     #else
     uint32_t          IPv4address;
     uint32_t          mask;
@@ -130,14 +231,15 @@ typedef struct device_dev {
 	ipfix_template_t *ipfixtmpl_min;
 	ipfix_template_t *ipfixtmpl_ts;
 	ipfix_template_t *ipfixtmpl_ts_ttl;
+	ipfix_template_t *ipfixtmpl_ts_ttl_ip;
 	ipfix_template_t *ipfixtmpl_interface_stats;
 	ipfix_template_t *ipfixtmpl_probe_stats;
 	ipfix_template_t *ipfixtmpl_sync;
 	ipfix_template_t *ipfixtmpl_location;
 	ipfix_template_t *sampling_export_template;
-	int16_t           offset[4];
-	uint8_t*          outbuffer;
-	uint16_t          outbufferLength;
+//	int16_t           offset[4];
+	uint32_t          pkt_offset; // points to first packet after link layer
+	buffer_t          hash_buffer;
 	uint32_t          export_packet_count;
 	uint64_t          totalpacketcount;
 	struct timeval    last_export_time;
@@ -145,79 +247,40 @@ typedef struct device_dev {
 	uint64_t sampling_delta_count;
 } device_dev_t;
 
-typedef struct packet_data {
-	const uint8_t*  packet;
-	uint32_t        length;
-	uint32_t        capture_length;
-	struct timeval  timestamp;
-} packet_data_t;
+//typedef struct packet_data {
+//	const uint8_t*  packet;
+//	uint32_t        length;
+//	uint32_t        capture_length;
+//	struct timeval  timestamp;
+//} packet_data_t;
 
-typedef struct export_data {
-	buffer_t    buffer;
-	// layer offsets (IP Stack)
-	uint64_t    timestamp;
-	int16_t     layer_offsets[4];
-	netProt_t   net;
-	transProt_t transport;
-	uint8_t     ttl;
-} export_data_t;
+//typedef struct export_data {
+//	buffer_t    buffer;
+//	// layer offsets (IP Stack)
+//	uint64_t    timestamp;
+//	int16_t     layer_offsets[4];
+//	netProt_t   net;
+//	transProt_t transport;
+//	uint8_t     ttl;
+//} export_data_t;
 
-// hash functions for parsing
-#define HASH_FUNCTION_BOB   "BOB"
-#define HASH_FUNCTION_OAAT  "OAAT"
-#define HASH_FUNCTION_TWMX  "TWMX"
-#define HASH_FUNCTION_HSIEH "HSIEH"
+// !! do not change order !!
+typedef struct packet_s {
+   uint8_t  *ptr;
+   uint32_t len;
+} packet_t;
 
-//hash input selection functions for parsing
-#define HASH_INPUT_REC8    "REC8"
-#define HASH_INPUT_IP      "IP"
-#define HASH_INPUT_IPTP    "IP+TP"
-#define HASH_INPUT_PACKET  "PACKET"
-#define HASH_INPUT_RAW     "RAW"
-#define HASH_INPUT_LINK    "LINK"
-#define HASH_INPUT_NET     "NET"
-#define HASH_INPUT_TRANS   "TRANS"
-#define HASH_INPUT_PAYLOAD "PAYLOAD"
-#define HASH_INPUT_SELECT  "SELECT"
+// !! do not change order !!
+typedef struct packet_info_s {
+   struct timeval ts;
+   uint32_t       length;
+   device_dev_t   *device;
+   uint16_t       nettype;
+} packet_info_t;
 
-// template definition
-#define MINT_ID         	0
-#define TS_TTL_PROTO_ID 	1
-#define TS_ID           	2
-#define TS_TTL_PROTO_IP_ID 	3
-
-#define MIN_NAME  			"min"
-#define TS_TTL_RROTO_NAME 	"lp"
-#define TS_NAME			 	"ts"
-#define TS_TTL_RROTO_IP_NAME 	"lp+ip"
-
-typedef enum hash_function {
-	FUNCTION_BOB		 = 0x001,
-	FUNCTION_TWMX		= 0x002,
-	FUNCTION_OAAT		= 0x003,
-	FUNCTION_SBOX		= 0x004,
-} hash_function_t;
-
-
-
-typedef enum hash_input_selection {
-	INPUT_8_RECOMMENDED_BYTES = 0x001,
-	INPUT_IP_HEADER           = 0x002,
-	INPUT_IP_TRANSPORT_HEADER = 0x003,
-	INPUT_WHOLE_PACKET        = 0x004,
-} hash_input_selection_t;
-
-
-// log level
-enum {
-	  ALWAYS=0
-	, ERROR=1
-	, CRITICAL=1
-	, WARNING=2
-	, INFO
-	, DEBUG
-	, ALL
-};
+typedef uint32_t (*hashFunction)      (buffer_t*);
+typedef uint32_t (*selectionFunction) (packet_t *, buffer_t *, uint32_t *, uint8_t *);
+typedef void     (*device_handler)    (u_char*, void* , const u_char* );
 
 // todo: use getter instead
 extern device_dev_t  if_devices[];

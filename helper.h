@@ -48,6 +48,8 @@
  * These are the types that are the same on all platforms, and that
  * have been defined by <net/bpf.h> for ages.
  */
+ // TODO: get rid of these defines
+ //       include pcap/bpf.h instead
 #define DLT_NULL    0   /* BSD loopback encapsulation */
 #define DLT_EN10MB  1   /* Ethernet (10Mb) */
 #define DLT_EN3MB   2   /* Experimental Ethernet (3Mb) */
@@ -83,7 +85,6 @@ int8_t setPFRingFilterPolicy(device_dev_t* pfring_device);
 #endif
 
 #ifndef PFRING
-void determineLinkType(device_dev_t* pcap_device);
 int  set_all_filter(const char* bpf);
 int  set_filter(device_dev_t* pd, const char* bpf);
 void setFilter(device_dev_t* pcap_device);

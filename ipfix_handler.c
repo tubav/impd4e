@@ -33,7 +33,7 @@
  */
 
 #include <string.h> // strerror()
-#include <errno.h> // errno
+#include <errno.h>  // errno
 #include <stdlib.h> // exit()
 
 // Custom logger
@@ -52,17 +52,48 @@
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// Global Variables
+// -----------------------------------------------------------------------------
+ipfix_t*          ipfix_handle = NULL;
+//ipfix_templates   *templates[];
+
+
+// -----------------------------------------------------------------------------
+// Structures, Typedefs
+// -----------------------------------------------------------------------------
+
+
+// -----------------------------------------------------------------------------
+// Prototypes
+// -----------------------------------------------------------------------------
+
+
+// -----------------------------------------------------------------------------
+// Functions
+// -----------------------------------------------------------------------------
+ipfix_t* ipfix() {
+   if( NULL == ipfix_handle ) {
+      LOGGER_fatal( "ipfix module is not successfully initialised");
+      exit(EXIT_FAILURE);
+   }
+   return ipfix_handle;
+}
+
+// -----------------------------------------------------------------------------
+
 void libipfix_init() {
    if (ipfix_init() < 0) {
       LOGGER_fatal( "cannot init ipfix module: %s", strerror(errno));
 
    }
    if (ipfix_add_vendor_information_elements(ipfix_ft_fokus) < 0) {
-      fprintf(stderr, "cannot add FOKUS IEs: %s\n", strerror(errno));
-      exit(1);
+      LOGGER_fatal( "cannot add FOKUS IEs: %s\n", strerror(errno));
+      exit(EXIT_FAILURE);
    }
 }
 
+// -----------------------------------------------------------------------------
 
 void libipfix_open(device_dev_t *if_device, options_t *options) {
    // set initial export packe count
@@ -70,7 +101,7 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 
    // use observationDomainID if explicitely given via
    // cmd line, else use interface IPv4address as oid
-   // todo: alternative oID instead of IP address --> !!different device types!!
+   // TODO: alternative oID instead of IP address --> !!different device types!!
    uint32_t odid = (options->observationDomainID != 0)
       ? options->observationDomainID
       : if_device->IPv4address;
@@ -84,7 +115,16 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
 
    }
 
+   // add collector
+   // -------------------------------------------------------------------------
+   if (ipfix_add_collector(if_device->ipfixhandle,
+            options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP) < 0) {
+      LOGGER_error("ipfix_add_collector(%s,%d) failed: %s",
+            options->collectorIP, options->collectorPort, strerror(errno));
+   }
+
    // create templates
+   // -------------------------------------------------------------------------
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
             if_device->ipfixtmpl_min, export_fields_min) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
@@ -99,6 +139,12 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
             if_device->ipfixtmpl_ts_ttl,
             export_fields_ts_ttl_proto) < 0) {
+      LOGGER_fatal("template initialization failed: %s", strerror(errno));
+      exit(EXIT_FAILURE);
+   }
+   if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
+           if_device->ipfixtmpl_ts_ttl_ip,
+           export_fields_ts_ttl_proto_ip) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
@@ -122,12 +168,6 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
             if_device->ipfixtmpl_location, export_fields_location) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
-   }
-
-   if (ipfix_add_collector(if_device->ipfixhandle,
-            options->collectorIP, options->collectorPort, IPFIX_PROTO_TCP) < 0) {
-      LOGGER_error("ipfix_add_collector(%s,%d) failed: %s",
-            options->collectorIP, options->collectorPort, strerror(errno));
    }
 
    //	LOGGER_info("device:      %p", if_device);

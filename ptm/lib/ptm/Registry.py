@@ -9,12 +9,16 @@ import logging
 from ptm import Identifier
 from ptm.exc import NoAdapterFoundError, AdapterNotAvailableError
 import threading
+import collections
 
 logger = logging.getLogger("ptm")
+
+PayloadEntryTuple = collections.namedtuple("PayloadEntryTuple", ("payloadentry", "is_wildcard"))
 
 class PayloadEntry(object):
     def __init__(self, id, payload, available = True, *args, **kw):
         super(PayloadEntry, self).__init__(*args, **kw)
+        assert(payload is not None)
         self.__id = id
         self.__payload = payload
         self.__available = available
@@ -35,6 +39,7 @@ class Registry(object):
     class __Node(object):
         def __init__(self):
             self.children = {}
+            self.wildcard_children = {}
             self.type_payload = {}
             self.instance_payload = {}
 
@@ -48,6 +53,7 @@ class Registry(object):
                     return None
             
         def get_payload(self, idpart):
+            idpart = Identifier(idpart)
             if not idpart.is_adapter:
                 try:
                     return self.instance_payload[idpart]
@@ -58,17 +64,18 @@ class Registry(object):
         
         def get_wildcard_payload(self, idpart):
             pl = self.get_payload(idpart)
-            if pl.id.is_wildcard:
+            if pl is not None and pl.id.is_wildcard:
                 return pl
             return None
         
         def add_payload(self, id, payload, available = True):
+            logger.debug("adding payload: %s %s -> %s" % (self, id, payload))
             if id.is_adapter:
                 old = self.type_payload.get(id.typename, (None, ))[0]
                 self.type_payload[id.typename] = (PayloadEntry(id, payload, available), id.is_wildcard)
             else:
                 old = self.instance_payload.get(id, None)
-                self.instance_payload[id] = PayloadEntry(id, payload, available)
+                self.instance_payload[id[-1]] = PayloadEntry(id, payload, available)
 
             if old is not None:
                 logger.debug("Replacing old entry: %s" % (old.payload, ))
@@ -90,13 +97,20 @@ class Registry(object):
             
         node = self.__root
         self.__good.clear()
+        parts = identifier[:-1]
+        logger.debug("prts: %s" % (parts, ))
         try:
             for part in identifier[:-1]:
                 try:
+                    logger.debug("getting child for %s from %s" % (part, node))
                     node = node.children[part]
+                    logger.debug("got child")
                 except KeyError:
                     n = Registry.__Node()
-                    node.children[part] = n
+                    if part.endswith(Identifier.WILDCARD):
+                        node.wildcard_children[unicode(part)[:-1]] = n
+                    else:
+                        node.children[part] = n
                     node = n
             
             node.add_payload(identifier, url)
@@ -113,13 +127,14 @@ class Registry(object):
 
     def resolve_payload_entry(self, identifier):
         identifier = Identifier(identifier)
-        logger.debug(u"Resolving: " + unicode(identifier))
+        #logger.debug(u"Resolving: " + unicode(identifier))
             
         node = self.__root
         result = None
 
         self.__good.wait()
-        for part in identifier[:-1]:
+        parts = identifier[:-1]
+        for i, part in enumerate(parts, 1):
             payload = node.get_wildcard_payload(part.typename)
             if payload is not None:
                 result = payload
@@ -127,7 +142,13 @@ class Registry(object):
             try:
                 node = node.children[part]
             except KeyError:
-                break
+                if i == len(parts):
+                    try:
+                        node = node.wildcard_children[part.typename]
+                    except KeyError:
+                        break
+                else:
+                    break
         else:
             payload = node.get_payload(identifier[-1])
             if payload is not None:
@@ -147,7 +168,8 @@ class Registry(object):
         result = {}
 
         self.__good.wait()
-        for part in identifier[:-1]:
+        parts = identifier[:-1]
+        for i, part in enumerate(parts, 1):
             logger.debug(part)
             if None in node.type_payload and node.type_payload[None][1]:
                 if identifier.typename:
@@ -160,12 +182,27 @@ class Registry(object):
                     if identifier.typename:
                         result = {}
                     result[id] = payload[0]
+                    
             try:
+                logger.debug("getting child %s form %s" % (part, node.children, ))
                 node = node.children[part]
+                logger.debug("have child")
                 current = (current / part).submanager
             except KeyError:
-                break
+                if i == len(parts):
+                    try:
+                        logger.debug("trying wildcard child")
+                        node = node.wildcard_children[part.typename]
+                        logger.debug("have child")
+                        #current = (current / part.typename).submanager
+                        current = current / (part.typename + Identifier.WILDCARD + Identifier.SEPARATOR)
+                    except KeyError:
+                        break
+                else:
+                    break
+
         else:
+            logger.debug("traversed till end %s %s %s"% (node, node.instance_payload, node.type_payload))
             #logger.debug("through------")
             if not identifier.is_adapter:
                 try:
@@ -209,7 +246,7 @@ class Registry(object):
         if not result:
             raise NoAdapterFoundError(identifier)
 
-        logger.debug("Returning result: %s" % (result, ))
+        #logger.debug("Returning result: %s" % (result, ))
         return result
             
     def _mangle_dict(self, result):

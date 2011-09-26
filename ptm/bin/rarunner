@@ -23,5 +23,5 @@ fi
 echo PYTHONPATH: $PYTHONPATH
 echo starting RA...
 
-exec python "$MODULEDIR/ptm/RARunner.py" "$1"
+exec python "$MODULEDIR/ptm/RARunner.py" $@
 

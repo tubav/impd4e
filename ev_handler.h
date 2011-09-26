@@ -90,11 +90,6 @@ void sigpipe_cb (EV_P_ ev_signal *w, int revents);
 
 /* -- capture --*/
 void packet_watcher_cb(EV_P_ ev_io *w, int revents);
-#ifndef PFRING
-void packet_pcap_cb(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet);
-#else
-void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header, const u_char *packet);
-#endif
 
 /* -- export -- */
 void export_timer_pktid_cb    (EV_P_ ev_timer *w, int revents);

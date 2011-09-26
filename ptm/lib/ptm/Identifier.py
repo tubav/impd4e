@@ -55,13 +55,31 @@ class Identifier(object):
 	def __check(identifier):
 		current = Identifier.CURRENT
 		parts = identifier.split(Identifier.SEPARATOR)
+		
+		if identifier.count(Identifier.WILDCARD) > 1:
+			raise IdentifierException("At most one wildcard character may be present in an id. (%s)" % (identifier, ))
 
 		if parts[0]:
 			result = []
 		else:
 			result = [""]
+			
+		#start = identifier.startswith(Identifier.SEPARATOR) and 1 or 0
+		#stop = identifier.endswith(Identifier.SEPARATOR) and -2 or -1
+		start = 1
+		stop = -2
 
-		result += [ Identifier.__check_element(e) for e in parts[1:-1] if e != current ]
+		result += [ Identifier.__check_element(e) for e in parts[start:stop] if e != current ]
+
+		second_to_last = identifier.startswith(Identifier.SEPARATOR) and 2 or 1
+		if len(parts) > second_to_last:
+			if parts[-2].endswith(Identifier.WILDCARD):
+				if Identifier.TYPE_SEPARATOR in parts[-2] or Identifier.TYPE_SEPARATOR in parts[-1]:
+					raise IdentifierException(u"Illegal wildcard id: " + identifier)
+				Identifier.__check_chars(parts[-2][:-1])
+				result.append(parts[-2])		
+			else:	
+				result.append(Identifier.__check_element(parts[-2]))	
 
 		last = parts[-1]
 		if last == Identifier.CURRENT or last == u'':
@@ -83,7 +101,7 @@ class Identifier(object):
 	def __check_chars(id):
 		for c in id:
 			if c not in _LEGAL_CHARS:
-				raise IdentifierException(u"Illegal character '%s' id '%s'" % (c, id))
+				raise IdentifierException(u"Illegal character '%s' in id '%s'" % (c, id))
 
 	@staticmethod
 	def __check_element(id):
@@ -98,27 +116,26 @@ class Identifier(object):
 			raise IdentifierException(msg)
 		return id
 
-	def get_identifier(self):
-		#if self.is_wildcard:
-		#	return Identifier(self.__identifier[:-len(Identifier.WILDCARD)])
-		#return self
+	@property
+	def identifier(self):
 		return self.__identifier
-	identifier = property(get_identifier)
 
 	def __repr__(self):
-		return self.__identifier
+		return self.identifier
 
 	def __hash__(self):
-		return hash(self.__identifier)
+		return hash(self.identifier)
 		
-	def get_parts(self):
+	@property
+	def parts(self):
 		return self.__identifier.split(self.SEPARATOR)
-	parts = property(get_parts)
 
 	def __get_elements(self):
 		elements = self.parts
 		if self.is_absolute:
 			elements = elements[1:]
+		if not self.typename:
+			elements = elements[:-1]
 		return elements
 
 	def get_elements(self):
@@ -128,6 +145,8 @@ class Identifier(object):
 	def get_slice(self, start = None, stop = None, step = None):
 		#print("get_slice")
 		elements = self.__get_elements()
+		if self.is_adapter and not self.typename:
+			elements.append("")
 #		print(elements)
 		sliced_elements = elements[start:stop:step]
 #		print(sliced_elements)
@@ -153,11 +172,11 @@ class Identifier(object):
 
 	def __eq__(self, o):
 		try:
-			o = Identifier(o)
+			o = self.__class__(o)
 		except IdentifierException:
 			return False
 
-		return self.__identifier == o.__identifier
+		return self.identifier == o.identifier
 
 	def __ne__(self, o):
 		return not (self == o)
@@ -167,23 +186,30 @@ class Identifier(object):
 
 	def __req__(self, o):
 		return self == o
+	
+	def __sub__(self, o):
+		o = unicode(o)
+		self.__check_chars(o)
+		if not self.is_adapter or not self.typename:
+			raise IdentifierException("Cannot add name to %s" % (self, ))
+		
+		return self.__class__(self.identifier + self.TYPE_SEPARATOR + o)
 
-	def get_is_absolute(self):
+	@property
+	def is_absolute(self):
 		return self.__identifier.startswith(self.SEPARATOR)
-	is_absolute = property(get_is_absolute)
 
-	def get_is_relative(self):
+	@property
+	def is_relative(self):
 		return not self.is_absolute
-	is_relative = property(get_is_relative)
-		
-	def get_is_adapter(self):
-		#return self.__identifier.endswith(self.SEPARATOR) or self.is_wildcard
+	
+	@property
+	def is_adapter(self):
 		return Identifier.TYPE_SEPARATOR not in self.parts[-1]
-	is_adapter = property(get_is_adapter)
 		
-	def get_is_wildcard(self):
+	@property
+	def is_wildcard(self):
 		return self.__identifier.endswith(self.WILDCARD)
-	is_wildcard = property(get_is_wildcard)
 
 	def get_managed_type(self):
 		if not self.is_adapter:
@@ -205,89 +231,83 @@ class Identifier(object):
 		return self.__identifier == Identifier.CURRENT or self.__identifier == Identifier.CURRENT + Identifier.SEPARATOR + Identifier.WILDCARD or self.__identifier == Identifier.CURRENT + Identifier.SEPARATOR
 	is_current = property(get_is_current)
 
-	def get_parent(self):
+	@property
+	def parent(self):
 		if self.is_adapter:
 			if self.is_root:
 				return self
-	#			return Identifier(Identifier.CURRENT)
 			return self[:]
 		if len(self) <= 1:
-			return Identifier(Identifier.SEPARATOR)
-#			return Identifier(Identifier.CURRENT)
-		return Identifier(self.__identifier.rpartition(Identifier.SEPARATOR)[0])
-	parent = property(get_parent)
+			return self.__class__(Identifier.SEPARATOR)
+		return self.__class__(self.identifier.rpartition(Identifier.SEPARATOR)[0])
 		
-	def get_manager_name(self):
-#		if self.is_adapter:
-#			return Identifier(self.identifier)
+	@property
+	def manager_name(self):
 		if self.is_wildcard:
-			return Identifier(self.__identifier[:-len(Identifier.WILDCARD)])
+			return Identifier(self.identifier[:-len(Identifier.WILDCARD)])
 		if self.is_adapter or self.is_current:
 			return self
-		#return Identifier(self.__identifier.rsplit(self.TYPE_SEPARATOR, 1)[0])
 		return self.dirname / self.typename
-#		return self.identifier
-	manager_name = property(get_manager_name)
 
-	def get_dirname(self):
-#		if self.is_current:
-#			return self.identifier
-#		if self.__identifier.endswith(self.SEPARATOR):
-#			return self
-#		return Identifier(self.__identifier.rpartition(Identifier.SEPARATOR)[0] + Identifier.SEPARATOR)
+	@property
+	def dirname(self):
 		parts = self.__identifier.rpartition(Identifier.SEPARATOR)
 		return Identifier(parts[0] + parts[1])
-	dirname = property(get_dirname)
 	
-	def get_basename(self):
+	@property
+	def basename(self):
 		return self.__identifier.rsplit(self.SEPARATOR, 1)[-1]
-	basename = property(get_basename)
 
-	def get_typename(self):
+	@property
+	def typename(self):
 		if self.is_current:
 			return None
 		if self.is_adapter:
 			return self.managed_type
 		return self.__get_name_part(0)
-	typename = property(get_typename)
 
-	def get_resourcename(self):
+	@property
+	def resourcename(self):
 		if self.is_adapter:
 			return None
 		return self.__get_name_part(1)
-	resourcename = property(get_resourcename)
 	name = resourcename
 
 	def __get_name_part(self, i):
 		return str(self.basename).split(Identifier.TYPE_SEPARATOR, 1)[i]
 
 	def __div__(self, identifier):
-		identifier = Identifier(identifier)
-
-#		if identifier.is_absolute:
-#			raise IdentifierException("ID '%s' is absolute" % (identifier, ))
-
-
+		identifier = self.__class__(identifier)
+#		print("1: %s" % (identifier, ))
 		if self.is_adapter:
+#			print("2: %s" % (identifier, ))
 			if identifier.is_root:
+#				print("3: %s" % (identifier, ))
 				return self
 			if identifier.is_current:
+#				print("4: %s" % (identifier, ))
 				if identifier.is_wildcard and not self.is_wildcard:
-					return Identifier(self.__identifier + Identifier.WILDCARD)
+#					print("5: %s" % (identifier, ))
+					return self.__class__(self.identifier + Identifier.WILDCARD)
+#				print("6: %s" % (identifier, ))
 				return self
+#			print("7: %s" % (identifier, ))
 			u = self.dirname.__identifier
 		elif not identifier.is_absolute:
-			u = self.__identifier + Identifier.SEPARATOR
+#			print("8: %s" % (identifier, ))
+			u = self.identifier + Identifier.SEPARATOR
 		else:
-			u = self.__identifier
-		return Identifier(u + identifier.__identifier)
+#			print("9: %s" % (identifier, ))
+			u = self.identifier
+#		print("10: %s" % (u, ))
+		return self.__class__(u + identifier.__identifier)
 
 	__truediv__ = __div__
 
 	def __rdiv__(self, o):
 		if not o:
-			o = Identifier(self.SEPARATOR)
-		return Identifier(o) / self
+			o = self.__class__(self.SEPARATOR)
+		return self.__class__(o) / self
 
 	__rtruediv__ = __rdiv__
 
@@ -296,22 +316,21 @@ class Identifier(object):
 	def __radd__(self, o):
 		if isinstance(o, basestring):
 			return o + unicode(self)
-		return Identifier(o) + self
+		return self.__class__(o) + self
 
 	def __len__(self):
 		return len(self.elements)
 
 	def __nonzero__(self):
 		return len(self) != 0
+	__bool__ = __nonzero__
 
 	def is_responsible_for(self, identifier):
 		if not self.is_adapter:
-			raise IdentifierException("Only managers are responsible for stuff")
-#		manager = Identifier(identifier).manager_name
+			raise IdentifierException("Only adapters are responsible for stuff (%s)" % (self, ))
 #		my_name = self.manager_name
 
 		return identifier.__identifier.startswith(self.manager_name.__identifier) and (self.is_wildcard or self.dirname == identifier.dirname)
-#		return (manager == self.identifier and (not self.managed_type or self.managed_type == identifier.typename)) or (self.is_wildcard and manager.__identifier.startswith(self.manager_name.__identifier))
 
 	def make_child_identifier(self, typename, name):
 		if not typename:
@@ -323,7 +342,7 @@ class Identifier(object):
 		return self / (unicode(typename) + Identifier.TYPE_SEPARATOR + name)
 
 	def relpath_to(self, identifier):
-		identifier = Identifier(identifier)
+		identifier = self.__class__(identifier)
 
 		if not identifier.is_absolute:
 			return identifier
@@ -340,7 +359,7 @@ class Identifier(object):
 		if identifier.startswith(Identifier.SEPARATOR):
 			identifier = Identifier.CURRENT + identifier
 			
-		return Identifier(identifier)
+		return self.__class__(identifier)
 
 	def manager_for(self, type = '', wildcard = False):
 		if type:
@@ -356,7 +375,7 @@ class Identifier(object):
 		else:
 			wildcard = u''
 
-		return Identifier(unicode(self.dirname) + unicode(type) + wildcard)
+		return self.__class__(unicode(self.dirname) + unicode(type) + wildcard)
 	adapter_for = manager_for
 
 	def get_submanager(self):
@@ -368,12 +387,13 @@ class Identifier(object):
 	def add_wildcard(self):
 		if self.is_wildcard:
 			return self
-		return Identifier(self.submanager.__identifier + Identifier.WILDCARD)
+		return self.__class__(self.submanager.identifier + Identifier.WILDCARD)
 
 	def startswith(self, identifier):
-		if hasattr(identifier, "identifier"):
-			identifier = identifier.identifier
-		return self.__identifier.startswith(unicode(identifier))
+		return self.identifier.startswith(unicode(identifier))
+	
+	def endswith(self, identifier):
+		return self.identifier.endswith(unicode(identifier))
 
 import string
 

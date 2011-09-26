@@ -27,7 +27,7 @@ class Marshaller(object):
 		if is_iterable(v):
 			return self.pack_list(v)
 		if isinstance(v, Resource):
-			return u"r" + unicode(v.uuid)
+			return u"r" + unicode(v.identifier)
 		if isinstance(v, Identifier):
 			return u"i" + unicode(v)
 		if not is_primitive(v):	

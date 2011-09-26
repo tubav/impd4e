@@ -46,6 +46,7 @@ typedef struct options
 {	char     basedir[100];
 	uint8_t  number_interfaces;
 	uint32_t templateID;
+   uint32_t offset;
 	char     collectorIP[256];
 	int16_t  collectorPort;
 	char*    bpf; // berkley packet filter
@@ -95,6 +96,12 @@ int set_sampling_upperbound(options_t *options, char* value);
 int parseTemplate(char *arg_string, options_t *options);
 void parseSelFunction(char *arg_string, options_t *options);
 hashFunction parseFunction(char *arg_string);
+
+void print_help();
+void parse_cmdline(int argc, char **argv);
+void parse_cmdline_v2(int argc, char **argv);
+
+void set_defaults_options(options_t *options);
 
 // todo: use getter instead
 extern options_t     g_options;

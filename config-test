@@ -1,0 +1,34 @@
+# impdv4 example config file v0.1, 
+# 
+# starts a comment till end of line
+# keys and values will be WS-trimmed, so no quotes are needed
+#
+# parameters on command line will always supersede those in the config file
+# independently of order of CLI commands (auf Wunsch einer einzelnen Person ;) )
+
+[General]
+#   configfile = config-test # creates loop for this file
+   verbosity = 1      # the higher the more verbose, default = 0
+#   help
+
+[Capture]
+#   interface = i:eth0
+#   interface = s:localhost:12345
+   interface = i:lo
+  offset = 14
+
+[Interval]
+   data_export = 0
+   probe_stats = 0
+   interface_stats = 0
+   location = 0
+
+[Ipfix]
+   observation_domain_id = 12345         # optional: default = IP address of the interface
+
+[Geotags]
+   probe_name = foo                  # a probe name, default: <hostname>
+   location_name = bar                  # an arbitrary location name
+   latitude = 52.234                  # geo location (double): latitude
+   longitude = 13.345                  # geo location (double): longitude
+

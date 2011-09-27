@@ -1583,7 +1583,7 @@ void resync_timer_cb (EV_P_ ev_timer *w, int revents) {
    for (i = 0; i < (g_options.number_interfaces); i++) {
       col = (ipfix_collector_sync_t*) if_devices[i].ipfixhandle->collectors;
       LOGGER_debug("collector_fd: %d", col->fd);
-      netcon_resync( col->fd );
+      netcon_resync(EV_A_ col->fd );
    }
 }
 

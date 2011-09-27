@@ -91,7 +91,6 @@ struct netcon {
 	struct sockaddr_in listen_addr;
 	ev_io accept_watcher;
 	struct registry *reg;   /* command callbacks */
-	struct ev_loop *loop;
 	struct connection *conn; /* store active connections */
 } netcon;
 
@@ -124,9 +123,8 @@ static void write_cb(EV_P_ struct ev_io *w, int revents) {
 }
 static void connection_write( EV_P_ struct connection * conn, char *data ){
 	ev_io_start(EV_A_ &conn->ev_write);
-
-
 }
+
 static void connection_close( EV_P_ struct connection * conn){
 	LOGGER_debug("connection close: %s:%s sync:%d",conn->remote_host, conn->remote_port, conn->sync );
 	if(conn->sync){
@@ -279,7 +277,6 @@ int netcon_init( EV_P_ char *host, int port ){
 	int reuseaddr_on = 1;
 
 	netcon.reg=NULL;
-	netcon.loop = loop;
 	netcon.conn = NULL;
 
 	LOGGER_info("netcom sync only");
@@ -357,11 +354,9 @@ int netcon_init( EV_P_ char *host, int port ){
 }
 void netcon_sync_cleanup(){
 	LOGGER_debug("cleaning up sync connection");
-//	ev_io_stop(netcon.loop, )
-
 }
 
-int netcon_resync( int fd ){
+int netcon_resync( EV_P_ int fd ){
 	struct connection *conn,**ptr;
 //	setnonblock(fd);
 //	int flags = fcntl(fd, F_GETFL);
@@ -418,7 +413,7 @@ int netcon_resync( int fd ){
 	ev_io_init(&conn->ev_read,read_cb,conn->fd,EV_READ);
 
 	LOGGER_debug("start event loop:");
-	ev_io_start(netcon.loop,&conn->ev_read);
+	ev_io_start(EV_A_ &conn->ev_read);
 
 	return 0;
 }

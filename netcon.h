@@ -45,10 +45,11 @@
 #define NETCON_CMD_MATCHED 1
 #define NETCON_CMD_UNKNOWN 0
 
-int netcon_init( EV_P_ char *host, int port );
+int  netcon_init( EV_P_ char *host, int port );
+int  netcon_resync( EV_P_ int fd );
+void netcon_sync_clenaup();
+
 /* cmd receives a string, return 1 if matched, 0 otherwise */
 void netcon_register(int(*cmd)(char *msg ));
-int netcon_resync(int fd );
-void netcon_sync_clenaup();
 
 #endif /* NETCON_H_ */

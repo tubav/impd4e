@@ -66,19 +66,17 @@ typedef void (*timer_cb_t)(EV_P_ ev_timer *w, int revents);
 
 typedef char* (*set_cfg_fct_t)(unsigned long mid, char* cmd_msg);
 
+// !! do not change order !!
 typedef struct {
+  char cmd;
   set_cfg_fct_t fct;
   const char* desc;
-  int desc_length;
-  char cmd;
 }
 cfg_fct_t;
 
 // -----------------------------------------------------------------------------
 // Prototypes
 // -----------------------------------------------------------------------------
-
-void register_configuration_fct( char cmd, set_cfg_fct_t cfg_fct, const char* desc );
 
 set_cfg_fct_t getFunction(char cmd);
 

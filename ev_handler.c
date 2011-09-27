@@ -96,9 +96,27 @@ struct {
    ev_io      packet_watchers[MAX_INTERFACES];
 } events;
 
-#define CONFIG_FCT_SIZE 10
-cfg_fct_t configuration_fct[CONFIG_FCT_SIZE];
-int config_fct_length = 0;
+//typedef struct {
+//  char cmd;
+//  set_cfg_fct_t fct;
+//  const char* desc;
+//}
+//cfg_fct_t;
+
+// register available configuration functions
+// to the config function array
+cfg_fct_t configuration_fct[] = {
+   { '?', &configuration_help,                     "INFO: -? this help\n" },
+   { 'h', &configuration_help,                     "INFO: -h this help\n" },
+   { 'r', &configuration_set_ratio,                "INFO: -r capturing ratio in %\n" },
+   { 'm', &configuration_set_min_selection,        "INFO: -m capturing selection range min (hex|int)\n" },
+   { 'M', &configuration_set_max_selection,        "INFO: -M capturing selection range max (hex|int)\n" },
+   { 'f', &configuration_set_filter,               "INFO: -f bpf filter expression\n" },
+   { 't', &configuration_set_template,             "INFO: -t template (ts|min|lp)\n" },
+   { 'I', &configuration_set_export_to_pktid,      "INFO: -I pktid export interval (s)\n" },
+   { 'J', &configuration_set_export_to_probestats, "INFO: -J porbe stats export interval (s)\n" },
+   { 'K', &configuration_set_export_to_ifstats,    "INFO: -K interface stats export interval (s)\n" }
+};
 
 char cfg_response[256];
 #define SET_CFG_RESPONSE(...) snprintf(cfg_response, sizeof(cfg_response), "" __VA_ARGS__);
@@ -115,19 +133,6 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
         const u_char *packet);
 #endif
 
-void register_configuration_fct(char cmd, set_cfg_fct_t fct, const char* desc) {
-   if (CONFIG_FCT_SIZE > config_fct_length) {
-      configuration_fct[config_fct_length].cmd = cmd;
-      configuration_fct[config_fct_length].fct = fct;
-      configuration_fct[config_fct_length].desc = desc;
-      configuration_fct[config_fct_length].desc_length = strlen(desc);
-      ++config_fct_length;
-   } else {
-      LOGGER_warn(
-            "configuration function table is full - check size - should not happen");
-   }
-}
-
 // dummy function to prevent segmentation fault
 char* unknown_cmd_fct(unsigned long id, char* msg) {
    LOGGER_warn("unknown command received: id=%lu, msg=%s", id, msg);
@@ -136,7 +141,9 @@ char* unknown_cmd_fct(unsigned long id, char* msg) {
 
 cfg_fct_t* get_cfg_fct(char cmd) {
    int i = 0;
-   for (i = 0; i < config_fct_length; ++i) {
+   int length = sizeof(configuration_fct)/sizeof(cfg_fct_t);
+
+   for (i = 0; i < length; ++i) {
       if (cmd == configuration_fct[i].cmd) {
          return &configuration_fct[i];
       }
@@ -146,14 +153,14 @@ cfg_fct_t* get_cfg_fct(char cmd) {
 }
 
 set_cfg_fct_t getFunction(char cmd) {
-   int i = 0;
-   for (i = 0; i < config_fct_length; ++i) {
-      if (cmd == configuration_fct[i].cmd) {
-         return configuration_fct[i].fct;
-      }
+   cfg_fct_t* f = get_cfg_fct(cmd);
+   if( NULL != f ) {
+      return f->fct;
    }
-   LOGGER_warn("unknown command received: cmd=%c", cmd);
-   return unknown_cmd_fct;
+   else {
+      LOGGER_warn("unknown command received: cmd=%c", cmd);
+      return unknown_cmd_fct;
+   }
 }
 
 /**
@@ -293,27 +300,6 @@ void event_setup_netcon(EV_P) {
       LOGGER_error("could not initialize netcon: host: %s, port: %d ", host,
             port);
    }
-
-   // register available configuration functions
-   // to the config function array
-   register_configuration_fct('?', configuration_help, "INFO: -? this help\n");
-   register_configuration_fct('h', configuration_help, "INFO: -h this help\n");
-   register_configuration_fct('r', configuration_set_ratio,
-         "INFO: -r capturing ratio in %\n");
-   register_configuration_fct('m', configuration_set_min_selection,
-         "INFO: -m capturing selection range min (hex|int)\n");
-   register_configuration_fct('M', configuration_set_max_selection,
-         "INFO: -M capturing selection range max (hex|int)\n");
-   register_configuration_fct('f', configuration_set_filter,
-         "INFO: -f bpf filter expression\n");
-   register_configuration_fct('t', configuration_set_template,
-         "INFO: -t template (ts|min|lp)\n");
-   register_configuration_fct('I', configuration_set_export_to_pktid,
-         "INFO: -I pktid export interval (s)\n");
-   register_configuration_fct('J', configuration_set_export_to_probestats,
-         "INFO: -J porbe stats export interval (s)\n");
-   register_configuration_fct('K', configuration_set_export_to_ifstats,
-         "INFO: -K interface stats export interval (s)\n");
 
    // register runtime configuration callback to netcon
    netcon_register(runtime_configuration_cb);
@@ -1210,15 +1196,17 @@ char* configuration_help(unsigned long mid, char *msg) {
       if( NULL == response ) {
          int i;
          int size = 1;
-         for (i = 0; i < config_fct_length; ++i) {
-            size += configuration_fct[i].desc_length;
+         int length = sizeof(configuration_fct)/sizeof(cfg_fct_t);
+
+         for (i = 0; i < length; ++i) {
+            size += strlen( configuration_fct[i].desc );
          }
          response = (char*) malloc(size+1);
 
          char* tmp = response;
-         for (i = 0; i < config_fct_length; ++i) {
+         for (i = 0; i < length; ++i) {
             strcpy(tmp, configuration_fct[i].desc);
-            tmp += configuration_fct[i].desc_length;
+            tmp += strlen( configuration_fct[i].desc );
          }
       }
       return response;

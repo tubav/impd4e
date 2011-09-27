@@ -64,7 +64,7 @@ typedef struct collector_node_sync {
 typedef void (*timer_cb_t)(EV_P_ ev_timer *w, int revents);
 
 
-typedef int (*set_cfg_fct_t)(unsigned long mid, char* cmd_msg);
+typedef char* (*set_cfg_fct_t)(unsigned long mid, char* cmd_msg);
 
 typedef struct {
   set_cfg_fct_t fct;
@@ -98,7 +98,7 @@ void export_timer_stats_cb    (EV_P_ ev_timer *w, int revents);
 void export_timer_location_cb (EV_P_ ev_timer *w, int revents);
 
 
-// todo: not here
+// TODO: not here
 void export_flush();
 void export_flush_device( device_dev_t* device );
 void export_data_interface_stats(device_dev_t *dev
@@ -116,22 +116,22 @@ void export_data_location(device_dev_t *dev
 
 
 /* -- event loop -- */
-void event_loop();
+void event_loop( EV_P );
 ev_timer* event_register_timer(EV_P_ ev_tstamp tstamp, timer_cb_t* cb );
 void event_setup_pcapdev(EV_P);
 void event_setup_netcon(EV_P);
 
 /* -- runtime configuration -- */
 int runtime_configuration_cb(char*);
-int configuration_help(unsigned long mid, char *msg);
-int configuration_set_template(unsigned long mid, char *msg);
-int configuration_set_filter(unsigned long mid, char *msg);
-int configuration_set_export_to_probestats(unsigned long mid, char *msg);
-int configuration_set_export_to_ifstats(unsigned long mid, char *msg);
-int configuration_set_export_to_pktid(unsigned long mid, char *msg);
-int configuration_set_min_selection(unsigned long mid, char *msg);
-int configuration_set_max_selection(unsigned long mid, char *msg);
-int configuration_set_ratio(unsigned long mid, char *msg);
+char* configuration_help(unsigned long mid, char *msg);
+char* configuration_set_template(unsigned long mid, char *msg);
+char* configuration_set_filter(unsigned long mid, char *msg);
+char* configuration_set_export_to_probestats(unsigned long mid, char *msg);
+char* configuration_set_export_to_ifstats(unsigned long mid, char *msg);
+char* configuration_set_export_to_pktid(unsigned long mid, char *msg);
+char* configuration_set_min_selection(unsigned long mid, char *msg);
+char* configuration_set_max_selection(unsigned long mid, char *msg);
+char* configuration_set_ratio(unsigned long mid, char *msg);
 
 /* -- netcon / resync  -- */
 void resync_timer_cb (EV_P_ ev_timer *w, int revents);

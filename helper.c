@@ -50,6 +50,7 @@
 #endif
 
 #include <string.h>
+#include <ctype.h>
 
 #ifdef PFRING
 #include <netinet/ip.h>
@@ -86,6 +87,25 @@ uint32_t getIPv4AddressFromDevice(char* dev_name) {
    return ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr;
 }
 
+char* l_trim( char* s ) {
+   // character string is NULL terminated
+
+   if( NULL != s ) {
+      while( '\0' != *s && isspace(*s) ) ++s;
+   }
+   return s;
+}
+
+void r_trim( char* s ) {
+   // character string is NULL terminated
+
+   if( NULL != s ) {
+      int   len = strlen( s );
+      char* pos = s + len; // point to '\0'
+
+      while( --pos > s && isspace( *pos ) ) *pos = '\0';
+   }
+}
 
 /**
  * Helper for printing out IPv4 address

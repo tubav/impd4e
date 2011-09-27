@@ -85,7 +85,6 @@
  * Event and Signal handling via libev
  */
 struct {
-   EV_P;
    ev_signal sigint_watcher;
    ev_signal sigalrm_watcher;
    ev_signal sigpipe_watcher;
@@ -94,12 +93,16 @@ struct {
    ev_timer   export_timer_stats;
    ev_timer   export_timer_location;
    ev_timer   resync_timer;
-//   ev_io      packet_watchers[MAX_INTERFACES];
+   ev_io      packet_watchers[MAX_INTERFACES];
 } events;
 
 #define CONFIG_FCT_SIZE 10
 cfg_fct_t configuration_fct[CONFIG_FCT_SIZE];
 int config_fct_length = 0;
+
+char cfg_response[256];
+#define SET_CFG_RESPONSE(...) snprintf(cfg_response, sizeof(cfg_response), "" __VA_ARGS__);
+#define CFG_RESPONSE cfg_response
 
 // -----------------------------------------------------------------------------
 // Prototypes
@@ -126,9 +129,20 @@ void register_configuration_fct(char cmd, set_cfg_fct_t fct, const char* desc) {
 }
 
 // dummy function to prevent segmentation fault
-int unknown_cmd_fct(unsigned long id, char* msg) {
+char* unknown_cmd_fct(unsigned long id, char* msg) {
    LOGGER_warn("unknown command received: id=%lu, msg=%s", id, msg);
-   return NETCON_CMD_UNKNOWN;
+   return "unknown command received";
+}
+
+cfg_fct_t* get_cfg_fct(char cmd) {
+   int i = 0;
+   for (i = 0; i < config_fct_length; ++i) {
+      if (cmd == configuration_fct[i].cmd) {
+         return &configuration_fct[i];
+      }
+   }
+   LOGGER_warn("unknown command received: cmd=%c", cmd);
+   return NULL;
 }
 
 set_cfg_fct_t getFunction(char cmd) {
@@ -167,32 +181,39 @@ void sigalrm_cb (EV_P_ ev_signal *w, int revents) {
 
 void user_input_cb(EV_P_ ev_io *w, int revents) {
    char  buffer[129];
-   int32_t length = 128;
 
-   if( NULL != fgets(buffer, length, stdin) ) {
+   if( NULL != fgets(buffer, sizeof(buffer), stdin) ) {
       //fscanf( stdin, "%5c", buffer );
       //LOGGER_info("user input: %s\n", buffer);
-      fprintf(stdout,"user input: %s", buffer);
+      //fprintf(stdout,"user input: %s", buffer);
       if( 0 == strncmp(buffer, "exit", 4) ||
           0 == strncmp(buffer, "quit", 4) )
       { exit(0); }
 
-      char msg[strlen(buffer+1+7)];
-      sprintf( msg, "mid:1 -%s", buffer );
-      runtime_configuration_cb( msg );
+      char* b = buffer;
+      while(!isalpha(*b) && (*b!= '\0')) ++b;
+      if( '\0' == *b) return;
+      char cmd = *b;
+      ++b;
+
+      // remove leading whitespaces
+      while (isspace(*b)) ++b;
+      //r_trim(b);
+
+      //fprintf(stdout,"user input: [%c: '%s']\n", cmd, b);
+      char* rsp_msg = (*getFunction(cmd))(1,b);
+      fprintf(stdout, "%s", rsp_msg);
+
+      //char msg[strlen(buffer+1+7)];
+      //sprintf( msg, "mid:1 -%s", buffer );
+      //runtime_configuration_cb( msg );
    }
 }
 
 /**
  * Setups and starts main event loop.
  */
-void event_loop() {
-   //struct ev_loop *loop = ev_default_loop(0);
-   EV_P = EV_DEFAULT;
-   if( !EV_A ) {
-      LOGGER_fatal("Could not initialize loop!");
-      exit(EXIT_FAILURE);
-   }
+void event_loop( EV_P ) {
    LOGGER_info("event_loop()");
 
    /*=== Setting up event loop ==*/
@@ -240,12 +261,12 @@ void event_loop() {
          , g_options.export_location_interval // repeat
    );
    // trigger first after 'after' then after 'repeat'
-   ev_timer_start(loop, &events.export_timer_location);
+   ev_timer_start(EV_A_ &events.export_timer_location);
 
    // listen to standart input
    ev_io event_io;
    ev_io_init(&event_io, user_input_cb, STDIN_FILENO, EV_READ);
-   ev_io_start(loop, &event_io);
+   ev_io_start(EV_A_ &event_io);
 
    /*   packet watchers */
    event_setup_pcapdev(EV_A);
@@ -258,7 +279,6 @@ void event_loop() {
     * Everything is going to be handled within this call
     * accordingly to callbacks defined above.
     * */
-   events.EV_A = EV_A;
    ev_loop(EV_A_ 0);
 }
 
@@ -1153,7 +1173,19 @@ int runtime_configuration_cb(char* conf_msg) {
 
             // execute command
             LOGGER_debug("configuration command '%c': %s", cmd, conf_msg);
-            return (*getFunction(cmd))(mID, conf_msg);
+
+            char* rsp_msg = (*getFunction(cmd))(mID, conf_msg);
+
+            int i;
+            for (i = 0; i < g_options.number_interfaces; i++) {
+               LOGGER_debug("==> %s", rsp_msg);
+               export_data_sync( &if_devices[i]
+                               , ev_now(EV_DEFAULT) * 1000
+                               , mID
+                               , 0
+                               , rsp_msg );
+            }
+            return NETCON_CMD_MATCHED;
          }
       }
    }
@@ -1166,219 +1198,169 @@ int runtime_configuration_cb(char* conf_msg) {
  * command: h,?
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_help(unsigned long mid, char *msg) {
+char* configuration_help(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
-   int i;
+   static char* response = NULL;
 
-   int size = 1;
-   for (i = 0; i < config_fct_length; ++i) {
-      size += configuration_fct[i].desc_length;
-   }
+   cfg_fct_t* cfg_f = get_cfg_fct(*msg);
+   if(NULL != cfg_f) {
+      return (char*) cfg_f->desc;
+   } 
+   else {
+      if( NULL == response ) {
+         int i;
+         int size = 1;
+         for (i = 0; i < config_fct_length; ++i) {
+            size += configuration_fct[i].desc_length;
+         }
+         response = (char*) malloc(size+1);
 
-   char response[size];
-   char* tmp = response;
-   for (i = 0; i < config_fct_length; ++i) {
-      strcpy(tmp, configuration_fct[i].desc);
-      tmp += configuration_fct[i].desc_length;
+         char* tmp = response;
+         for (i = 0; i < config_fct_length; ++i) {
+            strcpy(tmp, configuration_fct[i].desc);
+            tmp += configuration_fct[i].desc_length;
+         }
+      }
+      return response;
    }
-
-   for (i = 0; i < g_options.number_interfaces; i++) {
-      LOGGER_debug("==> '%s'", response);
-      export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid, 0,
-            response);
-   }
-   return NETCON_CMD_MATCHED;
 }
 
 /**
  * command: t <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_template(unsigned long mid, char *msg) {
+char* configuration_set_template(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    if (-1 == parseTemplate(msg, &g_options)) {
       LOGGER_warn("unknown template: %s", msg);
-   } else {
-      int i;
-      char response[256];
-      snprintf(response, 256, "INFO: new template set: %s", msg);
-      for (i = 0; i < g_options.number_interfaces; i++) {
-         LOGGER_debug("==> %s", response);
-         export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid,
-               0, response);
-      }
+      SET_CFG_RESPONSE("INFO: unknown template: %s", msg);
+   } 
+   else {
+      SET_CFG_RESPONSE("INFO: new template set: %s", msg);
    }
-   return NETCON_CMD_MATCHED;
+   return CFG_RESPONSE;
 }
 
 /**
  * command: f <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_filter(unsigned long mid, char *msg) {
+char* configuration_set_filter(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    if (-1 == set_all_filter(msg)) {
       LOGGER_error("error setting filter: %s", msg);
-   } else {
-      int i;
-      char response[256];
-      snprintf(response, 256, "INFO: new filter expression set: %s", msg);
-      for (i = 0; i < g_options.number_interfaces; i++) {
-         LOGGER_debug("==> %s", response);
-         export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid,
-               0, response);
-      }
+      SET_CFG_RESPONSE("INFO: error setting filter: %s", msg);
+   } 
+   else {
+      SET_CFG_RESPONSE("INFO: new filter expression set: %s", msg);
    }
-   return NETCON_CMD_MATCHED;
+   return CFG_RESPONSE;
 }
 
 /**
  * command: J <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_export_to_probestats(unsigned long mid, char *msg) {
+char* configuration_set_export_to_probestats(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    int new_timeout = strtol(msg, NULL, 0);
    if (0 <= new_timeout) {
       events.export_timer_stats.repeat = new_timeout;
-      ev_timer_again(events.loop, &events.export_timer_stats);
+      ev_timer_again(EV_DEFAULT, &events.export_timer_stats);
 
-      int i;
-      char response[256];
-      snprintf(response, 256, "INFO: new probestats export timeout set: %s",
-            msg);
-      for (i = 0; i < g_options.number_interfaces; i++) {
-         LOGGER_debug("==> %s", response);
-         export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid,
-               0, response);
-      }
+      SET_CFG_RESPONSE("INFO: new probestats export timeout set: %s",msg);
    }
-   return NETCON_CMD_MATCHED;
+   else {
+      SET_CFG_RESPONSE("INFO: probestats export timeout NOT changed");
+   }
+   return CFG_RESPONSE;
 }
 
 /**
  * command: K <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_export_to_ifstats(unsigned long mid, char *msg) {
+char* configuration_set_export_to_ifstats(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    int new_timeout = strtol(msg, NULL, 0);
    if (0 <= new_timeout) {
       events.export_timer_sampling.repeat = new_timeout;
-      ev_timer_again(events.loop, &events.export_timer_sampling);
+      ev_timer_again(EV_DEFAULT, &events.export_timer_sampling);
 
-      int i;
-      char response[256];
-      snprintf(response, 256, "INFO: new ifstats export timeout set: %s", msg);
-      for (i = 0; i < g_options.number_interfaces; i++) {
-         LOGGER_debug("==> %s", response);
-         export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid,
-               0, response);
-      }
+      SET_CFG_RESPONSE("INFO: new ifstats export timeout set: %s", msg);
    }
-   return NETCON_CMD_MATCHED;
+   else {
+      SET_CFG_RESPONSE("INFO: ifstats export timeout NOT changed");
+   }
+   return CFG_RESPONSE;
 }
 
 /**
  * command: I <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_export_to_pktid(unsigned long mid, char *msg) {
+char* configuration_set_export_to_pktid(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    int new_timeout = strtol(msg, NULL, 0);
    if (0 <= new_timeout) {
       events.export_timer_pkid.repeat = new_timeout;
-      ev_timer_again(events.loop, &events.export_timer_pkid);
+      ev_timer_again(EV_DEFAULT, &events.export_timer_pkid);
 
-      int i;
-      char response[256];
-      snprintf(response, 256, "INFO: new packet export timeout set: %s", msg);
-      for (i = 0; i < g_options.number_interfaces; i++) {
-         LOGGER_debug("==> %s", response);
-         export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid,
-               0, response);
-      }
+      SET_CFG_RESPONSE("INFO: new packet export timeout set: %s", msg);
    }
-   return NETCON_CMD_MATCHED;
+   else {
+      SET_CFG_RESPONSE("INFO: packet export timeout NOT changed");
+   }
+   return CFG_RESPONSE;
 }
 
 /**
  * command: m <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_min_selection(unsigned long mid, char *msg) {
+char* configuration_set_min_selection(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    uint32_t value = set_sampling_lowerbound(&g_options, msg);
-   int i;
-   char response[256];
-   snprintf(response, 256, "INFO: minimum selection range set: %d", value);
-   for (i = 0; i < g_options.number_interfaces; i++) {
-      LOGGER_debug("==> %s", response);
-      export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid, 0,
-            response);
-   }
-   return NETCON_CMD_MATCHED;
+   SET_CFG_RESPONSE("INFO: minimum selection range set: %d", value);
+
+   return CFG_RESPONSE;
 }
 
 /**
  * command: M <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_max_selection(unsigned long mid, char *msg) {
+char* configuration_set_max_selection(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    uint32_t value = set_sampling_upperbound(&g_options, msg);
-   int i;
-   char response[256];
-   snprintf(response, 256, "INFO: maximum selection range set: %d", value);
-   for (i = 0; i < g_options.number_interfaces; i++) {
-      LOGGER_debug("==> %s", response);
-      export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid, 0,
-            response);
-   }
-   return NETCON_CMD_MATCHED;
+   SET_CFG_RESPONSE("INFO: maximum selection range set: %d", value);
+
+   return CFG_RESPONSE;
 }
 
 /**
  * command: r <value>
  * returns: 1 consumed, 0 otherwise
  */
-int configuration_set_ratio(unsigned long mid, char *msg) {
+char* configuration_set_ratio(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
    /* currently sampling ratio is equal for all devices */
    if (-1 == set_sampling_ratio(&g_options, msg)) {
       LOGGER_error("error setting sampling ration: %s", msg);
-   } else {
-      int i;
-      char response[256];
-      snprintf(response, 256, "INFO: new sampling ratio set: %s", msg);
-      for (i = 0; i < g_options.number_interfaces; i++) {
-         LOGGER_debug("==> %s", response);
-         export_data_sync(&if_devices[i], ev_now(events.loop) * 1000, mid,
-               0, response);
-      }
+      SET_CFG_RESPONSE("INFO: error setting sampling ration: %s", msg);
+   } 
+   else {
+      SET_CFG_RESPONSE("INFO: new sampling ratio set: %s", msg);
    }
-   //   if( messageId > 0 ){
-   //      char response[255];
-   //      snprintf(response,255,"ERROR: invalid command: %s",msg);
-   //      LOGGER_debug("==> %s",response);
-   //      /* FIXME review: interface devices and options are still confuse*/
-   //      for (i = 0; i < options.number_interfaces; i++) {
-   //         export_data_sync(&pcap_devices[i],
-   //               ev_now(events.loop)*1000,
-   //               messageId,
-   //               0,
-   //               response);
-   //      }
-   //   }
-   return NETCON_CMD_MATCHED;
+   return CFG_RESPONSE;
 }
 
 /*-----------------------------------------------------------------------------
@@ -1468,7 +1450,7 @@ void export_data_probe_stats(device_dev_t *dev) {
       &probeStat.processCpuUser, &probeStat.processCpuSys,
       &probeStat.processMemVzs, &probeStat.processMemRss };
 
-   probeStat.observationTimeMilliseconds = (uint64_t) ev_now(events.loop)
+   probeStat.observationTimeMilliseconds = (uint64_t) ev_now(EV_DEFAULT)
       * 1000;
    get_probe_stats(&probeStat);
 

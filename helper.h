@@ -66,6 +66,9 @@
 // return binary ip address in network byte order
 uint32_t getIPv4AddressFromDevice(char* dev_name);
 
+char* l_trim( char* s );
+void  r_trim( char* s );
+
 char* htoa(uint32_t ipaddr);
 char* ntoa(uint32_t ipaddr);
 

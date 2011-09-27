@@ -111,7 +111,7 @@ static int setnonblock(int fd) {
 	return 0;
 }
 
-static void write_cb(struct ev_loop *loop, struct ev_io *w, int revents) {
+static void write_cb(EV_P_ struct ev_io *w, int revents) {
 	struct connection *conn= (struct connection*) w->data ;
 	static char motd[]="imp4e\n";
 	LOGGER_debug("write CB");
@@ -123,7 +123,7 @@ static void write_cb(struct ev_loop *loop, struct ev_io *w, int revents) {
 	free(conn);
 }
 static void connection_write( EV_P_ struct connection * conn, char *data ){
-	ev_io_start(loop,&conn->ev_write);
+	ev_io_start(EV_A_ &conn->ev_write);
 
 
 }
@@ -200,7 +200,7 @@ static void read_cb(EV_P_ struct ev_io *w, int revents) {
 	}
 	//	ev_io_stop(EV_A_ w);
 	//	ev_io_init(&cli->ev_write,write_cb,cli->fd,EV_WRITE);
-	//	ev_io_start(loop,&cli->ev_write);
+	//	ev_io_start(EV_A_ &cli->ev_write);
 
 }
 /**
@@ -241,8 +241,8 @@ static void accept_cb(EV_P_ struct ev_io *w, int revents) {
 	ev_io_init(&conn->ev_read,read_cb,conn->fd,EV_READ);
 	ev_io_init(&conn->ev_write,write_cb, conn->fd, EV_WRITE);
 
-	ev_io_start(loop,&conn->ev_read);
-	//ev_io_start(loop,&client->ev_write);
+	ev_io_start(EV_A_ &conn->ev_read);
+	//ev_io_start(EV_A_ &client->ev_write);
 
 }
 void netcon_register(int(*cmd)(char *msg )){
@@ -271,7 +271,7 @@ void netcon_register(int(*cmd)(char *msg )){
  *  0   sucessfull
  *  -1  failed
  */
-int netcon_init( struct ev_loop *loop, char *host, int port ){
+int netcon_init( EV_P_ char *host, int port ){
 	struct addrinfo hints;
 	struct addrinfo *rp,*serverAddrList;    /* list of server addresses */
 	int res; /* result */
@@ -351,7 +351,7 @@ int netcon_init( struct ev_loop *loop, char *host, int port ){
 		return -1;
 	}
 	ev_io_init(&netcon.accept_watcher,accept_cb,netcon.listen_fd,EV_READ);
-	ev_io_start(loop,&netcon.accept_watcher);
+	ev_io_start(EV_A_ &netcon.accept_watcher);
 	return 0;
 
 }

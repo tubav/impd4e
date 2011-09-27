@@ -59,8 +59,8 @@
 #include "main.h"
 
 //// event loop
-//#include <ev.h>
-#include "ev_handler.h"
+#include "ev_handler.h" // -> #include <ev.h>
+
 #include "ipfix_handler.h"
 #include "pcap_handler.h"
 #include "socket_handler.h"
@@ -257,11 +257,12 @@ int main(int argc, char *argv[]) {
 		LOGGER_info( "open_ipfix_export(%d)", i);
 	}
 
+   // TODO: get ip address of the system
 	// set ipAddress with ipaddress of first device
 	g_options.ipAddress = if_devices[0].IPv4address;
 
 	/* ---- main event loop  ---- */
-	event_loop(); // todo: refactoring?
+	event_loop( EV_DEFAULT ); // TODO: refactoring?
 
 	// init event-loop
 	// todo: loop = init_event_loop();

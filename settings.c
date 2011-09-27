@@ -71,7 +71,7 @@
 #include "logger.h"
 #include "settings.h"
 #include "hash.h"
-//#include "helper.h"
+#include "helper.h"
 //#include "constants.h"
 
 #ifdef PFRING
@@ -821,26 +821,6 @@ void remove_comment( char* s ) {
    if( NULL != s) {
       while( '\0' != *s && '#' != *s ) ++s;
       *s = '\0';
-   }
-}
-
-char* l_trim( char* s ) {
-   // character string is NULL terminated
-
-   if( NULL != s ) {
-      while( '\0' != *s && isspace(*s) ) ++s;
-   }
-   return s;
-}
-
-void r_trim( char* s ) {
-   // character string is NULL terminated
-
-   if( NULL != s ) {
-      int   len = strlen( s );
-      char* pos = s + len; // point to '\0'
-
-      while( --pos > s && isspace( *pos ) ) *pos = '\0';
    }
 }
 

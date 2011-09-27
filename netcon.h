@@ -39,12 +39,13 @@
 
 #ifndef NETCON_H_
 #define NETCON_H_
+
 #include <ev.h>
 
 #define NETCON_CMD_MATCHED 1
-#define NETCON_CMD_UNKNOWN  0
+#define NETCON_CMD_UNKNOWN 0
 
-int netcon_init( struct ev_loop *loop, char *host, int port );
+int netcon_init( EV_P_ char *host, int port );
 /* cmd receives a string, return 1 if matched, 0 otherwise */
 void netcon_register(int(*cmd)(char *msg ));
 int netcon_resync(int fd );

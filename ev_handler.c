@@ -680,6 +680,29 @@ inline uint64_t get_timestamp(struct timeval ts) {
             + (uint64_t) ts.tv_usec;
 }
 
+inline packet_t get_string(packet_t *p, uint32_t offset, transProt_t transtype )
+{    
+    packet_t string = {0, NULL};
+    
+    switch( transtype ) {
+      case T_UDP:
+      {
+          string.len = ntohs((uint16_t) (&p->ptr[offset+8]));
+          string.ptr = ntohs(*((uint16_t) (&p->ptr[offset+8+2])));
+      }
+      case T_TCP:
+           string.len = ntohs((uint16_t) (&p->ptr[offset+20]));
+           string.ptr = ntohs(*((uint16_t) (&p->ptr[offset+20+2])));
+      case T_SCTP:
+      default:
+      {
+         
+      }
+      return string;
+   }
+    
+}
+
 inline void apply_offset( packet_t *pkt, uint32_t offset ) {
    LOGGER_trace( "Offset: %d", offset );
    if( offset < pkt->len ) {
@@ -754,6 +777,9 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       case TS_TTL_PROTO_IP_ID:
          template = packet_info->device->ipfixtmpl_ts_ttl_ip;
          break;
+      case TS_OPEN_EPC_ID:
+          template = packet_info->device->ipfixtmpl_ts_open_epc;
+          break;
       default:
          LOGGER_info( "!!!no template specified!!!" );
          return;
@@ -763,14 +789,17 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       void*             fields[size];
       uint16_t          lengths[size];
 
-      uint8_t  ttl       = 0;
-      uint64_t timestamp = 0;
-      uint16_t length    = 0; // dummy for TS_TTL_PROTO template id
-      uint16_t src_port  = 0;
-      uint16_t dst_port  = 0;
-      uint8_t  *src_ipa  = 0;
-      uint8_t  *dst_ipa  = 0;
-
+      uint8_t  ttl         = 0;
+      uint64_t timestamp   = 0;
+      uint16_t length      = 0; // dummy for TS_TTL_PROTO template id
+      uint16_t src_port    = 0;
+      uint16_t dst_port    = 0;
+      uint8_t  *src_ipa    = 0;
+      uint8_t  *dst_ipa    = 0;
+      packet_t apn         = 0;
+      packet_t bearerClass = 0;
+      packet_t imsi        = 0;
+      
 //      set_hash( );
 //      set_timestamp();
 //      set_ip_ttl();
@@ -835,6 +864,25 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
          index += set_value( &fields[index], &lengths[index], dst_ipa,   4);
          index += set_value( &fields[index], &lengths[index], &dst_port, 2);
          break;
+      }
+      
+      case TS_OPEN_EPC_ID: {
+          timestamp = get_timestamp(packet_info->ts);
+          apn         = get_string(packet, offsets[L_TRANS], layers[L_TRANS]);
+          bearerClass = get_string(packet, offsets[L_TRANS]+apn.len, layers[L_TRANS]);
+          imsi        = get_string(packet, offsets[L_TRANS]+bearerClass.len, layers[L_TRANS]);
+          src_ipa     = get_ipa(packet, offsets[L_NET], layers[L_NET]);
+          src_port    = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
+          dst_ipa     = get_ipa(packet, offsets[L_NET]+4, layers[L_NET]);
+          dst_port    = get_port(packet, offsets[L_TRANS]+2, layers[L_TRANS]);
+          
+          index += set_value( &fields[index], &lengths[index], apn,         4);
+          index += set_value( &fields[index], &lengths[index], bearerClass, 2);
+          index += set_value( &fields[index], &lengths[index], imsi,        4);
+          index += set_value( &fields[index], &lengths[index], src_ipa,     4);
+          index += set_value( &fields[index], &lengths[index], &src_port,   2);
+          index += set_value( &fields[index], &lengths[index], dst_ipa,     4);
+          index += set_value( &fields[index], &lengths[index], &dst_port,   2);
       }
 
       default:

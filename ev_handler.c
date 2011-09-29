@@ -680,27 +680,13 @@ inline uint64_t get_timestamp(struct timeval ts) {
             + (uint64_t) ts.tv_usec;
 }
 
-inline packet_t get_string(packet_t *p, uint32_t offset, transProt_t transtype )
+inline packet_t get_string(packet_t *p, uint32_t offset)
 {    
     packet_t string = {0, NULL};
-    
-    switch( transtype ) {
-      case T_UDP:
-      {
-          string.len = ntohs((uint16_t) (&p->ptr[offset+8]));
-          string.ptr = ntohs(*((uint16_t) (&p->ptr[offset+8+2])));
-      }
-      case T_TCP:
-           string.len = ntohs((uint16_t) (&p->ptr[offset+20]));
-           string.ptr = ntohs(*((uint16_t) (&p->ptr[offset+20+2])));
-      case T_SCTP:
-      default:
-      {
-         
-      }
-      return string;
-   }
-    
+
+    string.len = ntohs((uint16_t) (&p->ptr[offset]));
+    string.ptr = ntohs(*((uint16_t) (&p->ptr[offset+2])));
+    return string;
 }
 
 inline void apply_offset( packet_t *pkt, uint32_t offset ) {
@@ -868,21 +854,21 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       
       case TS_OPEN_EPC_ID: {
           timestamp = get_timestamp(packet_info->ts);
-          apn         = get_string(packet, offsets[L_TRANS], layers[L_TRANS]);
-          bearerClass = get_string(packet, offsets[L_TRANS]+apn.len, layers[L_TRANS]);
-          imsi        = get_string(packet, offsets[L_TRANS]+bearerClass.len, layers[L_TRANS]);
+          apn         = get_string(packet, offsets[L_PAYLOAD]+4);
+          bearerClass = get_string(&apn, apn.len);
+          imsi        = get_string(&bearerClass, bearerClass.len);
           src_ipa     = get_ipa(packet, offsets[L_NET], layers[L_NET]);
           src_port    = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
           dst_ipa     = get_ipa(packet, offsets[L_NET]+4, layers[L_NET]);
           dst_port    = get_port(packet, offsets[L_TRANS]+2, layers[L_TRANS]);
           
-          index += set_value( &fields[index], &lengths[index], apn,         4);
-          index += set_value( &fields[index], &lengths[index], bearerClass, 2);
-          index += set_value( &fields[index], &lengths[index], imsi,        4);
-          index += set_value( &fields[index], &lengths[index], src_ipa,     4);
-          index += set_value( &fields[index], &lengths[index], &src_port,   2);
-          index += set_value( &fields[index], &lengths[index], dst_ipa,     4);
-          index += set_value( &fields[index], &lengths[index], &dst_port,   2);
+          index += set_value( &fields[index], &lengths[index], apn.ptr, apn.len);
+          index += set_value( &fields[index], &lengths[index], bearerClass.ptr, bearerClass.len);
+          index += set_value( &fields[index], &lengths[index], imsi.ptr, imsi.len);
+          index += set_value( &fields[index], &lengths[index], src_ipa, 4);
+          index += set_value( &fields[index], &lengths[index], &src_port, 2);
+          index += set_value( &fields[index], &lengths[index], dst_ipa, 4);
+          index += set_value( &fields[index], &lengths[index], &dst_port, 2);
       }
 
       default:

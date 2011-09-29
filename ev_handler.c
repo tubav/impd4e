@@ -680,13 +680,15 @@ inline uint64_t get_timestamp(struct timeval ts) {
             + (uint64_t) ts.tv_usec;
 }
 
-inline packet_t get_string(packet_t *p, uint32_t offset)
+// decode value of type
+// [length][data]
+inline packet_t decode_raw(packet_t *p, uint32_t offset)
 {    
-    packet_t string = {0, NULL};
+    packet_t data;
 
-    string.len = ntohs((uint16_t) (&p->ptr[offset]));
-    string.ptr = ntohs(*((uint16_t) (&p->ptr[offset+2])));
-    return string;
+    data.len = ntohs(*((uint16_t*) (&p->ptr[offset])));
+    data.ptr = p->ptr+offset + 2;
+    return data;
 }
 
 inline void apply_offset( packet_t *pkt, uint32_t offset ) {
@@ -782,9 +784,9 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       uint16_t dst_port    = 0;
       uint8_t  *src_ipa    = 0;
       uint8_t  *dst_ipa    = 0;
-      packet_t apn         = 0;
-      packet_t bearerClass = 0;
-      packet_t imsi        = 0;
+      packet_t apn         = {NULL,0};
+      packet_t bearerClass = {NULL,0};
+      packet_t imsi        = {NULL,0};
       
 //      set_hash( );
 //      set_timestamp();
@@ -853,15 +855,17 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
       
       case TS_OPEN_EPC_ID: {
-          timestamp = get_timestamp(packet_info->ts);
-          apn         = get_string(packet, offsets[L_PAYLOAD]+4);
-          bearerClass = get_string(&apn, apn.len);
-          imsi        = get_string(&bearerClass, bearerClass.len);
+          timestamp   = get_timestamp(packet_info->ts);
+
+          apn         = decode_raw(packet, offsets[L_PAYLOAD]+4);
+          bearerClass = decode_raw(&apn, apn.len);
+          imsi        = decode_raw(&bearerClass, bearerClass.len);
           src_ipa     = get_ipa(packet, offsets[L_NET], layers[L_NET]);
           src_port    = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
           dst_ipa     = get_ipa(packet, offsets[L_NET]+4, layers[L_NET]);
           dst_port    = get_port(packet, offsets[L_TRANS]+2, layers[L_TRANS]);
           
+          int index = 0;
           index += set_value( &fields[index], &lengths[index], apn.ptr, apn.len);
           index += set_value( &fields[index], &lengths[index], bearerClass.ptr, bearerClass.len);
           index += set_value( &fields[index], &lengths[index], imsi.ptr, imsi.len);
@@ -1254,11 +1258,13 @@ char* configuration_help(unsigned long mid, char *msg) {
 char* configuration_set_template(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
-   if (-1 == parseTemplate(msg, &g_options)) {
+   uint32_t t_id = 0;
+   if (-1 == (t_id = parse_template(msg)) ) {
       LOGGER_warn("unknown template: %s", msg);
       SET_CFG_RESPONSE("INFO: unknown template: %s", msg);
    } 
    else {
+      getOptions()->templateID = t_id; 
       SET_CFG_RESPONSE("INFO: new template set: %s", msg);
    }
    return CFG_RESPONSE;

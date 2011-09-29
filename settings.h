@@ -43,7 +43,8 @@
 // Type definitions
 // -----------------------------------------------------------------------------
 typedef struct options
-{	char     basedir[100];
+{
+	char     basedir[100];
 	uint8_t  number_interfaces;
 	uint32_t templateID;
    uint32_t offset;
@@ -93,7 +94,7 @@ int set_sampling_ratio(options_t *options, char* value);
 int set_sampling_lowerbound(options_t *options, char* value);
 int set_sampling_upperbound(options_t *options, char* value);
 
-int parseTemplate(char *arg_string, options_t *options);
+int parse_template(char *arg_string);
 void parseSelFunction(char *arg_string, options_t *options);
 hashFunction parseFunction(char *arg_string);
 

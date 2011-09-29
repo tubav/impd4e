@@ -229,6 +229,7 @@ typedef struct device_dev {
     #endif
 	int               link_type;
 	ipfix_t*          ipfixhandle;
+  uint32_t          template_id;
 //	ipfix_template_t* ipfixtemplate;
 	ipfix_template_t *ipfixtmpl_min;
 	ipfix_template_t *ipfixtmpl_ts;

@@ -228,7 +228,7 @@ int set_sampling_ratio(options_t *options, char* value) {
 /**
  * Parse command line template
  */
-int parseTemplate(char *arg_string, options_t *options) {
+int parse_template(char *arg_string) {
    int k;
    struct templateDef {
       char *hstring;
@@ -245,7 +245,7 @@ int parseTemplate(char *arg_string, options_t *options) {
    for (k = 0; k < (sizeof(templates) / sizeof(struct templateDef)); k++) {
       if (strncasecmp(arg_string, templates[k].hstring, strlen(
             templates[k].hstring)) == 0) {
-         return options->templateID = templates[k].templateID;
+         return templates[k].templateID;
       }
    }
    return -1;
@@ -608,7 +608,16 @@ int opt_O( char* arg, options_t* options ) {
 }
 
 int opt_t( char* arg, options_t* options ) {
-   parseTemplate(arg, options);
+   static uint32_t t_idx = 0;
+
+   options->templateID = parse_template(arg);
+   if (MAX_INTERFACES == t_idx) {
+      fprintf( stderr, "specify at most %d templates with -t\n", MAX_INTERFACES);
+   }
+   else {
+      if_devices[t_idx].template_id = options->templateID;
+      ++t_idx;
+   }
    return 0;
 }
 
@@ -1351,7 +1360,7 @@ void parse_cmdline(int argc, char **argv) {
           options->observationDomainID = atoi(optarg);
           break;
        case 't':
-          parseTemplate(optarg, options);
+          options->templateID = parse_template(optarg);
           break;
        case 'm':
           set_sampling_lowerbound(options, optarg);

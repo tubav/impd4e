@@ -128,6 +128,7 @@ void set_defaults_device(device_dev_t* dev) {
 	dev->hash_buffer.ptr  = calloc( g_options.snapLength, sizeof(uint8_t) );
 	dev->hash_buffer.len  = 0;
 
+	dev->template_id      = -1;
 }
 
 

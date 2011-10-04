@@ -240,7 +240,7 @@ typedef struct device_dev {
 	ipfix_template_t *ipfixtmpl_sync;
 	ipfix_template_t *ipfixtmpl_location;
 	ipfix_template_t *sampling_export_template;
-        ipfix_template_t *ipfixtmpl_ts_open_epc;
+	ipfix_template_t *ipfixtmpl_ts_open_epc;
 //	int16_t           offset[4];
 	uint32_t          pkt_offset; // points to first packet after link layer
 	buffer_t          hash_buffer;

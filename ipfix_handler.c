@@ -131,26 +131,29 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
       exit(EXIT_FAILURE);
    }
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-            if_device->ipfixtmpl_ts,
-            export_fields_ts) < 0) {
+            if_device->ipfixtmpl_ts, export_fields_ts) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-            if_device->ipfixtmpl_ts_ttl,
-            export_fields_ts_ttl_proto) < 0) {
+            if_device->ipfixtmpl_ts_ttl, export_fields_ts_ttl_proto) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-           if_device->ipfixtmpl_ts_ttl_ip,
-           export_fields_ts_ttl_proto_ip) < 0) {
+           if_device->ipfixtmpl_ts_ttl_ip, export_fields_ts_ttl_proto_ip) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
+
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
-            if_device->ipfixtmpl_interface_stats, export_fields_interface_stats)
-         < 0) {
+           if_device->ipfixtmpl_ts_open_epc, export_fields_openepc) < 0) {
+      LOGGER_fatal("template initialization failed: %s", strerror(errno));
+      exit(EXIT_FAILURE);
+   }
+
+   if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
+            if_device->ipfixtmpl_interface_stats, export_fields_interface_stats) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }

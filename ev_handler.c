@@ -675,6 +675,23 @@ inline uint16_t get_nettype( packet_t *packet, int linktype ) {
    return 0;
 }
 
+// return the packet protocol beyond the link layer (defined by rfc )
+// !! the raw packet is expected (include link layer)
+// return 0 if unknown
+inline uint16_t get_nettype_pkt( packet_t *packet ) {
+   // check if at least 20 bytes are available
+   if( 20 <= packet->len ) {
+      // currently only IP (v4, v6) is relevant
+      switch( packet->ptr[0]&0xf0 ) {
+         case 0x40: return 0x0800;
+         break;
+         case 0x60: return 0x86DD;
+         break;
+      }
+   }
+   return 0;
+}
+
 inline uint64_t get_timestamp(struct timeval ts) {
    return     (uint64_t) ts.tv_sec * 1000000ULL
             + (uint64_t) ts.tv_usec;
@@ -752,7 +769,9 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       }
 
       ipfix_template_t* template = packet_info->device->ipfixtmpl_min;
-      switch (g_options.templateID) {
+      uint32_t t_id = packet_info->device->template_id;
+      t_id = (-1==t_id)?g_options.templateID:t_id;
+      switch (t_id) {
       case MINT_ID:
          template = packet_info->device->ipfixtmpl_min;
          break;
@@ -784,9 +803,6 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
       uint16_t dst_port    = 0;
       uint8_t  *src_ipa    = 0;
       uint8_t  *dst_ipa    = 0;
-      packet_t apn         = {NULL,0};
-      packet_t bearerClass = {NULL,0};
-      packet_t imsi        = {NULL,0};
       
 //      set_hash( );
 //      set_timestamp();
@@ -795,7 +811,7 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
 //      set_ip_length();
 //      set_ip_id();
       
-      switch (g_options.templateID) {
+      switch (t_id) {
       case TS_ID: {
          timestamp = get_timestamp(packet_info->ts);
 
@@ -854,27 +870,6 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
          break;
       }
       
-      case TS_OPEN_EPC_ID: {
-          timestamp   = get_timestamp(packet_info->ts);
-
-          apn         = decode_raw(packet, offsets[L_PAYLOAD]+4);
-          bearerClass = decode_raw(&apn, apn.len);
-          imsi        = decode_raw(&bearerClass, bearerClass.len);
-          src_ipa     = get_ipa(packet, offsets[L_NET], layers[L_NET]);
-          src_port    = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
-          dst_ipa     = get_ipa(packet, offsets[L_NET]+4, layers[L_NET]);
-          dst_port    = get_port(packet, offsets[L_TRANS]+2, layers[L_TRANS]);
-          
-          int index = 0;
-          index += set_value( &fields[index], &lengths[index], apn.ptr, apn.len);
-          index += set_value( &fields[index], &lengths[index], bearerClass.ptr, bearerClass.len);
-          index += set_value( &fields[index], &lengths[index], imsi.ptr, imsi.len);
-          index += set_value( &fields[index], &lengths[index], src_ipa, 4);
-          index += set_value( &fields[index], &lengths[index], &src_port, 2);
-          index += set_value( &fields[index], &lengths[index], dst_ipa, 4);
-          index += set_value( &fields[index], &lengths[index], &dst_port, 2);
-      }
-
       default:
          LOGGER_info( "!!!no template specified!!!" );
          return;
@@ -902,11 +897,74 @@ void handle_ip_packet( packet_t *packet, packet_info_t *packet_info ) {
    } // if (hash in selection range)
 }
 
+void handle_open_epc_packet( packet_t *packet, packet_info_t *packet_info ) {
+   LOGGER_trace("Enter");
+
+   ipfix_template_t *template = packet_info->device->ipfixtmpl_min;
+   uint32_t         t_id      = packet_info->device->template_id;
+
+   t_id = (-1==t_id)?g_options.templateID:t_id;
+   switch (t_id) {
+   case TS_OPEN_EPC_ID:
+       template = packet_info->device->ipfixtmpl_ts_open_epc;
+       break;
+   default:
+      LOGGER_info( "!!!no template specified!!!" );
+      return;
+   }
+   int               size     = template->nfields;
+   void*             fields[size];
+   uint16_t          lengths[size];
+
+   uint16_t src_port    = 0;
+   uint16_t dst_port    = 0;
+   uint8_t  *src_ipa    = 0;
+   uint8_t  *dst_ipa    = 0;
+   packet_t apn         = {NULL,0};
+   packet_t bearerClass = {NULL,0};
+   packet_t imsi        = {NULL,0};
+
+   switch (t_id) {
+   case TS_OPEN_EPC_ID: {
+
+       apn         = decode_raw(packet, 4);
+       bearerClass = decode_raw(&apn, apn.len);
+       imsi        = decode_raw(&bearerClass, bearerClass.len);
+//       src_ipa     = get_ipa(&imsi, imsi.len, N_IP);
+//       src_port    = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
+//       dst_ipa     = get_ipa(packet, offsets[L_NET]+4, layers[L_NET]);
+//       dst_port    = get_port(packet, offsets[L_TRANS]+2, layers[L_TRANS]);
+       
+       int index = 0;
+       index += set_value( &fields[index], &lengths[index], apn.ptr, apn.len);
+       index += set_value( &fields[index], &lengths[index], bearerClass.ptr, bearerClass.len);
+       index += set_value( &fields[index], &lengths[index], imsi.ptr, imsi.len);
+       index += set_value( &fields[index], &lengths[index], src_ipa, 4);
+       index += set_value( &fields[index], &lengths[index], &src_port, 2);
+       index += set_value( &fields[index], &lengths[index], dst_ipa, 4);
+       index += set_value( &fields[index], &lengths[index], &dst_port, 2);
+   }
+   default:
+      LOGGER_info( "!!!no template specified!!!" );
+      return;
+   } // switch (options.templateID)
+
+   // send ipfix packet 
+   if (0 > ipfix_export_array(packet_info->device->ipfixhandle, template, size, fields, lengths)) {
+      LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
+   }
+
+   export_flush();
+
+   LOGGER_trace("Return");
+   return;
+}
+
 void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
    packet_t      pkt  = {(uint8_t*)packet, header->caplen};
    packet_info_t info = {header->ts, header->len, (device_dev_t*)user_args};
 
-   LOGGER_trace(" ");
+   LOGGER_trace("Enter");
    
    info.device->sampling_delta_count++;
    info.device->totalpacketcount++;
@@ -914,29 +972,53 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
    // debug output
    if (0) print_array( pkt.ptr, pkt.len );
 
-   // get packet type from link layer header
-   info.nettype = get_nettype( &pkt, info.device->link_type );
-   LOGGER_trace( "nettype: 0x%04X", info.nettype );
-
-   // apply net offset - skip link layer header for further processing
-   apply_offset( &pkt, info.device->pkt_offset );
-
-   // apply user offset
-   apply_offset( &pkt, g_options.offset );
-
-   // debug output
-   if (0) print_array( pkt.ptr, pkt.len );
-
-   if( 0x0800 == info.nettype || // IPv4
-       0x86DD == info.nettype )  // IPv6
+   if( (info.device->device_type == TYPE_SOCKET_UNIX ||
+        info.device->device_type == TYPE_SOCKET_INET )
+      && info.device->template_id == TS_OPEN_EPC_ID ) 
    {
-      if (0) print_ip4( pkt.ptr, pkt.len );
-      handle_ip_packet(&pkt, &info);
-      //LOGGER_trace( "drop" );
+      handle_open_epc_packet( &pkt, &info );
    }
-   else {
-      handle_default_packet(&pkt, &info);
+   else 
+   {
+      switch( info.device->device_type ) {
+         case TYPE_PCAP:
+         case TYPE_PCAP_FILE:
+            // get packet type from link layer header
+            info.nettype = get_nettype( &pkt, info.device->link_type );
+            break;
+
+         case TYPE_SOCKET_UNIX:
+         case TYPE_SOCKET_INET:
+            info.nettype = get_nettype_pkt( &pkt );
+            break;
+         case TYPE_FILE:
+         case TYPE_UNKNOWN:
+         default:
+         break;
+      }
+      LOGGER_trace( "nettype: 0x%04X", info.nettype );
+
+      // apply net offset - skip link layer header for further processing
+      apply_offset( &pkt, info.device->pkt_offset );
+
+      // apply user offset
+      apply_offset( &pkt, g_options.offset );
+
+      // debug output
+      if (0) print_array( pkt.ptr, pkt.len );
+
+      if( 0x0800 == info.nettype || // IPv4
+          0x86DD == info.nettype )  // IPv6
+      {
+         if (0) print_ip4( pkt.ptr, pkt.len );
+         handle_ip_packet(&pkt, &info);
+         //LOGGER_trace( "drop" );
+      }
+      else {
+         handle_default_packet(&pkt, &info);
+      }
    }
+   LOGGER_trace("Return");
 }
 
 
@@ -1258,12 +1340,18 @@ char* configuration_help(unsigned long mid, char *msg) {
 char* configuration_set_template(unsigned long mid, char *msg) {
    LOGGER_debug("Message ID: %lu", mid);
 
-   uint32_t t_id = 0;
-   if (-1 == (t_id = parse_template(msg)) ) {
+   uint32_t t_id = parse_template(msg);
+   if (-1 == t_id ) {
       LOGGER_warn("unknown template: %s", msg);
       SET_CFG_RESPONSE("INFO: unknown template: %s", msg);
    } 
    else {
+      // TODO: handling for different devices
+      int i = 0;
+      for( i = 0; i < getOptions()->number_interfaces; ++i ) {
+         // reset all device specific templates
+         if_devices[i].template_id = -1;
+      }
       getOptions()->templateID = t_id; 
       SET_CFG_RESPONSE("INFO: new template set: %s", msg);
    }

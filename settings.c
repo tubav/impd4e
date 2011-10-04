@@ -243,8 +243,7 @@ int parse_template(char *arg_string) {
    while( isspace(*arg_string) ) ++arg_string;
 
    for (k = 0; k < (sizeof(templates) / sizeof(struct templateDef)); k++) {
-      if (strncasecmp(arg_string, templates[k].hstring, strlen(
-            templates[k].hstring)) == 0) {
+      if ( 0== strcasecmp(arg_string, templates[k].hstring) ) {
          return templates[k].templateID;
       }
    }
@@ -530,6 +529,8 @@ int opt_i( char* arg, options_t* options ) {
       fprintf( stderr, "specify at most %d interfaces with -i\n", MAX_INTERFACES);
    }
    else {
+      set_defaults_device( &if_devices[if_idx] );
+
       if (':' != arg[1]) {
          fprintf( stderr, "specify interface type with -i\n");
          fprintf( stderr, "use [i,f,p,s,u]: as prefix - see help\n");
@@ -610,12 +611,14 @@ int opt_O( char* arg, options_t* options ) {
 int opt_t( char* arg, options_t* options ) {
    static uint32_t t_idx = 0;
 
-   options->templateID = parse_template(arg);
+   uint32_t tid = parse_template(arg);
+   options->templateID = (-1==tid)?options->templateID:tid;
    if (MAX_INTERFACES == t_idx) {
       fprintf( stderr, "specify at most %d templates with -t\n", MAX_INTERFACES);
    }
    else {
-      if_devices[t_idx].template_id = options->templateID;
+      if_devices[t_idx].template_id = tid;
+      LOGGER_fatal("template %2d: [%d]", t_idx, if_devices[t_idx].template_id);
       ++t_idx;
    }
    return 0;
@@ -1500,6 +1503,18 @@ void set_defaults_options(options_t *options) {
 
 	//	options->samplingResultExport = false;
 	//	options->export_sysinfo = false;
+}
+
+
+void set_defaults_device(device_dev_t* dev) {
+
+   // allocate memory for outbuffer; depend on cmd line options
+   // just for the real amount of interfaces used
+   dev->hash_buffer.size = g_options.snapLength;
+   dev->hash_buffer.ptr  = calloc( g_options.snapLength, sizeof(uint8_t) );
+   dev->hash_buffer.len  = 0;
+
+   dev->template_id      = -1;
 }
 
 

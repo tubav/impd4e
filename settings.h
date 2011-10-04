@@ -103,6 +103,7 @@ void parse_cmdline(int argc, char **argv);
 void parse_cmdline_v2(int argc, char **argv);
 
 void set_defaults_options(options_t *options);
+void set_defaults_device(device_dev_t* dev);
 
 // todo: use getter instead
 extern options_t     g_options;

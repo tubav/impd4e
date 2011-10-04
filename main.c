@@ -120,18 +120,6 @@ void impd4e_shutdown() {
 }
 
 
-void set_defaults_device(device_dev_t* dev) {
-
-	// allocate memory for outbuffer; depend on cmd line options
-	// just for the real amount of interfaces used
-	dev->hash_buffer.size = g_options.snapLength;
-	dev->hash_buffer.ptr  = calloc( g_options.snapLength, sizeof(uint8_t) );
-	dev->hash_buffer.len  = 0;
-
-	dev->template_id      = -1;
-}
-
-
 #ifdef PFRING
 void open_pfring(device_dev_t* if_dev, options_t *options) {
    LOGGER_fatal( "selected PF_RING");
@@ -211,71 +199,69 @@ void open_device(device_dev_t* if_device, options_t *options) {
 //  MAIN
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
-	int i;
-	// initializing custom logger
-	logger_init(LOGGER_LEVEL_WARN);
+   int i;
+   // initializing custom logger
+   logger_init(LOGGER_LEVEL_WARN);
 
-	// set defaults options
-	set_defaults_options(&g_options);
-	LOGGER_info( "set_defaults() okay");
+   // set defaults options
+   set_defaults_options(&g_options);
+   LOGGER_info( "set_defaults() okay");
 
-	// parse commandline; set global parameter options
+   // parse commandline; set global parameter options
    // see settings.c
-	parse_cmdline_v2(argc, argv);
-	//parse_cmdline(argc, argv);
-	LOGGER_info( "parse_cmdline() okay");
+   parse_cmdline_v2(argc, argv);
+   //parse_cmdline(argc, argv);
+   LOGGER_info( "parse_cmdline() okay");
 
-	logger_set_level(g_options.verbosity);
-	logger_set_filter(g_options.verbosity_filter_string);
+   logger_set_level(g_options.verbosity);
+   logger_set_filter(g_options.verbosity_filter_string);
 
-	if (g_options.number_interfaces == 0) {
-		print_help();
-		exit(-1);
-	}
+   if (g_options.number_interfaces == 0) {
+      print_help();
+      exit(-1);
+   }
 
-	// set probe name to host name if not set
-	if( NULL == g_options.s_probe_name )
-	{
-		g_options.s_probe_name = (char*) malloc(64);
-		if( gethostname( g_options.s_probe_name
-				, sizeof(g_options.s_probe_name)) ) {
-			g_options.s_probe_name = "";
-		}
-	}
+   // set probe name to host name if not set
+   if( NULL == g_options.s_probe_name )
+   {
+      g_options.s_probe_name = (char*) malloc(64);
+      if( gethostname( g_options.s_probe_name
+            , sizeof(g_options.s_probe_name)) ) {
+         g_options.s_probe_name = "";
+      }
+   }
 
-	// init ipfix module
-	libipfix_init();
+   // init ipfix module
+   libipfix_init();
 
-	for (i = 0; i < g_options.number_interfaces; ++i) {
-		set_defaults_device( &if_devices[i] );
+   for (i = 0; i < g_options.number_interfaces; ++i) {
+      // open pcap interfaces with filter
+      open_device(&if_devices[i], &g_options);
+      LOGGER_info( "open_device(%d)", i);
 
-		// open pcap interfaces with filter
-		open_device(&if_devices[i], &g_options);
-		LOGGER_info( "open_device(%d)", i);
-
-		// setup ipfix_exporter for each device
-		libipfix_open(&if_devices[i], &g_options);
-		LOGGER_info( "open_ipfix_export(%d)", i);
-	}
+      // setup ipfix_exporter for each device
+      libipfix_open(&if_devices[i], &g_options);
+      LOGGER_info( "open_ipfix_export(%d)", i);
+   }
 
    // TODO: get ip address of the system
-	// set ipAddress with ipaddress of first device
-	g_options.ipAddress = if_devices[0].IPv4address;
+   // set ipAddress with ipaddress of first device
+   g_options.ipAddress = if_devices[0].IPv4address;
 
-	/* ---- main event loop  ---- */
-	event_loop( EV_DEFAULT ); // TODO: refactoring?
+   /* ---- main event loop  ---- */
+   event_loop( EV_DEFAULT ); // TODO: refactoring?
 
-	// init event-loop
-	// todo: loop = init_event_loop();
-	// register export callback
-	// todo: event_register_callback( loop, callback[] );
-	// start event-loop
-	// todo: start_event_loop( loop );
+   // init event-loop
+   // todo: loop = init_event_loop();
+   // register export callback
+   // todo: event_register_callback( loop, callback[] );
+   // start event-loop
+   // todo: start_event_loop( loop );
 
-	/* -- normal shutdown --  */
-	impd4e_shutdown();
-	LOGGER_info("bye.");
+   /* -- normal shutdown --  */
+   impd4e_shutdown();
+   LOGGER_info("bye.");
 
-	exit(0);
+   exit(0);
 }
 

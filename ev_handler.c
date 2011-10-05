@@ -188,7 +188,22 @@ void sigalrm_cb (EV_P_ ev_signal *w, int revents) {
 
 void user_input_cb(EV_P_ ev_io *w, int revents) {
    char  buffer[129];
+   //int   i = 0;
+   //char  c = EOF;
 
+   //while( '\n' != (c = fgetc(stdin)) ) {
+      //if( i < sizeof(buffer)-1 ) {
+         //buffer[i] = c;
+      //}
+      //++i;
+      //fprintf(stderr, "c= %c\n", c);
+   //}
+   //buffer[i] = '\0';
+   //fprintf(stderr, "%s\n", buffer);
+   //exit(0);
+
+
+   //if( 0 != buffer[0] ) {
    if( NULL != fgets(buffer, sizeof(buffer), stdin) ) {
       //fscanf( stdin, "%5c", buffer );
       //LOGGER_info("user input: %s\n", buffer);
@@ -198,7 +213,7 @@ void user_input_cb(EV_P_ ev_io *w, int revents) {
       { exit(0); }
 
       char* b = buffer;
-      while(!isalpha(*b) && (*b!= '\0')) ++b;
+      while(!isalpha(*b) && (*b != '\0')) ++b;
       if( '\0' == *b) return;
       char cmd = *b;
       ++b;
@@ -321,6 +336,9 @@ void event_setup_pcapdev(EV_P) {
 #ifndef PFRING
       setNONBlocking(pcap_dev_ptr);
 #endif
+      
+      int fd = get_file_desc( pcap_dev_ptr );
+      LOGGER_debug( "File Descriptor: %d", fd );
 
       /* storing a reference of packet device to
        be passed via watcher on a packet event so
@@ -328,7 +346,7 @@ void event_setup_pcapdev(EV_P) {
       // todo: review; where is the memory allocated
       events.packet_watchers[i].data = (device_dev_t *) pcap_dev_ptr;
       ev_io_init(&events.packet_watchers[i], packet_watcher_cb
-            , get_file_desc( pcap_dev_ptr )
+            , fd
             , EV_READ);
       ev_io_start(EV_A_ &events.packet_watchers[i]);
    }
@@ -342,6 +360,7 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
    int error_number = 0;
 
    LOGGER_trace("Enter");
+   LOGGER_trace("event: %d", revents);
 
    // retrieve respective device a new packet was seen
    device_dev_t *pcap_dev_ptr = (device_dev_t *) w->data;
@@ -371,29 +390,33 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
 
       case TYPE_SOCKET_INET: {
          LOGGER_trace("socket - inet");
-         if( 0 > socket_dispatch_inet( if_devices[0].device_handle.socket
+         if( 0 > (error_number = socket_dispatch_inet( pcap_dev_ptr->device_handle.socket
                      , PCAP_DISPATCH_PACKET_COUNT
                      , handle_packet
-                     , (u_char*) pcap_dev_ptr) )
+                     , (u_char*) pcap_dev_ptr)) )
          {
             LOGGER_error( "Error DeviceNo   %s: %s"
                   , pcap_dev_ptr->device_name, "" );
-
+            LOGGER_error( "Error No.: %d", error_number );
+            LOGGER_error( "Error No.: %d", errno );
          }
+         LOGGER_trace( "Packets read: %d", error_number );
       }
       break;
 
       case TYPE_SOCKET_UNIX: {
          LOGGER_trace("socket - unix");
-         if( 0 > socket_dispatch( if_devices[0].device_handle.socket
+         if( 0 > (error_number = socket_dispatch_inet( pcap_dev_ptr->device_handle.socket
                      , PCAP_DISPATCH_PACKET_COUNT
                      , handle_packet
-                     , (u_char*) pcap_dev_ptr) )
+                     , (u_char*) pcap_dev_ptr)) )
          {
             LOGGER_error( "Error DeviceNo   %s: %s"
                   , pcap_dev_ptr->device_name, "" );
-
+            LOGGER_error( "Error No.: %d", error_number );
+            LOGGER_error( "Error No.: %d", errno );
          }
+         LOGGER_trace( "Packets read: %d", error_number );
       }
       break;
 #else

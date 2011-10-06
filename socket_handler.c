@@ -229,14 +229,22 @@ void open_socket_inet(device_dev_t* if_device, options_t *options) {
    for( ; NULL != a_res; a_res = a_res->ai_next ) {
       //LOGGER_info( "connect" );
       LOGGER_info( "bind" );
+
+      int socket = -1;
+
       // create a socket for the returned service
       //if_device->device_handle.socket = create_connect( a_res );
-      if_device->device_handle.socket = create_bind( a_res );
-      if(-1 == if_device->device_handle.socket ) {
+      socket = create_bind( a_res );
+      if(-1 == socket ) {
          //perror("socket create_connect error");
          perror("socket create_bind error");
          exit(1);
       }
+
+      if_device->device_handle.socket = socket;
+      if_device->dh.fd = socket;
+      if_device->dispatch = socket_dispatch_inet;
+
       // send 'hello' TODO: for test only
       //write( if_device->device_handle.socket, "HELLO!", 6 );
       //write( if_device->device_handle.socket, "", 1 );
@@ -254,10 +262,11 @@ void open_socket_inet(device_dev_t* if_device, options_t *options) {
 void open_socket_unix(device_dev_t* if_device, options_t *options) {
    struct sockaddr_un socket_address;
    int socket_addressLength = 0;
+   int s = -1;
 
    // create a socket to work with
-   if_device->device_handle.socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-   if (0 > if_device->device_handle.socket) {
+   s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+   if (0 > s) {
       perror("socket: create");
       exit(1);
    }
@@ -270,19 +279,26 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
    // connect the socket to the destination
    // FIXME: this won't build on OpenWrt
 #ifndef OPENWRT_BUILD
-   if (0 > connect(if_device->device_handle.socket,
-            (__CONST_SOCKADDR_ARG) &socket_address, socket_addressLength)) {
+   if (0 > connect(s, (__CONST_SOCKADDR_ARG) &socket_address, socket_addressLength)) {
       perror("socket: connect");
       exit(2);
    }
+
+   if_device->device_handle.socket = s;
+   if_device->dh.fd = s;
+   if_device->dispatch = socket_dispatch_unix;
+
 #endif
 }
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-int socket_dispatch_inet(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args)
+int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, u_char* user_args)
 {
+   LOGGER_trace("Enter");
+
+   int      socket = dh.fd;
    int32_t  i;
    int32_t  nPackets = 0;
    uint8_t  buffer[BUFFER_SIZE];
@@ -344,6 +360,7 @@ int socket_dispatch_inet(int socket, int max_packets, pcap_handler packet_handle
       } // switch(recv())
    }
 
+   LOGGER_trace("Return");
    return nPackets;
 }
 
@@ -351,8 +368,11 @@ int socket_dispatch_inet(int socket, int max_packets, pcap_handler packet_handle
 // ----------------------------------------------------------------------------
 
 #ifndef PFRING
-int socket_dispatch_unix(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args)
+int socket_dispatch_unix(dh_t dh, int max_packets, pcap_handler packet_handler, u_char* user_args)
 {
+   LOGGER_trace("Enter");
+
+   int      socket = dh.fd;
    int32_t  i;
    int32_t  nPackets = 0;
    uint8_t  buffer[BUFFER_SIZE];
@@ -406,6 +426,7 @@ int socket_dispatch_unix(int socket, int max_packets, pcap_handler packet_handle
       } // switch(recv())
    }
 
+   LOGGER_trace("Return");
    return nPackets;
 }
 #endif

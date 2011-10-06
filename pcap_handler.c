@@ -76,26 +76,43 @@ void determineLinkType(device_dev_t* pcap_device) {
 #endif
 
 #ifndef PFRING
+int pcap_dispatch_wrapper(dh_t dh, int cnt, pcap_handler ph, u_char* ua) {
+   LOGGER_trace("Enter");
+   return pcap_dispatch( dh.pcap, cnt, ph, ua );
+   LOGGER_trace("Return");
+}
+
 void open_pcap_file(device_dev_t* if_dev, options_t *options) {
 
    // todo: parameter check
-
-   if_dev->device_handle.pcap = pcap_open_offline(if_dev->device_name, errbuf);
-   if (NULL == if_dev->device_handle.pcap) {
+   pcap_t * pcap = NULL;
+   pcap = pcap_open_offline(if_dev->device_name, errbuf);
+   if (NULL == pcap) {
       LOGGER_fatal( "%s", errbuf);
    }
+   if_dev->device_handle.pcap = pcap;
+   if_dev->dh.pcap = pcap;
+   if_dev->dispatch = pcap_dispatch_wrapper;
+
    determineLinkType(if_dev);
    setFilter(if_dev);
+
+   return;
 }
 
 void open_pcap(device_dev_t* if_dev, options_t *options) {
 
-   if_dev->device_handle.pcap = pcap_open_live(if_dev->device_name,
+   pcap_t * pcap = NULL;
+   pcap = pcap_open_live(if_dev->device_name,
          options->snapLength, 1, 1000, errbuf);
-   if (NULL == if_dev->device_handle.pcap) {
+   if (NULL == pcap) {
       LOGGER_fatal( "%s", errbuf);
       exit(1);
    }
+
+   if_dev->device_handle.pcap = pcap;
+   if_dev->dh.pcap = pcap;
+   if_dev->dispatch = pcap_dispatch_wrapper;
 
    // if (pcap_lookupnet(options->if_names[i],
    //		&(if_devices[i].IPv4address), &(if_devices[i].mask), errbuf)

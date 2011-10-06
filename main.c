@@ -124,23 +124,27 @@ void impd4e_shutdown() {
 void open_pfring(device_dev_t* if_dev, options_t *options) {
    LOGGER_fatal( "selected PF_RING");
    LOGGER_fatal( "device_name: %s", if_dev->device_name);
-   if_dev->device_handle.pfring = pfring_open(if_dev->device_name, 1,
-         options->snapLength, 0);
-   if (NULL == if_dev->device_handle.pfring) {
+   pfring* pfring = NULL;
+   pfring = pfring_open(if_dev->device_name, 1, options->snapLength, 0);
+   if (NULL == pfring) {
       LOGGER_fatal( "Failed to set up PF_RING-device");
       exit(1);
    }
+
+   if_dev->device_handle.pfring = pfring;
+   if_dev->dh.pfring = pfring;
+   if_dev->dispatch = pfring_dispatch_wrapper;
 
    if_dev->IPv4address = getIPv4AddressFromDevice(if_dev->device_name);
    LOGGER_fatal( "Device %s has IP %s", if_dev->device_name, htoa(
          if_dev->IPv4address));
 
    // pfring only supports ethernet
-    if_dev->link_type = DLT_EN10MB;
-    if_dev->offset[L_NET] = 14;
+   if_dev->link_type  = DLT_EN10MB;
+   if_dev->pkt_offset = 14;
 
    setPFRingFilter(if_dev);
-    setPFRingFilterPolicy(if_dev);
+   setPFRingFilterPolicy(if_dev);
 }
 #endif
 

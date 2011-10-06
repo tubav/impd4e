@@ -56,8 +56,8 @@ void open_socket_unix(device_dev_t* if_device, options_t *options);
 
 #ifndef PFRING
 int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args);
-int socket_dispatch_inet(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args);
-int socket_dispatch_unix(int socket, int max_packets, pcap_handler packet_handler, u_char* user_args);
+int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, u_char* user_args);
+int socket_dispatch_unix(dh_t dh, int max_packets, pcap_handler packet_handler, u_char* user_args);
 #endif
 
 

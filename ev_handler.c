@@ -369,50 +369,17 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
       case TYPE_testtype:
 #ifndef PFRING
       case TYPE_PCAP_FILE:
-      case TYPE_PCAP: {
-         // dispatch packet
-         LOGGER_trace("pcap");
-         if( 0 > (error_number = pcap_dispatch(pcap_dev_ptr->device_handle.pcap
+      case TYPE_PCAP:
+      case TYPE_SOCKET_INET:
+      case TYPE_SOCKET_UNIX: 
+      {
+         error_number = pcap_dev_ptr->dispatch( pcap_dev_ptr->dh
                      , PCAP_DISPATCH_PACKET_COUNT
                      , handle_packet
-                     , (u_char*) pcap_dev_ptr)) )
-         {
-            LOGGER_error( "Error DeviceNo   %s: %s"
-                  , pcap_dev_ptr->device_name
-                  , pcap_geterr( pcap_dev_ptr->device_handle.pcap) );
-            LOGGER_error( "Error No.: %d", error_number );
-            LOGGER_error( "Error No.: %d", errno );
-            //exit(1);
-         }
-         LOGGER_trace( "Packets read: %d", error_number );
-      }
-      break;
+                     , (u_char*) pcap_dev_ptr);
 
-      case TYPE_SOCKET_INET: {
-         LOGGER_trace("socket - inet");
-         if( 0 > (error_number = socket_dispatch_inet( pcap_dev_ptr->device_handle.socket
-                     , PCAP_DISPATCH_PACKET_COUNT
-                     , handle_packet
-                     , (u_char*) pcap_dev_ptr)) )
-         {
-            LOGGER_error( "Error DeviceNo   %s: %s"
-                  , pcap_dev_ptr->device_name, "" );
-            LOGGER_error( "Error No.: %d", error_number );
-            LOGGER_error( "Error No.: %d", errno );
-         }
-         LOGGER_trace( "Packets read: %d", error_number );
-      }
-      break;
-
-      case TYPE_SOCKET_UNIX: {
-         LOGGER_trace("socket - unix");
-         if( 0 > (error_number = socket_dispatch_inet( pcap_dev_ptr->device_handle.socket
-                     , PCAP_DISPATCH_PACKET_COUNT
-                     , handle_packet
-                     , (u_char*) pcap_dev_ptr)) )
-         {
-            LOGGER_error( "Error DeviceNo   %s: %s"
-                  , pcap_dev_ptr->device_name, "" );
+         if( 0 > error_number ) {
+            LOGGER_error( "Error DeviceNo   %s", pcap_dev_ptr->device_name );
             LOGGER_error( "Error No.: %d", error_number );
             LOGGER_error( "Error No.: %d", errno );
          }
@@ -420,16 +387,20 @@ void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
       }
       break;
 #else
-      case TYPE_PFRING: {
+      case TYPE_PFRING: 
+      {
          LOGGER_trace("pfring");
-         if( 0 > pfring_dispatch( if_devices[0].device_handle.pfring
+         error_number = pcap_dev_ptr->dispatch( pcap_dev_ptr->dh
                      , PCAP_DISPATCH_PACKET_COUNT
                      , packet_pfring_cb
-                     , (u_char*) pcap_dev_ptr) )
-         {
-            LOGGER_error( "Error DeviceNo   %s: %s"
-                  , pcap_dev_ptr->device_name, "" );
+                     , (u_char*) pcap_dev_ptr);
+
+         if( 0 > error_number ) {
+            LOGGER_error( "Error DeviceNo   %s", pcap_dev_ptr->device_name );
+            LOGGER_error( "Error No.: %d", error_number );
+            LOGGER_error( "Error No.: %d", errno );
          }
+         LOGGER_trace( "Packets read: %d", error_number );
       }
       break;
 #endif

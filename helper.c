@@ -426,6 +426,11 @@ void print_stats( device_dev_t* dev ) {
 #endif // PFRING_STATS
 
 /* *************************************** */
+int pfring_dispatch_wrapper(dh_t dh, int cnt,
+               void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*),
+               u_char* user_args) {
+   return pfring_dispatch( dh.pfring, cnt, packet_handler, user_args );
+}
 
 int pfring_dispatch(pfring* pd, int max_packets,
                void(*packet_handler)(u_char*, const struct pfring_pkthdr*, const u_char*),

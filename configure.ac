@@ -37,11 +37,9 @@ case "$target_os" in
 cygwin)
 	CPPFLAGS="-DWINNT $CPPFLAGS"
         PCAP="wpcap"
-        PCAPLIBS="-lwpcap"
         ;;
 *)
         PCAP="pcap"
-        PCAPLIBS="-lpcap"
         ;;
 esac
 
@@ -75,26 +73,39 @@ freebsd*)
 	;;
 esac
 
-# Checks for libraries.
-#
+#############################
+# Checks for libraries.     #
+#############################
+
+# libipfix support
+##############################
+AC_CHECK_LIB(ipfix, ipfix_open,,[AC_MSG_WARN([cannot find libipfix])])
+AC_CHECK_LIB(misc, mlogf,,[AC_MSG_WARN([cannot find libmisc])])
+
+# libev support
+#############################
+AC_CHECK_LIB(ev, ev_loop,,[AC_MSG_WARN([cannot find libev])])
 
 # libpcap support
-#
+#############################
 if test $withoutpcap != yes; then
-    AC_CHECK_LIB([$PCAP], pcap_open_live,[pcapsupport="yes"], 
-             [pcapsupport="no"; AC_MSG_WARN([cannot find libpcap])])
-    if test $pcapsupport = yes; then
-        SAVELIBS=$LIBS
-        LIBS="$LIBS $PCAPLIBS"
-        AC_CHECK_FUNCS(pcap_breakloop pcap_freecode)
-        LIBS=$SAVELIBS
-    else
-        PCAPLIBS=""
-    fi
-    AC_SUBST(PCAPLIBS)
-    AC_SUBST(PCAPINCLS)
-else
-    PCAPLIBS=""
+    AC_CHECK_LIB([$PCAP], pcap_open_live,,
+                 [AC_MSG_WARN([cannot find libpcap])])
+    AC_CHECK_FUNCS(pcap_breakloop pcap_freecode)
+#    AC_CHECK_LIB([$PCAP], pcap_open_live,[pcapsupport="yes"], 
+#             [pcapsupport="no"; AC_MSG_WARN([cannot find libpcap])])
+#    if test $pcapsupport = yes; then
+#        SAVELIBS=$LIBS
+#        LIBS="$LIBS $PCAPLIBS"
+#        AC_CHECK_FUNCS(pcap_breakloop pcap_freecode)
+#        LIBS=$SAVELIBS
+#    else
+#        PCAPLIBS=""
+#    fi
+#    AC_SUBST(PCAPLIBS)
+#    AC_SUBST(PCAPINCLS)
+#else
+#    PCAPLIBS=""
 fi
 
 # Checks for header files.
@@ -118,8 +129,10 @@ AC_CHECK_FUNCS(gethostbyname,,[AC_CHECK_LIB(nsl,gethostbyname,,[AC_CHECK_LIB(soc
 AC_CHECK_FUNCS(setsockopt,,[AC_CHECK_LIB(socket,setsockopt)])
 AC_CHECK_FUNCS(hstrerror,,[AC_CHECK_LIB(resolv,hstrerror,,[AC_CHECK_LIB(socket,gethostbyname)])])
 AC_CHECK_FUNCS([getopt_long],,
-[#FreeBSD has a gnugetopt library for this
-  AC_CHECK_LIB([gnugetopt],[getopt_long],
-  [LIBS="-lgnugetopt $LIBS";AC_DEFINE([HAVE_GETOPT_LONG])])])
+               [#FreeBSD has a gnugetopt library for this
+               AC_CHECK_LIB([gnugetopt],[getopt_long],
+                            [LIBS="-lgnugetopt $LIBS";AC_DEFINE([HAVE_GETOPT_LONG])])
+               ])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

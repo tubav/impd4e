@@ -111,7 +111,7 @@ fi
 # Checks for header files.
 AC_HEADER_STDC
 #AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h limits.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h getopt.h libgen.h])
-AC_CHECK_HEADERS([pcap.h ipfix.h inttypes.h stdlib.h unistd.h string.h limits.h stdio.h errno.h signal.h netinet/in.h])
+AC_CHECK_HEADERS([ev.h pcap.h ipfix.h inttypes.h stdlib.h unistd.h string.h limits.h stdio.h errno.h signal.h netinet/in.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

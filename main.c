@@ -171,8 +171,6 @@ void open_device(device_dev_t* if_device, options_t *options) {
       break;
 
    case TYPE_SOCKET_INET:
-      // TODO: remove if test is over
-      LOGGER_fatal( "open_socket_inet(): TESTING!!");
       open_socket_inet(if_device, options);
       break;
 

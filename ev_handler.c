@@ -704,30 +704,39 @@ inline uint64_t get_timestamp(struct timeval ts) {
             + (uint64_t) ts.tv_usec;
 }
 
-
-
-inline packet_t decode_array(packet_t *p, uint32_t offset) {
+inline packet_t decode_array(packet_t* p) {
     packet_t data = {NULL, 0};
-    
-    data.len = ntohs(*((uint16_t*) (&p->ptr[offset])));
-    data.ptr = p->ptr + offset + 2;
-
+    data.len = ntohs(*((uint16_t*) (p->ptr)));
+    data.ptr = p->ptr + 2;
+    p->ptr += (data.len + 2);
+    p->len -= (data.len + 2);
     return data;
 }
 
 // decode value of type
 // [length][data]
-inline packet_t decode_raw(packet_t *p, uint32_t offset, uint32_t len) {
+inline packet_t decode_raw(packet_t *p, uint32_t len) {
     packet_t data = {NULL, 0};
     
     data.len = len;
-    data.ptr = p->ptr + offset;
-    
+    data.ptr = p->ptr;
+    p->len -= len;
+    p->ptr += len;
     return data;
 }
 
-inline uint16_t decode_uint16_t(packet_t *p, uint32_t offset) {
-    return ntohs(*((uint16_t*) (&p->ptr[offset])));
+inline uint16_t decode_uint16(packet_t *p) {
+    uint16_t value = ntohs(*((uint16_t*) p->ptr));
+    p->len -= 2;
+    p->ptr += 2;
+    return value;
+}
+
+inline uint8_t decode_uint8(packet_t *p) {
+    uint8_t value = *p->ptr;
+    p->len -= 1;
+    p->ptr += 1;
+    return value;
 }
 
 inline void apply_offset(packet_t *pkt, uint32_t offset) {
@@ -929,6 +938,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     uint32_t t_id = packet_info->device->template_id;
 
     t_id = (-1 == t_id) ? g_options.templateID : t_id;
+    
     switch (t_id) {
         case TS_OPEN_EPC_ID:
             template = packet_info->device->ipfixtmpl_ts_open_epc;
@@ -941,29 +951,31 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     void* fields[size];
     uint16_t lengths[size];
     int i;
+    uint32_t dummy = 0;    
 
-    
-
-    uint16_t src_ai_fam = 0;
-    uint16_t dst_ai_fam = 0;
-    uint16_t src_port   = 0;
-    uint16_t dst_port   = 0;
+    uint8_t src_ai_fam    = 0;
+    uint8_t dst_ai_fam    = 0;
+    uint8_t src_prefix    = 0;
+    uint8_t dst_prefix    = 0;
+    uint16_t src_port     = 0;
+    uint16_t dst_port     = 0;
+    uint16_t sdf_counter  = 0;
     packet_t apn          = {NULL, 0};
     packet_t bearer_class = {NULL, 0};
     packet_t imsi         = {NULL, 0};
-    packet_t sdf          = {NULL, 0};
     packet_t flow_desc    = {NULL, 0};
     packet_t src_ipa      = {NULL, 0};
     packet_t dst_ipa      = {NULL, 0};
+    packet_t decode       = *packet;
     
     switch (t_id) {
         case TS_OPEN_EPC_ID:
         {
-            if (*((uint8_t*)packet) == OP_CODE) {
-                imsi = decode_array(packet, 1);
-                apn = decode_array(&imsi, imsi.len);
-                bearer_class = decode_array(&apn, apn.len);
-                sdf = decode_array(&bearer_class, bearer_class.len);
+            //if (*((uint8_t*)packet) == OP_CODE) {
+                decode_raw(&decode, 1);
+                imsi = decode_array(&decode);
+                apn = decode_array(&decode);
+                bearer_class = decode_array(&decode);
                 
                 int index = 0;
                 index += set_value(&fields[index],
@@ -973,49 +985,51 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                 index += set_value(&fields[index],
                         &lengths[index], imsi.ptr, imsi.len);
 
-                for (i = 0; i < sdf.len; i++) {
+                sdf_counter = decode_uint16(&decode);
+                for (i = 0; i < sdf_counter; i++) {
                     int int_idx = index;
                     
-                    flow_desc = decode_array(&sdf, 0);                  
-                    src_ai_fam = decode_uint16_t(&flow_desc, flow_desc.len);
-                    src_port = decode_uint16_t(&flow_desc, flow_desc.len+2);
-                    
-                    /* If src_ai_family is ipv4, handle the packet*/
+                    flow_desc  = decode_array(&decode);     
+                                 
+                    src_ai_fam = decode_uint8(&decode);
+                    src_prefix = decode_uint8(&decode);
+                    src_port   = decode_uint16(&decode);
+                                        
                     if (src_ai_fam == AF_INET) {
-                        src_ipa = decode_raw(&flow_desc, flow_desc.len+4, 4); 
-                        dst_ai_fam = decode_uint16_t(&src_ipa, src_ipa.len);
-                        dst_port = decode_uint16_t(&src_ipa, src_ipa.len+2);
-                        dst_ipa = decode_raw(&src_ipa, src_ipa.len+4, 4);
-                        
-                        int_idx += set_value(&fields[int_idx],
-                                &lengths[int_idx], src_ipa.ptr, src_ipa.len);
-                        int_idx += set_value(&fields[int_idx],
-                                &lengths[int_idx], &src_port, 2);
-                        int_idx += set_value(&fields[int_idx],
-                                &lengths[int_idx], dst_ipa.ptr, dst_ipa.len);
-                        int_idx += set_value(&fields[int_idx],
-                                &lengths[int_idx], &dst_port, 2);
+                        src_ipa = decode_raw(&decode, 4);
+                    }
+                    else {
+                        src_ipa.ptr = (uint8_t*)&dummy;
+                        src_ipa.len = 4;
+                    }
+                    
+                    dst_ai_fam = decode_uint8(&decode);
+                    dst_prefix = decode_uint8(&decode);
+                    dst_port = decode_uint16(&decode);     
+                          
+                    if(dst_ai_fam == AF_INET) {
+                        dst_ipa = decode_raw(&decode, 4);   
+                    }
+                    else {
+                        dst_ipa.ptr = (uint8_t*)&dummy;
+                        dst_ipa.len = 4;
+                    }
+                    
+                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], src_ipa.ptr, src_ipa.len);
+                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], &src_port, 2);
+                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], dst_ipa.ptr, dst_ipa.len);
+                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], &dst_port, 2);
 
-                        if (0 > ipfix_export_array(packet_info->device->ipfixhandle, template, size, fields, lengths)) {
-                            LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
-                        }
-                    } else if (src_ai_fam == AF_INET6) {
-                        /* Can not handle at the moment because its ipv6*/
-                    } else {
-                        /* Packet contains no IP information*/
-                    }       
+                    if (0 > ipfix_export_array(packet_info->device->ipfixhandle, template, size, fields, lengths)) {
+                        LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
+                    }    
                 }
-            }
+            //}
         }
         default:
             LOGGER_info("!!!no template specified!!!");
             return;
     } // switch (options.templateID)
-
-    // send ipfix packet 
-    /*if (0 > ipfix_export_array(packet_info->device->ipfixhandle, template, size, fields, lengths)) {
-        LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
-    }*/
 
     export_flush();
 

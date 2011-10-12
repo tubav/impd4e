@@ -618,7 +618,7 @@ int opt_t( char* arg, options_t* options ) {
    }
    else {
       if_devices[t_idx].template_id = tid;
-      LOGGER_fatal("template %2d: [%d]", t_idx, if_devices[t_idx].template_id);
+      LOGGER_debug("template %2d: [%d]", t_idx, if_devices[t_idx].template_id);
       ++t_idx;
    }
    return 0;

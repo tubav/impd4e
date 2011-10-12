@@ -35,11 +35,10 @@ OPENSSL = @OPENSSL@
 DEFS = @DEFS@
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
-#LIBS = @LIBS@ @PCAPLIBS@ -lipfix -lmisc -lev -lm
-LIBS = @LIBS@
+LIBS = @LIBS@ @EV_LIBS@
 PFLIBS = $(LIBS) -lpfring -lm
 CCOPT = -Wall -g
-INCLS = -I.
+INCLS = -I. @EV_CFLAGS@
 CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
 
 DEPDIR = .depend

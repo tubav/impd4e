@@ -49,6 +49,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <time.h>
+
 #ifdef PFRING
 #include <sys/time.h>
 #include <time.h>
@@ -938,7 +940,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     uint32_t t_id = packet_info->device->template_id;
 
     t_id = (-1 == t_id) ? g_options.templateID : t_id;
-    
+
     switch (t_id) {
         case TS_OPEN_EPC_ID:
             template = packet_info->device->ipfixtmpl_ts_open_epc;
@@ -953,6 +955,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     int i;
     uint32_t dummy = 0;    
 
+    uint64_t timestamp    = 0;
     uint8_t src_ai_fam    = 0;
     uint8_t dst_ai_fam    = 0;
     uint8_t src_prefix    = 0;
@@ -967,7 +970,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     packet_t src_ipa      = {NULL, 0};
     packet_t dst_ipa      = {NULL, 0};
     packet_t decode       = *packet;
-    
+
     switch (t_id) {
         case TS_OPEN_EPC_ID:
         {
@@ -977,7 +980,16 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                 apn = decode_array(&decode);
                 bearer_class = decode_array(&decode);
                 
+                /* TODO: Zeit richtig setzen da im Moment Microseconds zuerck
+                 *       geliefert werden, wir aber Milliseconds fuer unser
+                 *       Template brauchen
+                 */
+                //timestamp = get_timestamp(packet_info->ts); 
+                timestamp = time(NULL);
+
                 int index = 0;
+                index += set_value(&fields[index],
+                        &lengths[index], &timestamp, 8);
                 index += set_value(&fields[index],
                         &lengths[index], apn.ptr, apn.len);
                 index += set_value(&fields[index],
@@ -986,31 +998,30 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                         &lengths[index], imsi.ptr, imsi.len);
 
                 sdf_counter = decode_uint16(&decode);
+                
                 for (i = 0; i < sdf_counter; i++) {
                     int int_idx = index;
-                    
-                    flow_desc  = decode_array(&decode);     
-                                 
+
+                    flow_desc  = decode_array(&decode);
+
                     src_ai_fam = decode_uint8(&decode);
                     src_prefix = decode_uint8(&decode);
                     src_port   = decode_uint16(&decode);
-                                        
+
                     if (src_ai_fam == AF_INET) {
                         src_ipa = decode_raw(&decode, 4);
-                    }
-                    else {
+                    } else {
                         src_ipa.ptr = (uint8_t*)&dummy;
                         src_ipa.len = 4;
                     }
-                    
+
                     dst_ai_fam = decode_uint8(&decode);
                     dst_prefix = decode_uint8(&decode);
-                    dst_port = decode_uint16(&decode);     
-                          
+                    dst_port = decode_uint16(&decode);
+
                     if(dst_ai_fam == AF_INET) {
                         dst_ipa = decode_raw(&decode, 4);   
-                    }
-                    else {
+                    } else {
                         dst_ipa.ptr = (uint8_t*)&dummy;
                         dst_ipa.len = 4;
                     }

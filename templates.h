@@ -144,6 +144,7 @@ export_fields_t export_fields_sync[] = {
 };
 
 export_fields_t export_fields_openepc[] = {
+    { 0, IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_APN, 65535},
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_BEARER, 65535},
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_IMSI, 65535},

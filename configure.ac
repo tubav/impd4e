@@ -22,36 +22,32 @@ PKG_PROG_PKG_CONFIG
 # IPv6 support
 #
 AC_ARG_ENABLE(ipv6,
-[  --enable-ipv6           enable ipv6 (with ipv4) support
-  --disable-ipv6          disable ipv6 support],
-[ case "$enableval" in
-  yes) ipv6=yes;;
-  *)   ipv6=no ;;
-  esac ], [ipv6=no])
-
-if test $ipv6 = yes; then
-	CPPFLAGS="-DINET6 $CPPFLAGS"
-fi
+[
+AS_HELP_STRING([--enable-ipv6],[enable ipv6 (with ipv4) support])
+AS_HELP_STRING([--disable-ipv6],[disable ipv6 support])],
+[
+   if test $enableval != "no" ; then
+      CPPFLAGS="-DINET6 $CPPFLAGS"
+   fi
+],
+[])
 
 # specify libpcap
 #
 case "$target_os" in
 cygwin)
 	CPPFLAGS="-DWINNT $CPPFLAGS"
-        PCAP="wpcap"
-        ;;
+   PCAP="wpcap"
+   ;;
 *)
-        PCAP="pcap"
-        ;;
+   PCAP="pcap"
+   ;;
 esac
 
-withval=""
-withoutpcap="no"
 AC_ARG_WITH(pcap,
 [  --with-pcap=DIR         location of libpcap installation],
 [ 
-   if test $withval != no
-   then
+   if test $withval != no ; then
       AC_MSG_CHECKING(for lib$PCAP in $withval/lib)
       if test -f $withval/lib/lib$PCAP.a -o -f $withval/lib/lib$PCAP.so ; then
          LDFLAGS="$LDFLAGS -L$withval/lib "
@@ -60,9 +56,13 @@ AC_ARG_WITH(pcap,
       else
          AC_MSG_RESULT(no)
       fi
+      withoutpcap="no"
    else
       withoutpcap="yes"
    fi
+],
+[
+   withoutpcap="no"
 ] )
 
 

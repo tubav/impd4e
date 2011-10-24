@@ -727,6 +727,13 @@ inline packet_t decode_raw(packet_t *p, uint32_t len) {
     return data;
 }
 
+inline uint32_t decode_uint32(packet_t *p) {
+    uint32_t value = ntohs(*((uint32_t*) p->ptr));
+    p->len -= 4;
+    p->ptr += 4;
+    return value;
+}
+
 inline uint16_t decode_uint16(packet_t *p) {
     uint16_t value = ntohs(*((uint16_t*) p->ptr));
     p->len -= 2;
@@ -963,6 +970,13 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     uint16_t src_port     = 0;
     uint16_t dst_port     = 0;
     uint16_t sdf_counter  = 0;
+    uint32_t qci          = 0;
+    uint32_t max_dl       = 0;
+    uint32_t max_ul       = 0;
+    uint32_t gua_dl       = 0;
+    uint32_t gua_ul       = 0;
+    uint32_t apn_dl       = 0;
+    uint32_t apn_ul       = 0;
     packet_t apn          = {NULL, 0};
     packet_t bearer_class = {NULL, 0};
     packet_t imsi         = {NULL, 0};
@@ -980,6 +994,14 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                 apn = decode_array(&decode);
                 bearer_class = decode_array(&decode);
                 
+                qci     = decode_uint32(&decode);
+                max_dl  = decode_uint32(&decode);
+                max_ul  = decode_uint32(&decode);
+                gua_dl  = decode_uint32(&decode);
+                gua_ul  = decode_uint32(&decode);
+                apn_dl  = decode_uint32(&decode);
+                apn_ul  = decode_uint32(&decode);
+                
                 /* TODO: Zeit richtig setzen da im Moment Microseconds zuerck
                  *       geliefert werden, wir aber Milliseconds fuer unser
                  *       Template brauchen
@@ -996,7 +1018,13 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                         &lengths[index], bearer_class.ptr, bearer_class.len);
                 index += set_value(&fields[index],
                         &lengths[index], imsi.ptr, imsi.len);
-
+                index += set_value(&fields[index], &lengths[index], &qci, 4);
+                index += set_value(&fields[index], &lengths[index], &max_dl, 4);
+                index += set_value(&fields[index], &lengths[index], &max_ul, 4);
+                index += set_value(&fields[index], &lengths[index], &gua_dl, 4);
+                index += set_value(&fields[index], &lengths[index], &gua_ul, 4);
+                index += set_value(&fields[index], &lengths[index], &apn_dl, 4);
+                index += set_value(&fields[index], &lengths[index], &apn_ul, 4);
                 sdf_counter = decode_uint16(&decode);
                 
                 for (i = 0; i < sdf_counter; i++) {

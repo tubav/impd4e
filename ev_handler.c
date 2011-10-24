@@ -961,7 +961,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     uint16_t lengths[size];
     int i;
     uint32_t dummy = 0;    
-
+    uint8_t rule_flag     = 0;
     uint64_t timestamp    = 0;
     uint8_t src_ai_fam    = 0;
     uint8_t dst_ai_fam    = 0;
@@ -989,7 +989,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
         case TS_OPEN_EPC_ID:
         {
             //if (*((uint8_t*)packet) == OP_CODE) {
-                decode_raw(&decode, 1);
+                rule_flag = decode_uint8(&decode);
                 imsi      = decode_array(&decode);
                 apn       = decode_array(&decode);
                 rule_name = decode_array(&decode);
@@ -1012,6 +1012,8 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                 int index = 0;
                 index += set_value(&fields[index],
                         &lengths[index], &timestamp, 8);
+                index += set_value(&fields[index],
+                        &lengths[index], &rule_flag, 1);
                 index += set_value(&fields[index],
                         &lengths[index], apn.ptr, apn.len);
                 index += set_value(&fields[index],

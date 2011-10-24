@@ -978,7 +978,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     uint32_t apn_dl       = 0;
     uint32_t apn_ul       = 0;
     packet_t apn          = {NULL, 0};
-    packet_t bearer_class = {NULL, 0};
+    packet_t rule_name    = {NULL, 0};
     packet_t imsi         = {NULL, 0};
     packet_t flow_desc    = {NULL, 0};
     packet_t src_ipa      = {NULL, 0};
@@ -990,9 +990,9 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
         {
             //if (*((uint8_t*)packet) == OP_CODE) {
                 decode_raw(&decode, 1);
-                imsi = decode_array(&decode);
-                apn = decode_array(&decode);
-                bearer_class = decode_array(&decode);
+                imsi      = decode_array(&decode);
+                apn       = decode_array(&decode);
+                rule_name = decode_array(&decode);
                 
                 qci     = decode_uint32(&decode);
                 max_dl  = decode_uint32(&decode);
@@ -1015,7 +1015,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                 index += set_value(&fields[index],
                         &lengths[index], apn.ptr, apn.len);
                 index += set_value(&fields[index],
-                        &lengths[index], bearer_class.ptr, bearer_class.len);
+                        &lengths[index], rule_name.ptr, rule_name.len);
                 index += set_value(&fields[index],
                         &lengths[index], imsi.ptr, imsi.len);
                 index += set_value(&fields[index], &lengths[index], &qci, 4);

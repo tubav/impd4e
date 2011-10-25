@@ -190,26 +190,27 @@ int logger_get_level(){
  * Log message
  */
 void logger ( int level, const char *file, int line, const char *function,  char fmt[], ... ) {
-   static char tmpbuf[4001];
-   static const char strlevel [][6] = {
-      "FATAL",
-      "ERROR",
-      "WARN ",
-      "INFO ",
-      "DEBUG",
-      "TRACE"
-   };
-
-   // time info
-   char timeBuffer[64];
-   struct timeval tv;
-   time_t curtime;
-
+   // stop logging if below log level
    if ( level > logger_model.level ){
       return;
    }
 
    if( is_logging(function) ) {
+      static char tmpbuf[4001];
+      static const char strlevel [][6] = {
+         "FATAL",
+         "ERROR",
+         "WARN ",
+         "INFO ",
+         "DEBUG",
+         "TRACE"
+      };
+
+      // time info
+      char timeBuffer[64];
+      struct timeval tv;
+      time_t curtime;
+
       logger_model.fp=logger_model.fp?logger_model.fp:stderr;
 
       gettimeofday(&tv, NULL);
@@ -221,6 +222,7 @@ void logger ( int level, const char *file, int line, const char *function,  char
       va_start(args, fmt);
       (void) vsnprintf( tmpbuf, sizeof(tmpbuf), fmt, args );
       va_end(args);
+
       // creating log string
       strftime(timeBuffer,30,logger_model.time_fmt, localtime(&curtime));
       fprintf( logger_model.fp, "%s%ld %s %s (%s(), %s:%d)\n",
@@ -228,4 +230,17 @@ void logger ( int level, const char *file, int line, const char *function,  char
       fflush( logger_model.fp );
    }
 }
+
+//void logger_array(int level, const char *file, int line, const char *function,  char fmt[], char* p, int l ) {
+//   int  len = 3*l;
+//   char b[len];
+//   int i;
+//   for( i=0; i < l; ++i, len-=3 ) {
+//      snprintf( b[i*3], len, "%02X ", p[i] );
+//   }
+//
+//   //logger(
+//}
+
+
 

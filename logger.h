@@ -59,13 +59,13 @@
 
 
 
-
-#define LOGGER_fatal(...) logger(LOGGER_LEVEL_FATAL ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__) // the most serious
-#define LOGGER_error(...) logger(LOGGER_LEVEL_ERROR ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__)
-#define LOGGER_warn(...)  logger(LOGGER_LEVEL_WARN  ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__)
-#define LOGGER_info(...)  logger(LOGGER_LEVEL_INFO  ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__) // recommended default level
-#define LOGGER_debug(...) logger(LOGGER_LEVEL_DEBUG ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__)
-#define LOGGER_trace(...) logger(LOGGER_LEVEL_TRACE ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__) // the least serious
+#define LOGGER(level, ...) logger(level,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__)
+#define LOGGER_fatal(...)  logger(LOGGER_LEVEL_FATAL ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__) // the most serious
+#define LOGGER_error(...)  logger(LOGGER_LEVEL_ERROR ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__)
+#define LOGGER_warn(...)   logger(LOGGER_LEVEL_WARN  ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__)
+#define LOGGER_info(...)   logger(LOGGER_LEVEL_INFO  ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__) // recommended default level
+#define LOGGER_debug(...)  logger(LOGGER_LEVEL_DEBUG ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__)
+#define LOGGER_trace(...)  logger(LOGGER_LEVEL_TRACE ,__FILE__,__LINE__,__FUNCTION__,__VA_ARGS__) // the least serious
 
 /*
 #define LOGGER_VERBOSITY_FATAL (LOG_N_LEVELS - 0);

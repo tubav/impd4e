@@ -171,6 +171,9 @@ static void read_cb(EV_P_ struct ev_io *w, int revents) {
    struct connection *conn= (struct connection*) w->data;
    int r=0;
    short maxlen = BUFFER_SIZE - conn->in_pos.wr;
+
+   LOGGER_info( "receive event: (%d)", revents );
+
 //   if(conn->sync){
 //      LOGGER_debug("SYNC DATA!");
 //   }
@@ -189,6 +192,7 @@ static void read_cb(EV_P_ struct ev_io *w, int revents) {
    }
    if (revents & EV_READ){
       r=read(conn->fd,conn->in_buf+conn->in_pos.wr,maxlen);
+      LOGGER_info( "read: (%d)", r);
       if(r<=0){
          connection_close(EV_A_ conn);
          return;

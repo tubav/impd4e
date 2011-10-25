@@ -208,15 +208,17 @@ void open_socket_inet(device_dev_t* if_device, options_t *options) {
 
    // TODO: IPv4 support IPv6 is added later
    memset( &a_hint, 0, sizeof(a_hint) );
-   a_hint.ai_family   = AF_INET; // AF_INET6; AF_UNSPEC
-   //a_hint.ai_family   = AF_UNSPEC;
-   //a_hint.ai_socktype = SOCK_STREAM; //SOCK_STREAM | SOCK_DGRAM;
-   a_hint.ai_socktype = SOCK_DGRAM; //SOCK_STREAM | SOCK_DGRAM;
-   a_hint.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;
+   a_hint.ai_family   = options->ai_family; //AF_INET; // AF_INET6;
+   //a_hint.ai_socktype = SOCK_STREAM; //SOCK_DGRAM;
+   a_hint.ai_socktype = SOCK_DGRAM; //SOCK_STREAM;
+   a_hint.ai_flags    = AI_PASSIVE;  // server socket
+   //a_hint.ai_flags    |= AI_ADDRCONFIG;
+   //a_hint.ai_flags    |= AI_V4MAPPED;
+   a_hint.ai_protocol = IPPROTO_UDP; // udp protocol
 
    // get all availabe address for the given ip port
-   int rv = getaddrinfo(srv_addr.ip, srv_addr.port, &a_hint, &a_res);
-   //int rv = getaddrinfo(srv_addr.ip, srv_addr.port, NULL, &a_res);
+   //int rv = getaddrinfo(srv_addr.ip, srv_addr.port, &a_hint, &a_res);
+   int rv = getaddrinfo(NULL, srv_addr.port, &a_hint, &a_res);
    if( 0 != rv ) {
       perror( "Socket error in getaddrinfo()" );
       perror( gai_strerror(rv) );
@@ -226,7 +228,7 @@ void open_socket_inet(device_dev_t* if_device, options_t *options) {
    // print the return addresses
    print_addrinfo( a_res );
 
-   for( ; NULL != a_res; a_res = a_res->ai_next ) {
+   if( NULL != a_res ) {
       //LOGGER_info( "connect" );
       LOGGER_info( "bind" );
 
@@ -248,10 +250,10 @@ void open_socket_inet(device_dev_t* if_device, options_t *options) {
       // send 'hello' TODO: for test only
       //write( if_device->device_handle.socket, "HELLO!", 6 );
       //write( if_device->device_handle.socket, "", 1 );
-      return; // connect first interface only
    }
 
    // TODO: for UDP send initial message ?
+   return;
 }
 
 #endif
@@ -299,9 +301,9 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
    LOGGER_trace("Enter");
 
    int      socket = dh.fd;
-   int32_t  i;
+   int      i;
    int32_t  nPackets = 0;
-   uint8_t  buffer[BUFFER_SIZE];
+   uint8_t  buffer[g_options.snapLength];
 
    struct pcap_pkthdr hdr;
 
@@ -309,21 +311,8 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
          ; i < max_packets || 0 == max_packets || -1 == max_packets
          ; ++i)
    {
-      // ensure buffer will fit
-      uint32_t caplen = BUFFER_SIZE;
-      if( BUFFER_SIZE > g_options.snapLength )
-      {
-         caplen = g_options.snapLength;
-      }
-      else
-      {
-         LOGGER_warn( "socket_dispatch: snaplan exceed Buffer size (%d); "
-               "use Buffersize instead.\n", BUFFER_SIZE );
-      }
-
-      // recv is blocking; until connection is closed
-      // TODO: check handling
-      switch(hdr.caplen = recvfrom(socket, buffer, caplen, 0, NULL, NULL)) {
+      // peek socket buffer to get hole message length
+      switch(hdr.len = recv(socket, NULL, 0, MSG_PEEK|MSG_TRUNC)) {
          case 0: {
                     perror("socket: recv(); connection shutdown");
                     return -1;
@@ -339,25 +328,55 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
                      }
                   }
 
-         default: {
-                     if( LOGGER_LEVEL_DEBUG <= logger_get_level() ){
-                        int i = 0;
-                        for( i=0; i < hdr.caplen; ++i ) {
-                           LOGGER_debug( "%02x ", buffer[i]);
-                        }
-                     }
+         //default:
+         // everything is all right
+         // further processing
+      }
 
-                     // get timestamp
-                     gettimeofday(&hdr.ts, NULL);
+      // recv is blocking; until connection is closed
+      // TODO: check handling
+      // recv is enough here, because we are just interested of the packet
+      // we will not send anything back
+      switch(hdr.caplen = recv(socket, buffer, sizeof(buffer), 0)) {
+         case 0: 
+         {
+            perror("socket: recv(); connection shutdown");
+            return -1;
+         }
 
-                     hdr.len = hdr.caplen;
+         case -1:
+         {
+            if (EAGAIN == errno || EWOULDBLOCK == errno) {
+                return nPackets;
+            } 
+            else {
+               perror("socket: recv()");
+               return -1;
+            }
+         }
 
-                     // print received data
-                     // be aware of the type casts need
-                     packet_handler(user_args, &hdr, buffer);
-                     ++nPackets;
-                  }
-      } // switch(recv())
+         //default: 
+         // everything is all right
+         // futher processing
+      }
+
+      
+      LOGGER_info("bytes received: (%d)", hdr.len);
+      LOGGER_info("bytes captured: (%d)", hdr.caplen);
+      if( LOGGER_LEVEL_DEBUG <= logger_get_level() ){
+         int i = 0;
+         for( i=0; i < hdr.caplen; ++i ) {
+            LOGGER_debug( "%02x ", buffer[i]);
+         }
+      }
+
+      // get timestamp
+      gettimeofday(&hdr.ts, NULL);
+
+      // print received data
+      // be aware of the type casts need
+      packet_handler(user_args, &hdr, buffer);
+      ++nPackets;
    }
 
    LOGGER_trace("Return");

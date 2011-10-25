@@ -49,6 +49,7 @@
 #include <string.h>
 //#include <stdint.h>
 #include <unistd.h> // getopt()
+#include <netdb.h> // AF_INET
 
 //#include <sys/types.h>
 //#include <sys/socket.h>
@@ -107,6 +108,7 @@ typedef int (*cmd_par_fct_t)(char*, options_t*);
 
 struct config_map_t {
    char          opt_letter;
+   char*         opt_need_param;
    cmd_par_fct_t opt_fct;
    char*         cfg_item;
 };
@@ -343,6 +345,9 @@ void print_help() {
             "   -i  <r>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t r - ethernet adapter using pfring;-i r:eth0\n"
 			#endif
+			"\n"
+			"   -4                             use IPv4 socket interfaces\n"
+			"   -6                             use IPv6 socket interfaces (default)\n"
 			"\n"
 			"options: \n"
             #ifdef PFRING
@@ -624,6 +629,18 @@ int opt_t( char* arg, options_t* options ) {
    return 0;
 }
 
+int opt_4( char* arg, options_t* options ) {
+   options->ai_family = AF_INET;
+   LOGGER_debug("ai_family [%d]", options->ai_family);
+   return 0;
+}
+
+int opt_6( char* arg, options_t* options ) {
+   options->ai_family = AF_INET6;
+   LOGGER_debug("ai_family [%d]", options->ai_family);
+   return 0;
+}
+
 int opt_m( char* arg, options_t* options ) {
    set_sampling_lowerbound(options, arg);
    return 0;
@@ -751,40 +768,43 @@ int opt_y( char* arg, options_t* options ) {
 
 #define ADD_OPTION( opt, full_opt ) { '##opt##', &##opt_##opt, full_opt }
 
+// parameter list for get opt
+// "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:O:46";
 struct config_map_t cfg_opt_list[] = {
-	{ 'v', &opt_v, "general.verbosity"              },
-	{ 'h', &opt_h, "general.help"                   },
-	{ 'i', &opt_i, "capture.interface"              },
-	{ 'O', &opt_O, "capture.offset"                 },
-	{ 'f', &opt_f, "filter.bpfilter"                },
-	{ 'N', &opt_N, "filter.snaplength"              },
-	{ 'I', &opt_I, "interval.data_export"           },
-	{ 'J', &opt_J, "interval.probe_stats"           },
-	{ 'K', &opt_K, "interval.interface_stats"       },
-	{ 'G', &opt_G, "interval.location"              },
-	{ 'm', &opt_m, "selection.min_hash_range"       },
-	{ 'M', &opt_M, "selection.max_hash_range"       },
-	{ 'r', &opt_r, "selection.hash_selection_ratio" },
-	{ 's', &opt_s, "selection.selection_preset"     },
-	{ 'S', &opt_S, "selection.selection_parts"      },
-	{ 'F', &opt_F, "selection.hash_function"        },
-	{ 'p', &opt_p, "selection.pktid_function"       },
-	{ 'o', &opt_o, "ipfix.observation_domain_id"    },
-	{ 'u', &opt_u, "ipfix.one_odid"                 },
-	{ 'C', &opt_C, "ipfix.collector_ip_address"     },
-	{ 'P', &opt_P, "ipfix.collector_port"           },
-	{ 'e', &opt_e, "ipfix.export_flush_count"       },
-	{ 't', &opt_t, "template.used_template"         },
-	{ 'd', &opt_d, "geotags.probe_name"             },
-	{ 'D', &opt_D, "geotags.location_name"          },
-	{ 'l', &opt_l, "geotags.latitude"               },
-	{ 'L', &opt_L, "geotags.longitude"              },
-	{ 'c', &opt_c, "general.configfile" }, // TODO:something
-	{ 'n', &opt_n, "empty" },
-	{ 'y', &opt_y, "empty" },
-	{ 'F', &opt_F, "empty" },
+	{ 'v',"::", &opt_v, "general.verbosity"              },
+	{ 'h',""  , &opt_h, "general.help"                   },
+	{ 'i',":" , &opt_i, "capture.interface"              },
+	{ '4',""  , &opt_4, "capture.ipv4"                   },
+	{ '6',""  , &opt_6, "capture.ipv6"                   },
+	{ 'O',":" , &opt_O, "capture.offset"                 },
+	{ 'f',":" , &opt_f, "filter.bpfilter"                },
+	{ 'N',":" , &opt_N, "filter.snaplength"              },
+	{ 'I',":" , &opt_I, "interval.data_export"           },
+	{ 'J',":" , &opt_J, "interval.probe_stats"           },
+	{ 'K',":" , &opt_K, "interval.interface_stats"       },
+	{ 'G',":" , &opt_G, "interval.location"              },
+	{ 'm',":" , &opt_m, "selection.min_hash_range"       },
+	{ 'M',":" , &opt_M, "selection.max_hash_range"       },
+	{ 'r',":" , &opt_r, "selection.hash_selection_ratio" },
+	{ 's',":" , &opt_s, "selection.selection_preset"     },
+	{ 'S',":" , &opt_S, "selection.selection_parts"      },
+	{ 'F',":" , &opt_F, "selection.hash_function"        },
+	{ 'p',":" , &opt_p, "selection.pktid_function"       },
+	{ 'o',":" , &opt_o, "ipfix.observation_domain_id"    },
+	{ 'u',""  , &opt_u, "ipfix.one_odid"                 },
+	{ 'C',":" , &opt_C, "ipfix.collector_ip_address"     },
+	{ 'P',":" , &opt_P, "ipfix.collector_port"           },
+	{ 'e',":" , &opt_e, "ipfix.export_flush_count"       },
+	{ 't',":" , &opt_t, "template.used_template"         },
+	{ 'd',":" , &opt_d, "geotags.probe_name"             },
+	{ 'D',":" , &opt_D, "geotags.location_name"          },
+	{ 'l',":" , &opt_l, "geotags.latitude"               },
+	{ 'L',":" , &opt_L, "geotags.longitude"              },
+	{ 'c',":" , &opt_c, "general.configfile" }, // TODO:something
+	{ 'n',""  , &opt_n, "empty" },
+	{ 'y',""  , &opt_y, "empty" },
 #ifdef PFRING
-	{ 'a', &opt_a, "empty" },
+	{ 'a',":" , &opt_a, "empty" },
 #endif
 //	{ '\0', NULL, NULL }
 };
@@ -1208,8 +1228,28 @@ void parse_pfring_filter(char* arg_string, options_t* options) {
  */
 void parse_cmdline_v2(int argc, char **argv) {
 
-   char par[] = "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:O:";
+   int  i;
    char c;
+
+   // create parameter string from option array
+   //char par[] = "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:O:46";
+   int  len = sizeof(cfg_opt_list)/sizeof(struct config_map_t);
+   char par[3*len];
+   char *tmp = par;
+
+   for(i = 0; i < len; ++i) {
+      // check double options in option list
+      // only on debug level
+      //if( LOGGER_LEVEL_DEBUG <= logger_get_level() ){
+      //   if(NULL != strchr(par, cfg_opt_list[i].opt_letter)){
+      //      LOGGER_warn( "option letter: '%c' already used", cfg_opt_list[i].opt_letter);
+      //      printf( "option letter: '%c' already used\n", cfg_opt_list[i].opt_letter);
+      //   }
+      //}
+
+      tmp += sprintf(tmp, "%c%s", cfg_opt_list[i].opt_letter, cfg_opt_list[i].opt_need_param );
+   }
+   //fprintf(stderr, "%s\n", par);
 
    while (-1 != (c = getopt(argc, argv, par))) {
       find_opt_function_char( c )(optarg, &g_options);
@@ -1472,6 +1512,7 @@ void parse_cmdline(int argc, char **argv) {
  */
 void set_defaults_options(options_t *options) {
 	options->verbosity_filter_string = "";
+	options->ai_family           = AF_INET6; // default IPv4
 	options->verbosity           = 0;
 	options->number_interfaces   = 0;
 	options->offset              = 0;

@@ -339,7 +339,7 @@ void print_help() {
 			"\t i - ethernet adapter;             -i i:eth0\n"
 			"\t p - pcap file;                    -i p:traffic.pcap\n"
 			"\t f - plain text file;              -i f:data.txt\n"
-			"\t s - inet socket (AF_INET);        -i s:192.168.0.42:4711\n"
+			"\t s - inet udp socket (AF_INET);    -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
 			#else
             "   -i  <r>:<interface>    interface(s) to listen on. It can be used multiple times.\n"

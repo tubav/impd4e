@@ -673,7 +673,7 @@ inline uint16_t get_nettype(packet_t *packet, int linktype) {
             break;
         case DLT_LINUX_SLL: // 16 octets
             // TODO: either the first 2 octets or the last 2 octets
-            return ntohs(*((uint16_t*) (&packet->ptr[0])));
+            return ntohs(*((uint16_t*) (&packet->ptr[14])));
             break;
         case DLT_RAW:
             break;

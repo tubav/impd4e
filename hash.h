@@ -55,7 +55,6 @@ void findHeaders( const uint8_t *packet, uint16_t packetLength, uint32_t *header
 // used to be a comma seperated list of byte offsets and ranges
 void parseRange( char* arg );
 
-
 uint32_t copyFields_Rec( packet_t *packet,
       buffer_t *buffer,
       uint32_t headerOffset[4], uint8_t layers[4]);
@@ -95,12 +94,6 @@ uint32_t copyFields_Trans( packet_t *packet,
 uint32_t copyFields_Payload( packet_t *packet,
       buffer_t *buffer,
       uint32_t headerOffset[4], uint8_t layers[4]);
-
-uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength );
-
-uint16_t copyFields_Select_reverse(const uint8_t *packet, uint16_t packetLength,
-      uint8_t *outBuffer, uint16_t outBufferLength );
 
 uint32_t calcHashValue_BOB        ( buffer_t * );
 uint32_t calcHashValue_Hsieh      ( buffer_t * );

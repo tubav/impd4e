@@ -68,8 +68,6 @@ const uint32_t initval=0x32545;
 const unsigned long NETMASK = 0x0;
 
 // fixed header lengths
-
-
 const int ETHER_HLEN = 14;
 const int UDP_HLEN = 8;
 const int ICMP_HLEN = 4;
@@ -95,6 +93,19 @@ struct range_select {
 static struct range_select baseSelection;
 struct range_select* rSel = &baseSelection;
 
+// ****************************************************************************
+// prototypes
+// ****************************************************************************
+uint32_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
+      uint8_t *outBuffer, uint16_t outBufferLength );
+
+uint32_t copyFields_Select_reverse(const uint8_t *packet, uint16_t packetLength,
+      uint8_t *outBuffer, uint16_t outBufferLength );
+
+
+// ****************************************************************************
+// functions
+// ****************************************************************************
 void print_selection_offsets( struct range_select* p ) {
    do
    {
@@ -254,15 +265,6 @@ uint32_t copyFields_Packet( packet_t *packet,
    return buffer->len;
 }
 
-uint32_t copyFields_Raw( packet_t *packet,
-      buffer_t *buffer,
-      uint32_t headerOffset[4], uint8_t layers[4])
-{
-   LOGGER_debug( "copyFields_Raw(): pL=%d, bL=%d", packet->len, buffer->size);
-
-   return copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
-}
-
 // contrary to the copyFields_Select, this functions copies data from the
 // end of a packet, instead of the beginning. So if offset=20 it refers to
 // packetLength - offset as start position of copy operation
@@ -270,9 +272,20 @@ uint32_t copyFields_Last( packet_t *packet,
       buffer_t *buffer,
       uint32_t headerOffset[4], uint8_t layers[4])
 {
+   LOGGER_debug( "copyFields_Last(): pL=%d, bL=%d", packet->len, buffer->size);
+
+   buffer->len = copyFields_Select_reverse( packet->ptr, packet->len, buffer->ptr, buffer->size );
+   return buffer->len;
+}
+
+uint32_t copyFields_Raw( packet_t *packet,
+      buffer_t *buffer,
+      uint32_t headerOffset[4], uint8_t layers[4])
+{
    LOGGER_debug( "copyFields_Raw(): pL=%d, bL=%d", packet->len, buffer->size);
 
-   return copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
+   buffer->len = copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
+   return buffer->len;
 }
 
 uint32_t copyFields_Link( packet_t *packet,
@@ -281,7 +294,10 @@ uint32_t copyFields_Link( packet_t *packet,
 {
    LOGGER_debug( "copyFields_Link(): pL=%d, bL=%d", packet->len, buffer->size);
 
-   return copyFields_Select( packet->ptr, packet->len, buffer->ptr, buffer->size );
+   buffer->len = copyFields_Select( packet->ptr+headerOffset[L_LINK]
+                                  , packet->len-headerOffset[L_LINK]
+                                  , buffer->ptr, buffer->size );
+   return buffer->len;
 }
 
 
@@ -290,9 +306,10 @@ uint32_t copyFields_Net( packet_t *packet,
       uint32_t headerOffset[4], uint8_t layers[4])
 {
    LOGGER_debug( "copyFields_Net(): pL=%d, bL=%d", packet->len, buffer->size);
-   LOGGER_error( "copyFields_Select(): not yet implemented");
-   // TODO:
-   return 0; // length;
+   buffer->len = copyFields_Select( packet->ptr+headerOffset[L_NET]
+                                  , packet->len-headerOffset[L_NET]
+                                  , buffer->ptr, buffer->size );
+   return buffer->len;
 }
 
 
@@ -301,9 +318,10 @@ uint32_t copyFields_Trans( packet_t *packet,
       uint32_t headerOffset[4], uint8_t layers[4])
 {
    LOGGER_debug( "copyFields_Trans(): pL=%d, bL=%d", packet->len, buffer->size);
-   LOGGER_error( "copyFields_Select(): not yet implemented");
-   // TODO:
-   return 0; // length;
+   buffer->len = copyFields_Select( packet->ptr+headerOffset[L_TRANS]
+                                  , packet->len-headerOffset[L_TRANS]
+                                  , buffer->ptr, buffer->size );
+   return buffer->len;
 }
 
 
@@ -312,17 +330,18 @@ uint32_t copyFields_Payload( packet_t *packet,
       uint32_t headerOffset[4], uint8_t layers[4])
 {
    LOGGER_debug(  "copyFields_Payload(): pL=%d, bL=%d", packet->len, buffer->size);
-   LOGGER_error( "copyFields_Select(): not yet implemented");
-   // TODO:
-   return 0; // length;
+   buffer->len = copyFields_Select( packet->ptr+headerOffset[L_PAYLOAD]
+                                  , packet->len-headerOffset[L_PAYLOAD]
+                                  , buffer->ptr, buffer->size );
+   return buffer->len;
 }
 
 
-uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
+uint32_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
       uint8_t *b, uint16_t bLen )
 {
    struct range_select* range = rSel;
-   uint16_t written = 0;
+   uint32_t written = 0;
 
    do
    {
@@ -355,11 +374,11 @@ uint16_t copyFields_Select(const uint8_t *packet, uint16_t packetLength,
 // contrary to the copyFields_Select, this functions copies data from the
 // end of a packet, instead of the beginning. So if offset=20 it refers to
 // packetLength - offset as start position of copy operation
-uint16_t copyFields_Select_reverse(const uint8_t *packet, uint16_t packetLength,
+uint32_t copyFields_Select_reverse(const uint8_t *packet, uint16_t packetLength,
       uint8_t *b, uint16_t bLen )
 {
     struct range_select* range = rSel;
-    uint16_t written = 0;
+    uint32_t written = 0;
 
     do {
         LOGGER_info(  "sizes: pL=%d, bL=%d, oS=%d, oL=%d"

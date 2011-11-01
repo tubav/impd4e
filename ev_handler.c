@@ -728,7 +728,7 @@ inline packet_t decode_raw(packet_t *p, uint32_t len) {
 }
 
 inline uint32_t decode_uint32(packet_t *p) {
-    uint32_t value = ntohs(*((uint32_t*) p->ptr));
+    uint32_t value = ntohl(*((uint32_t*) p->ptr));
     p->len -= 4;
     p->ptr += 4;
     return value;

@@ -73,6 +73,7 @@
 #include "settings.h"
 #include "hash.h"
 #include "helper.h"
+#include "ipfix_handler.h"
 //#include "constants.h"
 
 #ifdef PFRING
@@ -1548,6 +1549,9 @@ void set_defaults_options(options_t *options) {
 
 
 void set_defaults_device(device_dev_t* dev) {
+
+   // set initial export packe count
+   dev->export_packet_count = 0;
 
    // allocate memory for outbuffer; depend on cmd line options
    // just for the real amount of interfaces used

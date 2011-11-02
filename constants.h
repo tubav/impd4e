@@ -92,19 +92,6 @@ buffer_t;
 #define HASH_INPUT_PAYLOAD "PAYLOAD"
 #define HASH_INPUT_SELECT  "SELECT"
 
-// template definition
-#define MINT_ID             0
-#define TS_TTL_PROTO_ID     1
-#define TS_ID               2
-#define TS_TTL_PROTO_IP_ID  3
-#define TS_OPEN_EPC_ID      4
-
-#define MIN_NAME              "min"
-#define TS_TTL_RROTO_NAME     "lp"
-#define TS_NAME               "ts"
-#define TS_TTL_RROTO_IP_NAME  "ls"
-#define TS_OPEN_EPC           "tsep"
-
 typedef enum {
    L_LINK = 0,
    L_NET,
@@ -249,19 +236,18 @@ typedef struct device_dev {
    int               link_type;
 
    // ipfix data
-   ipfix_t*          ipfixhandle;
+//   ipfix_t*          ipfixhandle;
    uint32_t          template_id;
 //   ipfix_template_t* ipfixtemplate;
-   ipfix_template_t *ipfixtmpl_min;
-   ipfix_template_t *ipfixtmpl_ts;
-   ipfix_template_t *ipfixtmpl_ts_ttl;
-   ipfix_template_t *ipfixtmpl_ts_ttl_ip;
-   ipfix_template_t *ipfixtmpl_interface_stats;
-   ipfix_template_t *ipfixtmpl_probe_stats;
-   ipfix_template_t *ipfixtmpl_sync;
-   ipfix_template_t *ipfixtmpl_location;
-   ipfix_template_t *sampling_export_template;
-   ipfix_template_t *ipfixtmpl_ts_open_epc;
+//   ipfix_template_t *ipfixtmpl_min;
+//   ipfix_template_t *ipfixtmpl_ts;
+//   ipfix_template_t *ipfixtmpl_ts_ttl;
+//   ipfix_template_t *ipfixtmpl_ts_ttl_ip;
+//   ipfix_template_t *ipfixtmpl_interface_stats;
+//   ipfix_template_t *ipfixtmpl_probe_stats;
+//   ipfix_template_t *ipfixtmpl_sync;
+//   ipfix_template_t *ipfixtmpl_location;
+//   ipfix_template_t *ipfixtmpl_ts_open_epc;
 
    uint32_t          pkt_offset; // points to first packet after link layer
    buffer_t          hash_buffer;

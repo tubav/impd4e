@@ -35,15 +35,15 @@
 #ifndef TEMPLATES_H_
 #define TEMPLATES_H_
 
-/* help macros */
-#define IPFIX_MAKE_TEMPLATE(handle,template,fields) \
-	ipfix_make_template(handle, &(template), fields, sizeof(fields) / sizeof(export_fields_t) )
-
-
-
 #include "ipfix.h"
 #include "ipfix_def.h"
 #include "ipfix_def_fokus.h"
+
+
+
+/* help macros */
+#define IPFIX_MAKE_TEMPLATE(handle,template,fields) \
+	ipfix_make_template(handle, &(template), fields, sizeof(fields) / sizeof(export_fields_t) )
 
 /*
  * for an introduction to the IPFIX protocol see:

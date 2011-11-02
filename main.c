@@ -110,12 +110,9 @@ char* hashfunctionname[] = {
  * Shutdown impd4e
  */
 void impd4e_shutdown() {
-   int i;
    LOGGER_info("Shutting down..");
-   for (i = 0; i < g_options.number_interfaces; i++) {
-      ipfix_export_flush(if_devices[i].ipfixhandle);
-      ipfix_close(if_devices[i].ipfixhandle);
-   }
+   ipfix_export_flush( ipfix() );
+   ipfix_close( ipfix() );
    ipfix_cleanup();
 }
 
@@ -233,22 +230,32 @@ int main(int argc, char *argv[]) {
       }
    }
 
-   // init ipfix module
-   libipfix_init();
-
    for (i = 0; i < g_options.number_interfaces; ++i) {
       // open pcap interfaces with filter
       open_device(&if_devices[i], &g_options);
       LOGGER_info( "open_device(%d)", i);
-
-      // setup ipfix_exporter for each device
-      libipfix_open(&if_devices[i], &g_options);
-      LOGGER_info( "open_ipfix_export(%d)", i);
    }
 
    // TODO: get ip address of the system
    // set ipAddress with ipaddress of first device
    g_options.ipAddress = if_devices[0].IPv4address;
+
+   // determine observation id if it is not given via cmd line
+   // use observationDomainID if explicitely given via
+   // cmd line, else use interface IPv4address as oid
+   // TODO: alternative oID instead of IP address --> !!different device types!!
+   if( 0 == g_options.observationDomainID ) {
+      // there is only one observation id needed
+      // if non is given via cmd line: use g_options.ipAddress
+      // which is detemined of the first device
+      g_options.observationDomainID = ntohl( g_options.ipAddress );
+   }
+
+   // setup ipfix_exporter
+   libipfix_init( g_options.observationDomainID );
+   libipfix_register_templates();
+   libipfix_connect( &g_options );
+   LOGGER_info( "Setup IPFIX Exporter" );
 
    /* ---- main event loop  ---- */
    event_loop( EV_DEFAULT ); // TODO: refactoring?

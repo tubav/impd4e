@@ -42,19 +42,56 @@
 // Type definitions
 // -----------------------------------------------------------------------------
 
+//export_fields_t export_fields_min[] = {
+//export_fields_t export_fields_ts[] = {
+//export_fields_t export_fields_ts_ttl_proto[] = {
+//export_fields_t export_fields_ts_ttl_proto_ip[] = {
+//export_fields_t export_fields_openepc[] = {
+//
+//export_fields_t export_fields_location[] = {
+//export_fields_t export_fields_sync[] = {
+//export_fields_t export_fields_probe_stats[] = {
+//export_fields_t export_fields_interface_stats[] = {
+
+// template definition
+// array indecies: they must be continious and must start with 0
+typedef enum template_id_u{
+        LOCATION_ID = 0
+      , SYNC_ID
+      , PROBE_STATS_ID
+      , INTF_STATS_ID
+      , MINT_ID
+      , TS_ID
+      , TS_TTL_PROTO_ID
+      , TS_TTL_PROTO_IP_ID
+      , TS_OPEN_EPC_ID
+}
+template_id_t;
+
+#define MIN_NAME              "min"
+#define TS_TTL_RROTO_NAME     "lp"
+#define TS_NAME               "ts"
+#define TS_TTL_RROTO_IP_NAME  "ls"
+#define TS_OPEN_EPC           "tsep"
+
+
 
 // -----------------------------------------------------------------------------
 // Prototypes
 // -----------------------------------------------------------------------------
 
 // return ipfix handle
-ipfix_t* ipfix();
+inline ipfix_t* ipfix();
 
-void libipfix_init();
+void libipfix_init(uint32_t observation_id);
+void libipfix_register_templates();
+void libipfix_connect( options_t *options );
 
-void libipfix_open(device_dev_t *if_device, options_t *options);
+//void libipfix_open(device_dev_t *if_device, options_t *options);
 
 void libipfix_reconnect();
+
+ipfix_template_t* get_template( int template_id );
 
 #endif /* _IPFIX_HANDLER_H_*/
 

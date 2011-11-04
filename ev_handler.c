@@ -826,6 +826,9 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
             case TS_OPEN_EPC_ID:
                 template = packet_info->device->ipfixtmpl_ts_open_epc;
                 break;
+            case TS_ID_EPC_ID:
+                template = packet_info->device->ipfixtmpl_ts_id_epc;
+                break;
             default:
                 LOGGER_info("!!!no template specified!!!");
                 return;
@@ -842,13 +845,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
         uint16_t dst_port = 0;
         uint8_t *src_ipa = 0;
         uint8_t *dst_ipa = 0;
-
-        //      set_hash( );
-        //      set_timestamp();
-        //      set_ip_ttl();
-        //      set_ip_version();
-        //      set_ip_length();
-        //      set_ip_id();
+        uint32_t rule_id = 0;
 
         switch (t_id) {
             case TS_ID:
@@ -912,6 +909,29 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
                 index += set_value(&fields[index], &lengths[index], &dst_port, 2);
                 break;
             }
+     
+            case TS_ID_EPC_ID:
+            {
+                timestamp = get_timestamp(packet_info->ts);
+                src_ipa = get_ipa(packet, offsets[L_NET], layers[L_NET]);
+                src_port = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
+                dst_ipa = get_ipa(packet, offsets[L_NET] + 4, layers[L_NET]);
+                dst_port = get_port(packet, offsets[L_TRANS] + 2, layers[L_TRANS]);
+                
+                decode_raw(packet, packet->len-4);
+                rule_id = decode_uint32(packet);
+                
+                int index = 0;
+                index += set_value(&fields[index], &lengths[index], &timestamp, 8);
+                index += set_value(&fields[index], &lengths[index], &hash_id, 4);
+                index += set_value(&fields[index], &lengths[index], &rule_id, 4);
+                index += set_value(&fields[index], &lengths[index], &layers[L_NET], 1);
+                index += set_value(&fields[index], &lengths[index], src_ipa, 4);
+                index += set_value(&fields[index], &lengths[index], &src_port, 2);
+                index += set_value(&fields[index], &lengths[index], dst_ipa, 4);
+                index += set_value(&fields[index], &lengths[index], &dst_port, 2);
+                break;
+            }
 
             default:
                 LOGGER_info("!!!no template specified!!!");
@@ -962,6 +982,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     int i;
     uint32_t dummy = 0;    
     uint8_t rule_flag     = 0;
+    uint32_t rule_id      = 0;
     uint64_t timestamp    = 0;
     uint8_t src_ai_fam    = 0;
     uint8_t dst_ai_fam    = 0;
@@ -990,6 +1011,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
         {
             //if (*((uint8_t*)packet) == OP_CODE) {
                 rule_flag = decode_uint8(&decode);
+                rule_id   = decode_uint32(&decode);
                 imsi      = decode_array(&decode);
                 apn       = decode_array(&decode);
                 rule_name = decode_array(&decode);

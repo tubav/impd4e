@@ -235,7 +235,8 @@ int parse_template(char *arg_string) {
    struct templateDef {
       char *hstring;
       int templateID;
-   } templates[] = {   { MIN_NAME, MINT_ID }
+   } templates[] = {   { MIN_NAME, MINT_ID }   
+                     , { TS_ID_EPC, TS_ID_EPC_ID }
                      , { TS_TTL_RROTO_NAME, TS_TTL_PROTO_ID }
                      , { TS_TTL_RROTO_IP_NAME, TS_TTL_PROTO_IP_ID }
                      , { TS_NAME, TS_ID } 
@@ -246,7 +247,7 @@ int parse_template(char *arg_string) {
 
    for (k = 0; k < (sizeof(templates) / sizeof(struct templateDef)); k++) {
       if ( 0== strcasecmp(arg_string, templates[k].hstring) ) {
-         return templates[k].templateID;
+          return templates[k].templateID;
       }
    }
    return -1;

@@ -98,12 +98,14 @@ buffer_t;
 #define TS_ID               2
 #define TS_TTL_PROTO_IP_ID  3
 #define TS_OPEN_EPC_ID      4
+#define TS_ID_EPC_ID        5
 
 #define MIN_NAME              "min"
 #define TS_TTL_RROTO_NAME     "lp"
 #define TS_NAME               "ts"
 #define TS_TTL_RROTO_IP_NAME  "ls"
 #define TS_OPEN_EPC           "tsep"
+#define TS_ID_EPC             "tsip"
 
 typedef enum {
    L_LINK = 0,
@@ -262,6 +264,7 @@ typedef struct device_dev {
    ipfix_template_t *ipfixtmpl_location;
    ipfix_template_t *sampling_export_template;
    ipfix_template_t *ipfixtmpl_ts_open_epc;
+   ipfix_template_t *ipfixtmpl_ts_id_epc;
 
    uint32_t          pkt_offset; // points to first packet after link layer
    buffer_t          hash_buffer;

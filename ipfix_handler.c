@@ -145,9 +145,13 @@ void libipfix_open(device_dev_t *if_device, options_t *options) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
-
    if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
            if_device->ipfixtmpl_ts_open_epc, export_fields_openepc) < 0) {
+      LOGGER_fatal("template initialization failed: %s", strerror(errno));
+      exit(EXIT_FAILURE);
+   }
+   if (IPFIX_MAKE_TEMPLATE(if_device->ipfixhandle,
+           if_device->ipfixtmpl_ts_id_epc, export_fields_ts_id_epc) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }

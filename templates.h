@@ -107,6 +107,17 @@ export_fields_t export_fields_ts_ttl_proto_ip[] = {
     { 0, IPFIX_FT_DESTINATIONTRANSPORTPORT, 2},
 };
 
+export_fields_t export_fields_ts_id_epc[] = {
+    { 0, IPFIX_FT_OBSERVATIONTIMEMICROSECONDS, 8},
+    { 0, IPFIX_FT_DIGESTHASHVALUE, 4},
+    { IPFIX_ENO_FOKUS, IPFIX_FT_PT_RULE_ID, 4},
+    { 0, IPFIX_FT_IPVERSION, 1},
+    { 0, IPFIX_FT_SOURCEIPV4ADDRESS, 4},
+    { 0, IPFIX_FT_SOURCETRANSPORTPORT, 2},
+    { 0, IPFIX_FT_DESTINATIONIPV4ADDRESS, 4},
+    { 0, IPFIX_FT_DESTINATIONTRANSPORTPORT, 2},
+};
+
 export_fields_t export_fields_interface_stats[] = {
     { 0, IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
     { 0, IPFIX_FT_SAMPLINGSIZE, 4},
@@ -146,6 +157,7 @@ export_fields_t export_fields_sync[] = {
 export_fields_t export_fields_openepc[] = {
     { 0, IPFIX_FT_OBSERVATIONTIMEMILLISECONDS, 8},
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_RULE_FLAG, 1},
+    { IPFIX_ENO_FOKUS, IPFIX_FT_PT_RULE_ID, 4},
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_APN, 65535},
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_RULE, 65535},
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_IMSI, 65535},

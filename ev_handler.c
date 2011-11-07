@@ -58,14 +58,14 @@
 
 #include "ev_handler.h"
 #include "socket_handler.h"
+#include "ipfix_handler.h"
 #include "logger.h"
 #include "netcon.h"
 
-//#include "templates.h"
 #include "hash.h"
-#include "ipfix.h"
-#include "ipfix_def.h"
-#include "ipfix_def_fokus.h"
+//#include "ipfix.h"
+//#include "ipfix_def.h"
+//#include "ipfix_def_fokus.h"
 #include "stats.h"
 
 // Custom logger
@@ -489,7 +489,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
             void* fields[] = {&timestamp, &hash_result, &ttl};
             uint16_t lengths[] = {8, 4, 1};
 
-            if (0 > ipfix_export_array(if_device->ipfixhandle,
+            if (0 > ipfix_export_array(ipfix(),
                     if_device->ipfixtmpl_min, 3, fields, lengths)) {
                 LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
                 exit(1);
@@ -502,7 +502,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
             void* fields[] = {&timestamp, &hash_result};
             uint16_t lengths[] = {8, 4};
 
-            if (0 > ipfix_export_array(if_device->ipfixhandle,
+            if (0 > ipfix_export_array(ipfix(),
                     if_device->ipfixtmpl_ts, 2, fields, lengths)) {
                 LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
                 exit(1);
@@ -533,7 +533,7 @@ void packet_pfring_cb(u_char *user_args, const struct pfring_pkthdr *header,
                 &layers[L_NET]};
             uint16_t lengths[6] = {8, 4, 1, 2, 1, 1};
 
-            if (0 > ipfix_export_array(if_device->ipfixhandle,
+            if (0 > ipfix_export_array(ipfix(),
                     if_device->ipfixtmpl_ts_ttl, 6, fields, lengths)) {
                 LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
                 exit(1);
@@ -807,36 +807,12 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
             pkt_id = g_options.pktid_function(&packet_info->device->hash_buffer);
         }
 
-        ipfix_template_t* template = packet_info->device->ipfixtmpl_min;
-        uint32_t t_id = packet_info->device->template_id;
+        uint32_t          t_id = packet_info->device->template_id;
         t_id = (-1 == t_id) ? g_options.templateID : t_id;
-        switch (t_id) {
-            case MINT_ID:
-                template = packet_info->device->ipfixtmpl_min;
-                break;
-            case TS_ID:
-                template = packet_info->device->ipfixtmpl_ts;
-                break;
-            case TS_TTL_PROTO_ID:
-                template = packet_info->device->ipfixtmpl_ts_ttl;
-                break;
-            case TS_TTL_PROTO_IP_ID:
-                template = packet_info->device->ipfixtmpl_ts_ttl_ip;
-                break;
-            case TS_OPEN_EPC_ID:
-                template = packet_info->device->ipfixtmpl_ts_open_epc;
-                break;
-            case TS_ID_EPC_ID:
-                template = packet_info->device->ipfixtmpl_ts_id_epc;
-                break;
-            default:
-                LOGGER_info("!!!no template specified!!!");
-                return;
-                break;
-        }
-        int size = template->nfields;
-        void* fields[size];
-        uint16_t lengths[size];
+        ipfix_template_t  *template = get_template( t_id );
+        int               size = template->nfields;
+        void              *fields[size];
+        uint16_t          lengths[size];
 
         uint8_t ttl = 0;
         uint64_t timestamp = 0;
@@ -945,7 +921,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
         //}
 
         // send ipfix packet 
-        if (0 > ipfix_export_array(packet_info->device->ipfixhandle, template, size, fields, lengths)) {
+        if (0 > ipfix_export_array(ipfix(), template, size, fields, lengths)) {
             LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
         }
 
@@ -963,19 +939,10 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
 void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
     LOGGER_trace("Enter");
 
-    ipfix_template_t *template = packet_info->device->ipfixtmpl_min;
     uint32_t t_id = packet_info->device->template_id;
-
     t_id = (-1 == t_id) ? g_options.templateID : t_id;
 
-    switch (t_id) {
-        case TS_OPEN_EPC_ID:
-            template = packet_info->device->ipfixtmpl_ts_open_epc;
-            break;
-        default:
-            LOGGER_info("!!!no template specified!!!");
-            return;
-    }
+    ipfix_template_t  *template = get_template( t_id );
     int size = template->nfields;
     void* fields[size];
     uint16_t lengths[size];
@@ -1083,7 +1050,7 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                     int_idx += set_value(&fields[int_idx], &lengths[int_idx], dst_ipa.ptr, dst_ipa.len);
                     int_idx += set_value(&fields[int_idx], &lengths[int_idx], &dst_port, 2);
 
-                    if (0 > ipfix_export_array(packet_info->device->ipfixhandle, template, size, fields, lengths)) {
+                    if (0 > ipfix_export_array(ipfix(), template, size, fields, lengths)) {
                         LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
                     }    
                 }
@@ -1360,7 +1327,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
 //      //}
 //
 //      // send ipfix packet 
-//      if (0 > ipfix_export_array(if_device->ipfixhandle, template, size, fields, lengths)) {
+//      if (0 > ipfix_export_array(ipfix(), template, size, fields, lengths)) {
 //         LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
 //         exit(1);
 //      }
@@ -1663,7 +1630,7 @@ void export_data_interface_stats(device_dev_t *dev,
 #endif
 
     LOGGER_trace("sampling: (%d, %lu)", size, (long unsigned) deltaCount);
-    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_interface_stats, 7,
+    if (ipfix_export_array(ipfix(), get_template(INTF_STATS_ID), 7,
             fields, lengths) < 0) {
         LOGGER_error("ipfix export failed: %s", strerror(errno));
     } else {
@@ -1679,12 +1646,12 @@ void export_data_sync(device_dev_t *dev, int64_t observationTimeMilliseconds,
     void *fields[] = {&observationTimeMilliseconds, &messageId, &messageValue,
         message};
     LOGGER_debug("export data sync");
-    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_sync, 4, fields,
+    if (ipfix_export_array(ipfix(), get_template(SYNC_ID), 4, fields,
             lengths) < 0) {
         LOGGER_error("ipfix export failed: %s", strerror(errno));
         return;
     }
-    if (ipfix_export_flush(dev->ipfixhandle) < 0) {
+    if (ipfix_export_flush(ipfix()) < 0) {
         LOGGER_error("Could not export IPFIX (flush) ");
     }
 
@@ -1703,7 +1670,7 @@ void export_data_probe_stats(device_dev_t *dev) {
             * 1000;
     get_probe_stats(&probeStat);
 
-    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_probe_stats, 7,
+    if (ipfix_export_array(ipfix(), get_template(PROBE_STATS_ID), 7,
             fields, lengths) < 0) {
         LOGGER_error("ipfix export failed: %s", strerror(errno));
         return;
@@ -1723,12 +1690,12 @@ void export_data_location(device_dev_t *dev,
         getOptions()->s_probe_name, getOptions()->s_location_name};
     LOGGER_debug("export data location");
     //LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
-    if (ipfix_export_array(dev->ipfixhandle, dev->ipfixtmpl_location,
+    if (ipfix_export_array(ipfix(), get_template(LOCATION_ID),
             sizeof (lengths) / sizeof (lengths[0]), fields, lengths) < 0) {
         LOGGER_error("ipfix export failed: %s", strerror(errno));
         return;
     }
-    if (ipfix_export_flush(dev->ipfixhandle) < 0) {
+    if (ipfix_export_flush(ipfix()) < 0) {
         LOGGER_error("Could not export IPFIX (flush) ");
     }
 
@@ -1744,7 +1711,7 @@ void export_flush() {
     int i;
     LOGGER_trace("export_flush");
     for (i = 0; i < g_options.number_interfaces; i++) {
-        if (ipfix_export_flush(if_devices[i].ipfixhandle) < 0) {
+        if (ipfix_export_flush(ipfix()) < 0) {
             LOGGER_error("Could not export IPFIX, device: %d", i);
             //         ipfix_reconnect();
             break;
@@ -1764,7 +1731,7 @@ void export_flush_device(device_dev_t* device) {
     LOGGER_trace("export_flush_device");
     if (0 != device) {
         device->export_packet_count = 0;
-        if (ipfix_export_flush(device->ipfixhandle) < 0) {
+        if (ipfix_export_flush(ipfix()) < 0) {
             LOGGER_error("Could not export IPFIX: %s", device->device_name);
             //         ipfix_reconnect();
         }
@@ -1830,7 +1797,7 @@ void resync_timer_cb(EV_P_ ev_timer *w, int revents) {
     ipfix_collector_sync_t *col;
 
     for (i = 0; i < (g_options.number_interfaces); i++) {
-        col = (ipfix_collector_sync_t*) if_devices[i].ipfixhandle->collectors;
+        col = (ipfix_collector_sync_t*) (ipfix()->collectors);
         LOGGER_debug("collector_fd: %d", col->fd);
         netcon_resync(EV_A_ col->fd);
     }

@@ -1004,6 +1004,8 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                 index += set_value(&fields[index],
                         &lengths[index], &rule_flag, 1);
                 index += set_value(&fields[index],
+                        &lengths[index], &rule_id, 4);
+                index += set_value(&fields[index],
                         &lengths[index], apn.ptr, apn.len);
                 index += set_value(&fields[index],
                         &lengths[index], rule_name.ptr, rule_name.len);
@@ -1054,8 +1056,10 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                         LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
                     }    
                 }
+                break;
             //}
         }
+        
         default:
             LOGGER_info("!!!no template specified!!!");
             return;

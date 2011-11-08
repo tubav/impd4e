@@ -170,6 +170,12 @@ void libipfix_register_templates() {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
+   
+   if (IPFIX_MAKE_TEMPLATE( ipfix(),
+           ipfixtmpl_ts_id_epc, export_fields_ts_id_epc) < 0) {
+      LOGGER_fatal("template initialization failed: %s", strerror(errno));
+      exit(EXIT_FAILURE);
+   }
 
    if (IPFIX_MAKE_TEMPLATE( ipfix(),
             ipfixtmpl_interface_stats, export_fields_interface_stats) < 0) {
@@ -304,13 +310,14 @@ void libipfix_connect( options_t *options ) {
 ipfix_template_t* get_template( int template_id ) {
    #ifdef DEBUG
    // check template id is in array range
-   if( sizeof(tempates)/sizeof(ipfix_template_t**) < template_id ) {
+   if( sizeof(templates)/sizeof(ipfix_template_t**) < template_id ) {
       LOGGER_error("template id is bigger than the amount of template registered (%d)", template_id);
    }
    if( 0 > template_id ) {
       LOGGER_error("template id is below zero (%d)", template_id);
    }
    #endif
+
    return *templates[template_id];
 }
 

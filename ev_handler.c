@@ -808,7 +808,9 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
         }
 
         uint32_t          t_id = packet_info->device->template_id;
+        
         t_id = (-1 == t_id) ? g_options.templateID : t_id;
+
         ipfix_template_t  *template = get_template( t_id );
         int               size = template->nfields;
         void              *fields[size];

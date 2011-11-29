@@ -10,8 +10,10 @@
 
 #include <inttypes.h>
 
-typedef  unsigned long  int  ub4;   /* unsigned 4-byte quantities */
-typedef  unsigned       char ub1;   /* unsigned 1-byte quantities */
+//typedef  unsigned long  int  ub4;   /* unsigned 4-byte quantities */
+//typedef  unsigned       char ub1;   /* unsigned 1-byte quantities */
+typedef  uint32_t  ub4;   /* unsigned 4-byte quantities */
+typedef  uint8_t   ub1;   /* unsigned 1-byte quantities */
 
 uint32_t BOB_Hash(uint8_t *databuffer, uint16_t databufferlength, uint32_t tinitval);
 

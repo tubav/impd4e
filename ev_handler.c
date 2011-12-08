@@ -563,6 +563,12 @@ inline int set_value(void** field, uint16_t* length, void* value, uint16_t size)
 static void print_array(const u_char *p, int l) {
     int i = 0;
     for (i = 0; i < l; ++i) {
+        if( 0 != i && 0 == i%4 ) {
+           if( 0 == i%20 ) 
+              fprintf(stderr, "\n");
+           else
+              fprintf(stderr, "| ");
+        }
         fprintf(stderr, "%02x ", p[i]);
         //LOGGER_debug( "%02x ", packet[i]);
     }
@@ -774,11 +780,16 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
     // reset hash buffer
     packet_info->device->hash_buffer.len = 0;
 
+    // find headers of the IP STACK
+    findHeaders(packet->ptr, packet->len, offsets, layers);
+
     // selection of viable fields of the packet - depend on the selection function choosen
     // locate protocolsections of ip-stack --> findHeaders() in hash.c
     g_options.selection_function(packet,
             &packet_info->device->hash_buffer,
             offsets, layers);
+
+    if (0) print_array(packet_info->device->hash_buffer.ptr, packet_info->device->hash_buffer.len);
 
     if (0 == packet_info->device->hash_buffer.len) {
         LOGGER_trace("Warning: packet does not contain Selection");

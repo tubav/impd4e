@@ -1,3 +1,97 @@
+impd4e (1.0-1ubuntu4) lucid; urgency=low
+
+  [ Carsten Schmoll ]
+  * extended location template
+  * fixed location record export (now with 6 fields)
+  * implemented first working version of config file read functionality
+    (still to be tested thorougly)
+  * added two example config files
+  * added usage text for -c <configfile> option
+
+  [ Julian Vetter ]
+  * Removed unnecessary function, and added "ls" template to help text
+  * Newest version with a new template for src ip/port dst ip/port
+
+  [ chh ]
+  * Offset Option implemented for pcap - sockets need to be checked
+
+  [ Ramón Masek ]
+  * add DEPHDR to target impd4e
+  * [copyright] corretion to debian/copyright
+  * new cmd-line parameter for extended location template
+  * default probename is set to hostname; ip addresses are stored in
+    network byte order; minor modification
+  * [Makefile.in] object rule depend on header files; minor: remove some
+    rules
+  * [Makefile.in] use of automatic variable in 'executable rule'
+  * refactor get_probe_stats()
+  * [debian/control] correct build dependencies
+  * [debug] printf -> LOGGER_debug
+  * [logger] improve logger: can filter output by function names
+  * update usage for verbose output(-v); minor correction
+  * [Makefile.in] rewrite rules
+  * [debian/control] update standards version
+  * add debian/source/format
+  * [Makefile.in] minor changes
+  * add new ipfix template TS_TTL_PROTO_IP_ID
+  * correct case 'v' in parse_cmdline to fit cfg file
+  * correction due to 32/64 bit compatibility
+  * implement udp socket (IPv4) to receive packet;
+  * corrections due to ev-lib handling loop variable
+  * checks for ip-stack with (tcp or udp) to fill templates
+  * correct bpfilter
+  * rewrite option parsing: similar handling for cmd-line/config-file
+  * error correction while reading config file
+  * add another config sample file
+  * add offset parameter for captured packets
+  * support cascading config files
+  * correction, add missing parameter 'O' to parsing string
+  * rewrite packet handling
+  * apply changes from a patch: add hash selection from end of packet
+  * add console configuration - first attempt
+  * ev handling, use defines instead of 'loop' (netcon still todo);
+    runtime configuration at stdin
+  * ev handling -> netcon done
+  * static array for runtime configuration funcions
+  * template definitions for each device; OpenEPC handling over sockets
+  * bugfix handling sockets in 'packet_watcher_cb'
+  * update configure for libev, libipfix, libpcap
+  * add ev.h to AC_CHECK_HEADERS
+  * rework configure.ac - correction
+  * adjust configure.ac: find nessesary libs
+  * add more functions
+  * additional LOGGER output
+  * bugfixing socket handler, additional option parameter for ipv4/v6
+  * bugfix: get packet type of DLT_LINUX_SLL
+  * bugfix: selction did not set buffer length, was always 0
+  * refactor ipfix handler
+  * change bobhash using uint32_t instead of long int
+  * error correction due to hash selection
+
+  [ Julian Vetter ]
+  * New version with template for OpenEPC (APN, bearerClass and IMSI).
+  * Bugfix for the new OpenEPC template, some offsets were messed up
+  * Extended the openepc handling, needs to be tested
+  * New version, with openEPC packet handling
+  * Fixed an error in the OpenEPC template, which was exporting the time
+    in microseconds, and added the new ie also in the
+    handle_open_epc_packet function
+  * Changed the OpenEPC template to add some more information elements.
+  * Fixed a small bug, now everything works, and all new elements should
+    be recognized
+  * Another new information element for OpenEPC
+  * Small bug fixed ntohl instead of ntohs
+
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Thu, 12 Jan 2012 12:08:23 +0100
+
+impd4e (1.0-1ubuntu3) lucid; urgency=low
+
+  [ Ramón Masek ]
+  * forgotten changelog update with this release,
+    it is now in the next release ubuntu4
+
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Thu, 12 Jan 2012 12:08:23 +0100
+
 impd4e (1.0-1ubuntu2) lucid; urgency=low
 
   [ Carsten Schmoll ]

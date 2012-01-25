@@ -899,29 +899,6 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
                 break;
             }
      
-            case TS_ID_EPC_ID:
-            {
-                timestamp = get_timestamp(packet_info->ts);
-                src_ipa = get_ipa(packet, offsets[L_NET], layers[L_NET]);
-                src_port = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
-                dst_ipa = get_ipa(packet, offsets[L_NET] + 4, layers[L_NET]);
-                dst_port = get_port(packet, offsets[L_TRANS] + 2, layers[L_TRANS]);
-                
-                decode_raw(packet, packet->len-4);
-                rule_id = decode_uint32(packet);
-                
-                int index = 0;
-                index += set_value(&fields[index], &lengths[index], &timestamp, 8);
-                index += set_value(&fields[index], &lengths[index], &hash_id, 4);
-                index += set_value(&fields[index], &lengths[index], &rule_id, 4);
-                index += set_value(&fields[index], &lengths[index], &layers[L_NET], 1);
-                index += set_value(&fields[index], &lengths[index], src_ipa, 4);
-                index += set_value(&fields[index], &lengths[index], &src_port, 2);
-                index += set_value(&fields[index], &lengths[index], dst_ipa, 4);
-                index += set_value(&fields[index], &lengths[index], &dst_port, 2);
-                break;
-            }
-
             default:
                 LOGGER_info("!!!no template specified!!!");
                 return;
@@ -949,141 +926,6 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
     } // if (hash in selection range)
 }
 
-void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
-    LOGGER_trace("Enter");
-
-    uint32_t t_id = packet_info->device->template_id;
-    t_id = (-1 == t_id) ? g_options.templateID : t_id;
-
-    ipfix_template_t  *template = get_template( t_id );
-    int size = template->nfields;
-    void* fields[size];
-    uint16_t lengths[size];
-    int i;
-    uint32_t dummy = 0;    
-    uint8_t rule_flag     = 0;
-    uint32_t rule_id      = 0;
-    uint64_t timestamp    = 0;
-    uint8_t src_ai_fam    = 0;
-    uint8_t dst_ai_fam    = 0;
-    uint8_t src_prefix    = 0;
-    uint8_t dst_prefix    = 0;
-    uint16_t src_port     = 0;
-    uint16_t dst_port     = 0;
-    uint16_t sdf_counter  = 0;
-    uint32_t qci          = 0;
-    uint32_t max_dl       = 0;
-    uint32_t max_ul       = 0;
-    uint32_t gua_dl       = 0;
-    uint32_t gua_ul       = 0;
-    uint32_t apn_dl       = 0;
-    uint32_t apn_ul       = 0;
-    packet_t apn          = {NULL, 0};
-    packet_t rule_name    = {NULL, 0};
-    packet_t imsi         = {NULL, 0};
-    packet_t flow_desc    = {NULL, 0};
-    packet_t src_ipa      = {NULL, 0};
-    packet_t dst_ipa      = {NULL, 0};
-    packet_t decode       = *packet;
-
-    switch (t_id) {
-        case TS_OPEN_EPC_ID:
-        {
-            //if (*((uint8_t*)packet) == OP_CODE) {
-                rule_flag = decode_uint8(&decode);
-                rule_id   = decode_uint32(&decode);
-                imsi      = decode_array(&decode);
-                apn       = decode_array(&decode);
-                rule_name = decode_array(&decode);
-                
-                qci     = decode_uint32(&decode);
-                max_dl  = decode_uint32(&decode);
-                max_ul  = decode_uint32(&decode);
-                gua_dl  = decode_uint32(&decode);
-                gua_ul  = decode_uint32(&decode);
-                apn_dl  = decode_uint32(&decode);
-                apn_ul  = decode_uint32(&decode);
-                
-                /* TODO: Zeit richtig setzen da im Moment Microseconds zuerck
-                 *       geliefert werden, wir aber Milliseconds fuer unser
-                 *       Template brauchen
-                 */
-                //timestamp = get_timestamp(packet_info->ts); 
-                timestamp = time(NULL);
-
-                int index = 0;
-                index += set_value(&fields[index],
-                        &lengths[index], &timestamp, 8);
-                index += set_value(&fields[index],
-                        &lengths[index], &rule_flag, 1);
-                index += set_value(&fields[index],
-                        &lengths[index], &rule_id, 4);
-                index += set_value(&fields[index],
-                        &lengths[index], apn.ptr, apn.len);
-                index += set_value(&fields[index],
-                        &lengths[index], rule_name.ptr, rule_name.len);
-                index += set_value(&fields[index],
-                        &lengths[index], imsi.ptr, imsi.len);
-                index += set_value(&fields[index], &lengths[index], &qci, 4);
-                index += set_value(&fields[index], &lengths[index], &max_dl, 4);
-                index += set_value(&fields[index], &lengths[index], &max_ul, 4);
-                index += set_value(&fields[index], &lengths[index], &gua_dl, 4);
-                index += set_value(&fields[index], &lengths[index], &gua_ul, 4);
-                index += set_value(&fields[index], &lengths[index], &apn_dl, 4);
-                index += set_value(&fields[index], &lengths[index], &apn_ul, 4);
-                sdf_counter = decode_uint16(&decode);
-                
-                for (i = 0; i < sdf_counter; i++) {
-                    int int_idx = index;
-
-                    flow_desc  = decode_array(&decode);
-
-                    src_ai_fam = decode_uint8(&decode);
-                    src_prefix = decode_uint8(&decode);
-                    src_port   = decode_uint16(&decode);
-
-                    if (src_ai_fam == AF_INET) {
-                        src_ipa = decode_raw(&decode, 4);
-                    } else {
-                        src_ipa.ptr = (uint8_t*)&dummy;
-                        src_ipa.len = 4;
-                    }
-
-                    dst_ai_fam = decode_uint8(&decode);
-                    dst_prefix = decode_uint8(&decode);
-                    dst_port = decode_uint16(&decode);
-
-                    if(dst_ai_fam == AF_INET) {
-                        dst_ipa = decode_raw(&decode, 4);   
-                    } else {
-                        dst_ipa.ptr = (uint8_t*)&dummy;
-                        dst_ipa.len = 4;
-                    }
-                    
-                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], src_ipa.ptr, src_ipa.len);
-                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], &src_port, 2);
-                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], dst_ipa.ptr, dst_ipa.len);
-                    int_idx += set_value(&fields[int_idx], &lengths[int_idx], &dst_port, 2);
-
-                    if (0 > ipfix_export_array(ipfix(), template, size, fields, lengths)) {
-                        LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
-                    }    
-                }
-                break;
-            //}
-        }
-        
-        default:
-            LOGGER_info("!!!no template specified!!!");
-            return;
-    } // switch (options.templateID)
-
-    export_flush();
-
-    LOGGER_trace("Return");
-    return;
-}
-
 void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {
     packet_t pkt = {(uint8_t*) packet, header->caplen};
     packet_info_t info = {header->ts, header->len, (device_dev_t*) user_args};
@@ -1096,47 +938,41 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
     // debug output
     if (0) print_array(pkt.ptr, pkt.len);
 
-    if ((info.device->device_type == TYPE_SOCKET_UNIX ||
-            info.device->device_type == TYPE_SOCKET_INET)
-            && info.device->template_id == TS_OPEN_EPC_ID) {
-        handle_open_epc_packet(&pkt, &info);
+    switch (info.device->device_type) {
+        case TYPE_PCAP:
+        case TYPE_PCAP_FILE:
+            // get packet type from link layer header
+            info.nettype = get_nettype(&pkt, info.device->link_type);
+            break;
+
+        case TYPE_SOCKET_UNIX:
+        case TYPE_SOCKET_INET:
+            info.nettype = get_nettype_pkt(&pkt);
+            break;
+        case TYPE_FILE:
+        case TYPE_UNKNOWN:
+        default:
+            break;
+    }
+    LOGGER_trace("nettype: 0x%04X", info.nettype);
+
+    // apply net offset - skip link layer header for further processing
+    apply_offset(&pkt, info.device->pkt_offset);
+
+    // apply user offset
+    apply_offset(&pkt, g_options.offset);
+
+    // debug output
+    if (0) print_array(pkt.ptr, pkt.len);
+
+    if (0x0800 == info.nettype || // IPv4
+        0x86DD == info.nettype) // IPv6
+    {
+        if (0) print_ip4(pkt.ptr, pkt.len);
+        handle_ip_packet(&pkt, &info);
+        //LOGGER_trace( "drop" );
     } else {
-        switch (info.device->device_type) {
-            case TYPE_PCAP:
-            case TYPE_PCAP_FILE:
-                // get packet type from link layer header
-                info.nettype = get_nettype(&pkt, info.device->link_type);
-                break;
-
-            case TYPE_SOCKET_UNIX:
-            case TYPE_SOCKET_INET:
-                info.nettype = get_nettype_pkt(&pkt);
-                break;
-            case TYPE_FILE:
-            case TYPE_UNKNOWN:
-            default:
-                break;
-        }
-        LOGGER_trace("nettype: 0x%04X", info.nettype);
-
-        // apply net offset - skip link layer header for further processing
-        apply_offset(&pkt, info.device->pkt_offset);
-
-        // apply user offset
-        apply_offset(&pkt, g_options.offset);
-
-        // debug output
-        if (0) print_array(pkt.ptr, pkt.len);
-
-        if (0x0800 == info.nettype || // IPv4
-                0x86DD == info.nettype) // IPv6
-        {
-            if (0) print_ip4(pkt.ptr, pkt.len);
-            handle_ip_packet(&pkt, &info);
-            //LOGGER_trace( "drop" );
-        } else {
-            handle_default_packet(&pkt, &info);
-        }
+        handle_default_packet(&pkt, &info);
     }
     LOGGER_trace("Return");
 }

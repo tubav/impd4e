@@ -42,6 +42,9 @@
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <stdlib.h>
 #include <errno.h>
@@ -317,6 +320,18 @@ hashFunction parseFunction(char *arg_string) {
 }
 
 // =============================================================================
+/**
+ * Print out command usage
+ */
+void print_version_information() {
+#ifdef HAVE_CONFIG_H
+   printf( "Version:    " PACKAGE_VERSION "\n");
+   printf( "Build Date: " BUILD_DATE "\n");
+   printf( "Git Branch: " GIT_BRANCH "\n");
+   printf( "Git Hash:   " GIT_HASH "\n");
+#else
+#endif
+}
 
 /**
  * Print out command usage
@@ -439,10 +454,11 @@ void print_help() {
 			"                                           matches all functions containing export, but not ending of flush\n"
 			"\n"
 			"   -h                             print this help \n"
+			"   -V                             print version information \n"
 			"\n"
 			"EXAMPLES for usage: \n"
 			"sudo impd4e -i i:eth0 -C 172.20.0.1 -r 1 -t min \n"
-			"sudo impd4e -i i:lo   -C 172.20.0.1 -o <somethingyoulike> -S 20,34-45\n");
+			"sudo impd4e -i i:lo   -C 172.20.0.1 -o <id> -S 20,34-45\n");
 
 	#ifdef PFRING
 		printf("Possible PF_RING filter keywords include: ");
@@ -705,6 +721,11 @@ int opt_v( char* arg, options_t* options ) {
    return 0;
 }
 
+int opt_V() {
+   print_version_information();
+   exit(0);
+}
+
 int opt_d( char* arg, options_t* options ) {
    options->s_probe_name = arg;
    return 0;
@@ -774,6 +795,7 @@ int opt_y( char* arg, options_t* options ) {
 // "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:O:46";
 struct config_map_t cfg_opt_list[] = {
 	{ 'v',"::", &opt_v, "general.verbosity"              },
+	{ 'V',""  , &opt_V, ""},
 	{ 'h',""  , &opt_h, "general.help"                   },
 	{ 'i',":" , &opt_i, "capture.interface"              },
 	{ '4',""  , &opt_4, "capture.ipv4"                   },
@@ -803,10 +825,10 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'l',":" , &opt_l, "geotags.latitude"               },
 	{ 'L',":" , &opt_L, "geotags.longitude"              },
 	{ 'c',":" , &opt_c, "general.configfile" }, // TODO:something
-	{ 'n',""  , &opt_n, "empty" },
-	{ 'y',""  , &opt_y, "empty" },
+	{ 'n',""  , &opt_n, "" },
+	{ 'y',""  , &opt_y, "" },
 #ifdef PFRING
-	{ 'a',":" , &opt_a, "empty" },
+	{ 'a',":" , &opt_a, "" },
 #endif
 //	{ '\0', NULL, NULL }
 };

@@ -14,3 +14,5 @@
 
 * add build dependencies for libipfix when there is a package to depend on
   (debian/control)
+
+* version information with help text or as parameter

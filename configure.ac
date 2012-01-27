@@ -91,7 +91,8 @@ AC_CHECK_LIB(misc, mlogf,,[AC_MSG_WARN([cannot find libmisc])])
 #############################
 PKG_CHECK_MODULES([EV], [libev],[],
                   [AC_MSG_WARN([pkg-config failed for libev, try alternative])
-                   AC_CHECK_LIB([ev],[ev_loop])
+                   AC_CHECK_LIB([ev],[ev_loop]) # this is supposed to be libev3
+                   AC_CHECK_LIB([ev],[ev_run])#,[AC_ DEFINE([EV_COMPAT3],[1],[activate compatibility mode for libev])])
                    AC_CHECK_HEADERS([ev.h])])
 AC_SUBST([EV_LIBS])
 AC_SUBST([EV_CFLAGS])

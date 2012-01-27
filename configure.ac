@@ -84,8 +84,8 @@ esac
 
 # libipfix support
 #############################
-AC_CHECK_LIB(ipfix, ipfix_open,,[AC_MSG_WARN([cannot find libipfix])])
 AC_CHECK_LIB(misc, mlogf,,[AC_MSG_WARN([cannot find libmisc])])
+AC_CHECK_LIB(ipfix, ipfix_open,,[AC_MSG_WARN([cannot find libipfix])],[-lmisc])
 
 # libev support
 #############################

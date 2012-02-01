@@ -593,11 +593,11 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+EV_LIBS
+EV_CFLAGS
 EGREP
 GREP
 CPP
-EV_LIBS
-EV_CFLAGS
 PKG_CONFIG
 INSTALL_DATA
 INSTALL_SCRIPT
@@ -662,6 +662,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_debug
 enable_ipv6
 with_pcap
 '
@@ -674,9 +675,9 @@ LDFLAGS
 LIBS
 CPPFLAGS
 PKG_CONFIG
+CPP
 EV_CFLAGS
-EV_LIBS
-CPP'
+EV_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1292,9 +1293,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-
-  --enable-ipv6           enable ipv6 (with ipv4) support
-  --disable-ipv6          disable ipv6 support
+  --enable-debug          enable debug mode
+  --enable-ipv6           enable IPv6 (with IPv4) support)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1310,9 +1310,9 @@ Some influential environment variables:
   CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
               you have headers in a nonstandard directory <include dir>
   PKG_CONFIG  path to pkg-config utility
+  CPP         C preprocessor
   EV_CFLAGS   C compiler flags for EV, overriding pkg-config
   EV_LIBS     linker flags for EV, overriding pkg-config
-  CPP         C preprocessor
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -2300,6 +2300,7 @@ cat >>confdefs.h <<_ACEOF
 #define BUILD_DATE "`date`"
 _ACEOF
 
+#AC_DEFINE_UNQUOTED([BUILD_VERSION],["`head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+)-\S+\)/ and print $$1'`"],[Build Version])
 
 # Checks for programs.
 #############################
@@ -3305,21 +3306,25 @@ $as_echo "no" >&6; }
 
 fi
 
-#
+# DEBUG mode
+# Check whether --enable-debug was given.
+if test "${enable_debug+set}" = set; then :
+  enableval=$enable_debug;
+$as_echo "#define DEBUG /**/" >>confdefs.h
+
+fi
+
+
 # IPv6 support
-#
 # Check whether --enable-ipv6 was given.
 if test "${enable_ipv6+set}" = set; then :
   enableval=$enable_ipv6;
-   if test $enableval != "no" ; then
-      CPPFLAGS="-DINET6 $CPPFLAGS"
-   fi
+$as_echo "#define INET6 /**/" >>confdefs.h
 
 fi
 
 
 # specify libpcap
-#
 case "$target_os" in
 cygwin)
 	CPPFLAGS="-DWINNT $CPPFLAGS"
@@ -3334,26 +3339,25 @@ esac
 # Check whether --with-pcap was given.
 if test "${with_pcap+set}" = set; then :
   withval=$with_pcap;
-   if test $withval != no ; then
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lib$PCAP in $withval/lib" >&5
+      if test $withval != no ; then
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lib$PCAP in $withval/lib" >&5
 $as_echo_n "checking for lib$PCAP in $withval/lib... " >&6; }
-      if test -f $withval/lib/lib$PCAP.a -o -f $withval/lib/lib$PCAP.so ; then
-         LDFLAGS="$LDFLAGS -L$withval/lib "
-         PCAPINCLS="-I$withval/include"
-         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+         if test -f $withval/lib/lib$PCAP.a -o -f $withval/lib/lib$PCAP.so ; then
+            LDFLAGS="$LDFLAGS -L$withval/lib "
+            PCAPINCLS="-I$withval/include"
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-      else
-         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+         else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+         fi
+         withoutpcap="no"
+      else
+         withoutpcap="yes"
       fi
-      withoutpcap="no"
-   else
-      withoutpcap="yes"
-   fi
 
 else
-
-   withoutpcap="no"
+  withoutpcap="no"
 
 fi
 
@@ -3467,13 +3471,9 @@ _ACEOF
   LIBS="-lipfix $LIBS"
 
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cannot find libipfix" >&5
-$as_echo "$as_me: WARNING: cannot find libipfix" >&2;}
+  as_fn_error "cannot find library" "$LINENO" 5
 fi
 
-
-# libev support
-#############################
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -3872,6 +3872,21 @@ fi
 done
 
 
+for ac_header in ipfix.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "ipfix.h" "ac_cv_header_ipfix_h" "$ac_includes_default"
+if test "x$ac_cv_header_ipfix_h" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_IPFIX_H 1
+_ACEOF
+
+fi
+
+done
+
+
+# libev support
+#############################
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for EV" >&5
@@ -3935,7 +3950,7 @@ fi
 $as_echo "no" >&6; }
                 { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: pkg-config failed for libev, try alternative" >&5
 $as_echo "$as_me: WARNING: pkg-config failed for libev, try alternative" >&2;}
-                   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_loop in -lev" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_loop in -lev" >&5
 $as_echo_n "checking for ev_loop in -lev... " >&6; }
 if test "${ac_cv_lib_ev_ev_loop+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -3978,9 +3993,9 @@ _ACEOF
 
   LIBS="-lev $LIBS"
 
-fi
- # this is supposed to be libev3
-                   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_run in -lev" >&5
+else
+  # this is supposed to be libev3
+                 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_run in -lev" >&5
 $as_echo_n "checking for ev_run in -lev... " >&6; }
 if test "${ac_cv_lib_ev_ev_run+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -4023,24 +4038,21 @@ _ACEOF
 
   LIBS="-lev $LIBS"
 
-fi
-#,[AC_ DEFINE([EV_COMPAT3],[1],[activate compatibility mode for libev])])
-                   for ac_header in ev.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "ev.h" "ac_cv_header_ev_h" "$ac_includes_default"
-if test "x$ac_cv_header_ev_h" = x""yes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_EV_H 1
-_ACEOF
+else
+  #[AC_ DEFINE([EV_COMPAT3],[1],[activate compatibility mode for libev])])
+                              as_fn_error "cannot find library" "$LINENO" 5
 
 fi
 
-done
+
+fi
+
+
 
 elif test $pkg_failed = untried; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: pkg-config failed for libev, try alternative" >&5
 $as_echo "$as_me: WARNING: pkg-config failed for libev, try alternative" >&2;}
-                   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_loop in -lev" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_loop in -lev" >&5
 $as_echo_n "checking for ev_loop in -lev... " >&6; }
 if test "${ac_cv_lib_ev_ev_loop+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -4083,9 +4095,9 @@ _ACEOF
 
   LIBS="-lev $LIBS"
 
-fi
- # this is supposed to be libev3
-                   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_run in -lev" >&5
+else
+  # this is supposed to be libev3
+                 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ev_run in -lev" >&5
 $as_echo_n "checking for ev_run in -lev... " >&6; }
 if test "${ac_cv_lib_ev_ev_run+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -4128,19 +4140,16 @@ _ACEOF
 
   LIBS="-lev $LIBS"
 
-fi
-#,[AC_ DEFINE([EV_COMPAT3],[1],[activate compatibility mode for libev])])
-                   for ac_header in ev.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "ev.h" "ac_cv_header_ev_h" "$ac_includes_default"
-if test "x$ac_cv_header_ev_h" = x""yes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_EV_H 1
-_ACEOF
+else
+  #[AC_ DEFINE([EV_COMPAT3],[1],[activate compatibility mode for libev])])
+                              as_fn_error "cannot find library" "$LINENO" 5
 
 fi
 
-done
+
+fi
+
+
 
 else
 	EV_CFLAGS=$pkg_cv_EV_CFLAGS
@@ -4149,13 +4158,25 @@ else
 $as_echo "yes" >&6; }
 	:
 fi
+for ac_header in ev.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "ev.h" "ac_cv_header_ev_h" "$ac_includes_default"
+if test "x$ac_cv_header_ev_h" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_EV_H 1
+_ACEOF
+
+fi
+
+done
+
 
 
 
 # libpcap support
 #############################
 if test $withoutpcap != yes; then
-    as_ac_Lib=`$as_echo "ac_cv_lib_$PCAP''_pcap_open_live" | $as_tr_sh`
+   as_ac_Lib=`$as_echo "ac_cv_lib_$PCAP''_pcap_open_live" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_open_live in -l$PCAP" >&5
 $as_echo_n "checking for pcap_open_live in -l$PCAP... " >&6; }
 if { as_var=$as_ac_Lib; eval "test \"\${$as_var+set}\" = set"; }; then :
@@ -4202,11 +4223,10 @@ _ACEOF
   LIBS="-l$PCAP $LIBS"
 
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cannot find libpcap" >&5
-$as_echo "$as_me: WARNING: cannot find libpcap" >&2;}
+  as_fn_error "cannot find library" "$LINENO" 5
 fi
 
-    for ac_func in pcap_breakloop pcap_freecode
+   for ac_func in pcap_breakloop pcap_freecode
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -4217,6 +4237,20 @@ eval as_val=\$$as_ac_var
 _ACEOF
 
 fi
+done
+
+   for ac_header in $PCAP.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+eval as_val=\$$as_ac_Header
+   if test "x$as_val" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
 done
 
 fi
@@ -4335,7 +4369,7 @@ $as_echo "#define STDC_HEADERS 1" >>confdefs.h
 fi
 
 #AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h limits.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h getopt.h libgen.h])
-for ac_header in ev.h pcap.h ipfix.h inttypes.h stdlib.h unistd.h string.h limits.h stdio.h errno.h signal.h netinet/in.h
+for ac_header in inttypes.h stdlib.h unistd.h string.h limits.h stdio.h errno.h signal.h netinet/in.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"

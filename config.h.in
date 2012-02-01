@@ -3,6 +3,9 @@
 /* Build Date */
 #undef BUILD_DATE
 
+/* enable debug mode */
+#undef DEBUG
+
 /* Git Branch */
 #undef GIT_BRANCH
 
@@ -84,9 +87,6 @@
 /* Define to 1 if you have the `pcap_freecode' function. */
 #undef HAVE_PCAP_FREECODE
 
-/* Define to 1 if you have the <pcap.h> header file. */
-#undef HAVE_PCAP_H
-
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
@@ -137,6 +137,9 @@
 
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
+
+/* enabel IPv6 (with IPv4) support */
+#undef INET6
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT

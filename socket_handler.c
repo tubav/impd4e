@@ -74,7 +74,7 @@ ip_port_t;
 ip_port_t parse_ip_port( char* s ) {
    ip_port_t rValue = {"",""};
 
-   char* tmp;
+   char* tmp = NULL;
 
    // get ip address
    char*  tok = strtok_r(s, ":", &tmp);

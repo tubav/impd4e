@@ -31,6 +31,7 @@ static const uint8_t last_pfring_filter_keyword = 11;
 
 /* list all valid pfring filter keywords
  */
+#ifdef PFRING
 static const char* pfring_filter_keywords[12] = {
             "prot",
             "ipl",
@@ -46,6 +47,7 @@ static const char* pfring_filter_keywords[12] = {
             "prio"
     };
 // filter_keywords: action, policy were removed
+#endif
 
 /* this defines an invalid protocol */
 #define INVALID_PROT 0xFF

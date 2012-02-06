@@ -32,14 +32,17 @@ VERSION = @PACKAGE_VERSION@
 install_sh = @install_sh@
 OPENSSL = @OPENSSL@
 
+# compiler / preprcessor options
 DEFS = @DEFS@
-CPPFLAGS = @CPPFLAGS@
+# no strict aliasing becauses it produce  many warnings due to libev
+CFLAGS = @CFLAGS@ -Wall -Wno-strict-aliasing
+CPPFLAGS = -I. @CPPFLAGS@ @EV_CFLAGS@
+
+# linker options
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@ @EV_LIBS@
 PFLIBS = $(LIBS) -lpfring -lm
-CCOPT = -Wall -g
-INCLS = -I. @EV_CFLAGS@
-CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
+
 
 DEPDIR = .depend
 OBJDIR = .object
@@ -92,15 +95,17 @@ source-pkg:
 -include $(addprefix $(DEPDIR)/,$(SRCS:.c=.d))
 
 impd4e: $(OBJS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+	$(CC) $(LDFLAGS) $^ $(LIBS) -o $@
+#	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
 impd4e_pf: $(OBJS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(PFLIBS) -o $@
+	$(CC) $(LDFLAGS) $^ $(PFLIBS) -o $@
+#	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(PFLIBS) -o $@
 
 # generate rules file with all dependencies for each object file
 $(DEPDIR)/%.d: %.c | $(DEPDIR)
 	@set -e; rm -f $@; \
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< > $@.$$$$; \
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(DEFS) $< > $@.$$$$; \
 	sed 's,\($*\)\.o[ :]*,$(OBJDIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
 
@@ -109,7 +114,7 @@ $(DEPDIR):
 
 # generate each object file
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -o $@
 
 $(OBJDIR):
 	mkdir -p $@

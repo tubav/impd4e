@@ -2,6 +2,7 @@
 impd4e
 .cproject
 .project
+version.h
 config.h
 Makefile
 *.log

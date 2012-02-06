@@ -72,6 +72,7 @@
 //#include <pf_plugin_impd4e.h>
 //#endif
 
+#include "version.h"
 #include "logger.h"
 #include "settings.h"
 #include "hash.h"
@@ -325,10 +326,11 @@ hashFunction parseFunction(char *arg_string) {
  */
 void print_version_information() {
 #ifdef HAVE_CONFIG_H
-   printf( "Version:    " PACKAGE_VERSION "\n");
-   printf( "Build Date: " BUILD_DATE "\n");
-   printf( "Git Branch: " GIT_BRANCH "\n");
-   printf( "Git Hash:   " GIT_HASH "\n");
+   printf( "Version:       " PACKAGE_VERSION "\n");
+   printf( "Build Version: " BUILD_VERSION "\n");
+   printf( "Build Date:    " BUILD_DATE "\n\n");
+   printf( "Git Branch:    " GIT_BRANCH "\n");
+   printf( "Git Hash:      " GIT_HASH "\n");
 #else
 #endif
 }
@@ -491,8 +493,8 @@ bool check_file_name( char* arg ) {
 }
 
 int opt_unknown_parameter( char* arg, options_t* options ) {
-   LOGGER_warn( "unkown parameter" );
-   return 0;
+//   LOGGER_warn( "unkown parameter" );
+   return -1;
 }
 
 #ifdef PFRING
@@ -1276,7 +1278,9 @@ void parse_cmdline_v2(int argc, char **argv) {
    //fprintf(stderr, "%s\n", par);
 
    while (-1 != (c = getopt(argc, argv, par))) {
-      find_opt_function_char( c )(optarg, &g_options);
+      if( -1 == find_opt_function_char( c )(optarg, &g_options) ) {
+         exit(-1);
+      }
    }
 }
 

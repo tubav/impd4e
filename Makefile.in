@@ -29,6 +29,7 @@ EXEEXT = @EXEEXT@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE_NAME@
 VERSION = @PACKAGE_VERSION@
+BUILD_VERSION = $(shell head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+-\S+)\)/ and print $$1')
 install_sh = @install_sh@
 OPENSSL = @OPENSSL@
 
@@ -118,4 +119,10 @@ $(OBJDIR)/%.o: %.c | $(OBJDIR)
 
 $(OBJDIR):
 	mkdir -p $@
+
+version.h:
+	echo > $@
+	echo \#ifndef _VERSION_H_ >> $@
+	echo \#define BUILD_VERSION \"$(BUILD_VERSION)\" >> $@
+	echo \#endif >> $@
 

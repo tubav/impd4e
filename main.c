@@ -199,6 +199,14 @@ void open_device(device_dev_t* if_device, options_t *options) {
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
    int i;
+
+   /* 
+      copy command line parameters in order not to destroy the
+      original parameters during later use of strtok on them
+   */
+   for( i=0; i<argc; i++ )
+      argv[i] = strdup(argv[i]);
+ 
    // initializing custom logger
    logger_init(LOGGER_LEVEL_WARN);
 

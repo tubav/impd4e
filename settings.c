@@ -326,11 +326,13 @@ hashFunction parseFunction(char *arg_string) {
  */
 void print_version_information() {
 #ifdef HAVE_CONFIG_H
-   printf( "Version:       " PACKAGE_VERSION "\n");
-   printf( "Build Version: " BUILD_VERSION "\n");
-   printf( "Build Date:    " BUILD_DATE "\n\n");
-   printf( "Git Branch:    " GIT_BRANCH "\n");
-   printf( "Git Hash:      " GIT_HASH "\n");
+   printf( "version:       " PACKAGE_VERSION "\n");
+   printf( "build version: " BUILD_VERSION "\n");
+   printf( "build date:    " BUILD_DATE "\n");
+   if (strlen(GIT_BRANCH)>0)
+      printf( "git branch:    " GIT_BRANCH "\n");
+   if (strlen(GIT_HASH)>0)
+      printf( "git version:   " GIT_HASH "\n");
 #else
 #endif
 }

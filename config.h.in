@@ -1,16 +1,7 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Build Date */
-#undef BUILD_DATE
-
 /* enable debug mode */
 #undef DEBUG
-
-/* Git Branch */
-#undef GIT_BRANCH
-
-/* Git Hash */
-#undef GIT_HASH
 
 /* Define to 1 if you have the `basename' function. */
 #undef HAVE_BASENAME

@@ -29,7 +29,6 @@ EXEEXT = @EXEEXT@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE_NAME@
 VERSION = @PACKAGE_VERSION@
-BUILD_VERSION = $(shell head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+-\S+)\)/ and print $$1')
 install_sh = @install_sh@
 OPENSSL = @OPENSSL@
 
@@ -37,7 +36,9 @@ OPENSSL = @OPENSSL@
 DEFS = @DEFS@
 # no strict aliasing becauses it produce  many warnings due to libev
 CFLAGS = @CFLAGS@ -Wall -Wno-strict-aliasing
-CPPFLAGS = -I. @CPPFLAGS@ @EV_CFLAGS@
+CPPFLAGS  = -I.
+CPPFLAGS += @CPPFLAGS@
+CPPFLAGS += @EV_CFLAGS@
 
 # linker options
 LDFLAGS = @LDFLAGS@
@@ -53,7 +54,7 @@ TARGETS = impd4e
 SRCS = $(wildcard *.c) 
 # build all object files in a separate dir
 OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
-CLEANFILES = $(TARGETS) $(DEPDIR) $(OBJDIR) *.o *.d
+CLEANFILES = $(TARGETS) $(DEPDIR) $(OBJDIR) *.o *.d version.h
 
 # default target
 all: $(TARGETS)
@@ -106,7 +107,7 @@ impd4e_pf: $(OBJS)
 # generate rules file with all dependencies for each object file
 $(DEPDIR)/%.d: %.c | $(DEPDIR)
 	@set -e; rm -f $@; \
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $(DEFS) $< > $@.$$$$; \
+	$(CC) -MM -MG $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -MF $@.$$$$; \
 	sed 's,\($*\)\.o[ :]*,$(OBJDIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
 
@@ -121,8 +122,11 @@ $(OBJDIR):
 	mkdir -p $@
 
 version.h:
-	echo > $@
-	echo \#ifndef _VERSION_H_ >> $@
-	echo \#define BUILD_VERSION \"$(BUILD_VERSION)\" >> $@
-	echo \#endif >> $@
+	@echo "/* this is a generated file do not change */" > $@
+	@echo \#ifndef _VERSION_H_ >> $@
+	@echo \#define BUILD_VERSION \"$(shell head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+-\S+)\)/ and print $$1')\" >> $@
+	@echo \#define GIT_BRANCH    \"$(shell git branch | grep \* | sed 's/\* //g')\" >> $@
+	@echo \#define GIT_HASH      \"$(shell git log -1 --pretty=format:%H)\" >> $@
+	@echo \#define BUILD_DATE    \"$(shell date)\" >> $@
+	@echo \#endif >> $@
 

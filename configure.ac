@@ -8,12 +8,6 @@ AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config.h])
 AC_CANONICAL_TARGET
 
-#check for git-core
-#and git githash and git branch used for building
-AC_DEFINE_UNQUOTED([GIT_BRANCH],["`git status | grep branch | head -1 | sed "s/.*branch *//g"`"],[Git Branch])
-AC_DEFINE_UNQUOTED([GIT_HASH],  ["`git log -1 --pretty=format:%H`"],[Git Hash])
-AC_DEFINE_UNQUOTED([BUILD_DATE],["`date`"],[Build Date])
-#AC_DEFINE_UNQUOTED([BUILD_VERSION],["`head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+)-\S+\)/ and print $$1'`"],[Build Version])
 
 # Checks for programs.
 #############################

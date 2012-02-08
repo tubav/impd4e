@@ -112,21 +112,23 @@ $(DEPDIR)/%.d: %.c | $(DEPDIR)
 	rm -f $@.$$$$
 
 $(DEPDIR):
-	mkdir -p $@
+	@mkdir -p $@
 
 # generate each object file
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -o $@
 
 $(OBJDIR):
-	mkdir -p $@
+	@mkdir -p $@
 
 version.h:
+	@echo update version.h
 	@echo "/* this is a generated file do not change */" > $@
 	@echo \#ifndef _VERSION_H_ >> $@
-	@echo \#define BUILD_VERSION \"$(shell head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+-\S+)\)/ and print $$1')\" >> $@
-	@echo \#define GIT_BRANCH    \"$(shell git branch | grep \* | sed 's/\* //g')\" >> $@
-	@echo \#define GIT_HASH      \"$(shell git log -1 --pretty=format:%H)\" >> $@
-	@echo \#define BUILD_DATE    \"$(shell date)\" >> $@
+	@echo \#define _VERSION_H_ >> $@
+	-@echo \#define BUILD_VERSION \"$(shell head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+-\S+)\)/ and print $$1')\" >> $@
+	-@echo \#define BUILD_DATE    \"$(shell date)\" >> $@
+	-@echo \#define GIT_BRANCH    \"$(shell git branch | grep \* | sed 's/\* //g')\" >> $@
+	-@echo \#define GIT_HASH      \"$(shell git log -1 --pretty=format:%H)\" >> $@
 	@echo \#endif >> $@
 

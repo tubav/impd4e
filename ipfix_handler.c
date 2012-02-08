@@ -62,10 +62,12 @@ ipfix_t*          ipfix_handle = NULL;
    ipfix_template_t *ipfixtmpl_ts;
    ipfix_template_t *ipfixtmpl_ts_ttl;
    ipfix_template_t *ipfixtmpl_ts_ttl_ip;
+   ipfix_template_t *ipfixtmpl_ts_open_epc;
    ipfix_template_t *ipfixtmpl_interface_stats;
    ipfix_template_t *ipfixtmpl_probe_stats;
    ipfix_template_t *ipfixtmpl_sync;
    ipfix_template_t *ipfixtmpl_location;
+   ipfix_template_t *ipfixtmpl_ts_id_epc;
 
 //typedef enum template_id_u{
 //        LOCATION_ID = 0
@@ -76,6 +78,7 @@ ipfix_t*          ipfix_handle = NULL;
 //      , TS_ID
 //      , TS_TTL_PROTO_ID
 //      , TS_TTL_PROTO_IP_ID
+//      , TS_OPEN_EPC_ID
 //}
 //template_id_t;
 
@@ -90,6 +93,8 @@ ipfix_template_t  **templates[] = {
                     &ipfixtmpl_ts,
                     &ipfixtmpl_ts_ttl,
                     &ipfixtmpl_ts_ttl_ip,
+                    &ipfixtmpl_ts_open_epc,
+                    &ipfixtmpl_ts_id_epc
                                  }; 
 
 // -----------------------------------------------------------------------------
@@ -160,7 +165,18 @@ void libipfix_register_templates() {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
+   if (IPFIX_MAKE_TEMPLATE( ipfix(),
+           ipfixtmpl_ts_open_epc, export_fields_openepc) < 0) {
+      LOGGER_fatal("template initialization failed: %s", strerror(errno));
+      exit(EXIT_FAILURE);
+   }
    
+   if (IPFIX_MAKE_TEMPLATE( ipfix(),
+           ipfixtmpl_ts_id_epc, export_fields_ts_id_epc) < 0) {
+      LOGGER_fatal("template initialization failed: %s", strerror(errno));
+      exit(EXIT_FAILURE);
+   }
+
    if (IPFIX_MAKE_TEMPLATE( ipfix(),
             ipfixtmpl_interface_stats, export_fields_interface_stats) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));

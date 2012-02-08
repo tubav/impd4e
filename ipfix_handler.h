@@ -46,6 +46,7 @@
 //export_fields_t export_fields_ts[] = {
 //export_fields_t export_fields_ts_ttl_proto[] = {
 //export_fields_t export_fields_ts_ttl_proto_ip[] = {
+//export_fields_t export_fields_openepc[] = {
 //
 //export_fields_t export_fields_location[] = {
 //export_fields_t export_fields_sync[] = {
@@ -63,6 +64,8 @@ typedef enum template_id_u{
       , TS_ID
       , TS_TTL_PROTO_ID
       , TS_TTL_PROTO_IP_ID
+      , TS_OPEN_EPC_ID
+      , TS_ID_EPC_ID
 }
 template_id_t;
 
@@ -70,6 +73,8 @@ template_id_t;
 #define TS_TTL_RROTO_NAME     "lp"
 #define TS_NAME               "ts"
 #define TS_TTL_RROTO_IP_NAME  "ls"
+#define TS_OPEN_EPC           "tsep"
+#define TS_ID_EPC             "tsip"
 
 
 

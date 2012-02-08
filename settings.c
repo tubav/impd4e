@@ -236,12 +236,12 @@ int parse_template(char *arg_string) {
    struct templateDef {
       char *hstring;
       int templateID;
-   } templates[] = {   
-                     { MIN_NAME, MINT_ID }   
-                   , { TS_TTL_RROTO_NAME, TS_TTL_PROTO_ID }
-                   , { TS_TTL_RROTO_IP_NAME, TS_TTL_PROTO_IP_ID }
-                   , { TS_NAME, TS_ID }
-                   };
+   } templates[] = {   { MIN_NAME, MINT_ID }   
+                     , { TS_ID_EPC, TS_ID_EPC_ID }
+                     , { TS_TTL_RROTO_NAME, TS_TTL_PROTO_ID }
+                     , { TS_TTL_RROTO_IP_NAME, TS_TTL_PROTO_IP_ID }
+                     , { TS_NAME, TS_ID } 
+                     , { TS_OPEN_EPC, TS_OPEN_EPC_ID }};
 
    // remove any leading whitespaces
    while( isspace(*arg_string) ) ++arg_string;

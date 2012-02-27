@@ -103,14 +103,13 @@ void export_data_interface_stats(device_dev_t *dev
       , uint64_t observationTimeMilliseconds
       , u_int32_t size
       , u_int64_t deltaCount);
-void export_data_probe_stats(device_dev_t *dev);
+void export_data_probe_stats(int64_t observationTimeMilliseconds);
 void export_data_sync(device_dev_t *dev
       , int64_t observationTimeMilliseconds
       , u_int32_t messageId
       , u_int32_t messageValue
       , char * message);
-void export_data_location(device_dev_t *dev
-      , int64_t observationTimeMilliseconds);
+void export_data_location(int64_t observationTimeMilliseconds);
 
 
 /* -- event loop -- */

@@ -199,6 +199,14 @@ void open_device(device_dev_t* if_device, options_t *options) {
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[]) {
    int i;
+
+   /* 
+      copy command line parameters in order not to destroy the
+      original parameters during later use of strtok on them
+   */
+   for( i=0; i<argc; i++ )
+      argv[i] = strdup(argv[i]);
+ 
    // initializing custom logger
    logger_init(LOGGER_LEVEL_WARN);
 
@@ -215,40 +223,38 @@ int main(int argc, char *argv[]) {
    logger_set_level(g_options.verbosity);
    logger_set_filter(g_options.verbosity_filter_string);
 
-   if (g_options.number_interfaces == 0) {
-      print_help();
-      exit(-1);
-   }
-
    // set probe name to host name if not set
    if( NULL == g_options.s_probe_name )
    {
-      g_options.s_probe_name = (char*) malloc(64);
+      g_options.s_probe_name = (char*) malloc(HOST_NAME_MAX);
       if( gethostname( g_options.s_probe_name
             , sizeof(g_options.s_probe_name)) ) {
          g_options.s_probe_name = "";
       }
    }
 
-   for (i = 0; i < g_options.number_interfaces; ++i) {
-      // open pcap interfaces with filter
-      open_device(&if_devices[i], &g_options);
-      LOGGER_info( "open_device(%d)", i);
-   }
+   // open devices if given via command line
+   if( 0 < g_options.number_interfaces ) {
+      for (i = 0; i < g_options.number_interfaces; ++i) {
+         // open pcap interfaces with filter
+         open_device(&if_devices[i], &g_options);
+         LOGGER_info( "open_device(%d)", i);
+      }
 
-   // TODO: get ip address of the system
-   // set ipAddress with ipaddress of first device
-   g_options.ipAddress = if_devices[0].IPv4address;
+      // TODO: get ip address of the system
+      // set ipAddress with ipaddress of first device
+      g_options.ipAddress = if_devices[0].IPv4address;
 
-   // determine observation id if it is not given via cmd line
-   // use observationDomainID if explicitely given via
-   // cmd line, else use interface IPv4address as oid
-   // TODO: alternative oID instead of IP address --> !!different device types!!
-   if( 0 == g_options.observationDomainID ) {
-      // there is only one observation id needed
-      // if non is given via cmd line: use g_options.ipAddress
-      // which is detemined of the first device
-      g_options.observationDomainID = ntohl( g_options.ipAddress );
+      // determine observation id if it is not given via cmd line
+      // use observationDomainID if explicitely given via
+      // cmd line, else use interface IPv4address as oid
+      // TODO: alternative oID instead of IP address --> !!different device types!!
+      if( 0 == g_options.observationDomainID ) {
+         // there is only one observation id needed
+         // if non is given via cmd line: use g_options.ipAddress
+         // which is detemined of the first device
+         g_options.observationDomainID = ntohl( g_options.ipAddress );
+      }
    }
 
    // setup ipfix_exporter

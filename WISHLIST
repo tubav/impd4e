@@ -1,16 +1,8 @@
-* use of configuration file - instead of cmd-line parameter
-
 * IPv6 support
 
 * documentation how to run impd4e together with FOKUS' packet ID matcher
 
 * implement "seed" parameter for use in hash functions
 
-* fix configure.ac so that it detects if and where libipfix is installed
-	(corrently /usr/local/include|lib is blindly assumed)
+* update manpages doc/impd4e.1
 
-* fix configure.ac so that it detects if and where libev is installed
-	(corrently /usr/local/include|lib is blindly assumed)
-
-* add build dependencies for libipfix when there is a package to depend on
-  (debian/control)

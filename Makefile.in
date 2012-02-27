@@ -32,14 +32,19 @@ VERSION = @PACKAGE_VERSION@
 install_sh = @install_sh@
 OPENSSL = @OPENSSL@
 
+# compiler / preprcessor options
 DEFS = @DEFS@
-CPPFLAGS = @CPPFLAGS@
+# no strict aliasing becauses it produce  many warnings due to libev
+CFLAGS = @CFLAGS@ -Wall -Wno-strict-aliasing
+CPPFLAGS  = -I.
+CPPFLAGS += @CPPFLAGS@
+CPPFLAGS += @EV_CFLAGS@
+
+# linker options
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@ @EV_LIBS@
 PFLIBS = $(LIBS) -lpfring -lm
-CCOPT = -Wall -g
-INCLS = -I. @EV_CFLAGS@
-CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
+
 
 DEPDIR = .depend
 OBJDIR = .object
@@ -49,7 +54,7 @@ TARGETS = impd4e
 SRCS = $(wildcard *.c) 
 # build all object files in a separate dir
 OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
-CLEANFILES = $(TARGETS) $(DEPDIR) $(OBJDIR) *.o *.d
+CLEANFILES = $(TARGETS) $(DEPDIR) $(OBJDIR) *.o *.d version.h
 
 # default target
 all: $(TARGETS)
@@ -92,25 +97,38 @@ source-pkg:
 -include $(addprefix $(DEPDIR)/,$(SRCS:.c=.d))
 
 impd4e: $(OBJS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+	$(CC) $(LDFLAGS) $^ $(LIBS) -o $@
+#	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
 impd4e_pf: $(OBJS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(PFLIBS) -o $@
+	$(CC) $(LDFLAGS) $^ $(PFLIBS) -o $@
+#	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(PFLIBS) -o $@
 
 # generate rules file with all dependencies for each object file
 $(DEPDIR)/%.d: %.c | $(DEPDIR)
 	@set -e; rm -f $@; \
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< > $@.$$$$; \
+	$(CC) -MM -MG $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -MF $@.$$$$; \
 	sed 's,\($*\)\.o[ :]*,$(OBJDIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
 
 $(DEPDIR):
-	mkdir -p $@
+	@mkdir -p $@
 
 # generate each object file
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -o $@
 
 $(OBJDIR):
-	mkdir -p $@
+	@mkdir -p $@
+
+version.h:
+	@echo update version.h
+	@echo "/* this is a generated file do not change */" > $@
+	@echo \#ifndef _VERSION_H_ >> $@
+	@echo \#define _VERSION_H_ >> $@
+	-@echo \#define BUILD_VERSION \"$(shell head -1 ./debian/changelog | perl -nle 'm/\S+\s+\((\S+-\S+)\)/ and print $$1')\" >> $@
+	-@echo \#define BUILD_DATE    \"$(shell date)\" >> $@
+	-@echo \#define GIT_BRANCH    \"$(shell git branch | grep \* | sed 's/\* //g')\" >> $@
+	-@echo \#define GIT_HASH      \"$(shell git log -1 --pretty=format:%H)\" >> $@
+	@echo \#endif >> $@
 

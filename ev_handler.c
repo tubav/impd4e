@@ -42,7 +42,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>

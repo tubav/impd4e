@@ -55,6 +55,10 @@ struct probe_stat {
 	 */
 	uint64_t systemMemFree;
 	/**
+	 * System total memory in kilobytes
+	 */
+	uint64_t systemMemTotal;
+	/**
 	 * percentage of CPU used in user level (application)
 	 */
 	float processCpuUser;

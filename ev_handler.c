@@ -1510,19 +1510,25 @@ void export_data_sync(device_dev_t *dev, int64_t observationTimeMilliseconds,
 }
 
 void export_data_probe_stats(int64_t observationTimeMilliseconds) {
-    static uint16_t lengths[] = {8, 4, 8, 4, 4, 8, 8};
+    static uint16_t lengths[] = {8, 4, 8, 4, 4, 8, 8, 8};
     struct probe_stat probeStat;
 
-    void *fields[] = {&probeStat.observationTimeMilliseconds,
-        &probeStat.systemCpuIdle, &probeStat.systemMemFree,
-        &probeStat.processCpuUser, &probeStat.processCpuSys,
-        &probeStat.processMemVzs, &probeStat.processMemRss};
+    void *fields[] = { &probeStat.observationTimeMilliseconds
+                     , &probeStat.systemCpuIdle
+                     , &probeStat.systemMemFree
+                     , &probeStat.processCpuUser
+                     , &probeStat.processCpuSys
+                     , &probeStat.processMemVzs
+                     , &probeStat.processMemRss
+                     , &probeStat.systemMemTotal
+                     };
+
+    ipfix_template_t* t = get_template(PROBE_STATS_ID);
 
     probeStat.observationTimeMilliseconds = observationTimeMilliseconds;
     get_probe_stats(&probeStat);
 
-    if (ipfix_export_array(ipfix(), get_template(PROBE_STATS_ID), 7,
-            fields, lengths) < 0) {
+    if (ipfix_export_array(ipfix(), t, t->nfields, fields, lengths) < 0) {
         LOGGER_error("ipfix export failed: %s", strerror(errno));
         return;
     }

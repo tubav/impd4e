@@ -125,6 +125,7 @@ export_fields_t export_fields_probe_stats[] = {
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_PROCESS_CPU_SYS, 4}, /* PFIX_CODING_FLOAT,  "proc_cpu_sys",  "PT percentage of CPU used in system level (kernel) "  }, */
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_PROCESS_MEM_VZS, 8}, /* PFIX_CODING_UINT,   "proc_mem_vzs",  "PT the process virtual memory used in kilobytes"  }, */
     { IPFIX_ENO_FOKUS, IPFIX_FT_PT_PROCESS_MEM_RSS, 8}, /* PFIX_CODING_UINT,   "proc_mem_rss",  "PT the process resident set size in kilobytes"  }, */
+    { IPFIX_ENO_FOKUS, IPFIX_FT_PT_SYSTEM_MEM_TOTAL, 8}, /* IPFIX_CODING_UINT,  "sys_mem_total",  "PT system total memory in kilobytes"  }, */
 };
 
 export_fields_t export_fields_location[] = {

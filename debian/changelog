@@ -1,3 +1,11 @@
+impd4e (1.0-1ubuntu6) lucid; urgency=low
+
+  [ Ramón Masek ]
+  * add total memory to probe stats export
+  * add a first draft of a manpage
+
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Tue, 13 Mar 2012 15:24:12 +0100
+
 impd4e (1.0-1ubuntu5) lucid; urgency=low
 
   [ Ramón Masek ]

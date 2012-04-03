@@ -54,17 +54,9 @@
 #include <unistd.h> // getopt()
 #include <netdb.h> // AF_INET
 
-//#include <sys/types.h>
-//#include <sys/socket.h>
-//#include <sys/ioctl.h>
-//#include <fcntl.h>
-//#include <net/if.h>
-//#include <netinet/in.h>
-
 //#ifndef PFRING
 //#include <pcap.h>
 //#endif
-
 
 //#ifdef PFRING
 //#include <netinet/ip.h>
@@ -78,7 +70,6 @@
 #include "hash.h"
 #include "helper.h"
 #include "ipfix_handler.h"
-//#include "constants.h"
 
 #ifdef PFRING
 #include "pfring_filter.h"

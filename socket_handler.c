@@ -46,7 +46,6 @@
 
 #include <sys/un.h>
 #include <sys/ioctl.h>
-//#include <sys/sysinfo.h> /* TODO review: sysinfo is Linux only */
 #include <sys/times.h>
 
 #include <netinet/in.h>

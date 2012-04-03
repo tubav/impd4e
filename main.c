@@ -48,12 +48,13 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/ioctl.h>
-#include <sys/sysinfo.h> /* TODO review: sysinfo is Linux only */
+#include <sys/param.h>
+//#include <sys/sysinfo.h> /* TODO review: sysinfo is Linux only */
 #include <sys/times.h>
 
 #include <netinet/in.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <arpa/inet.h>
 
 #include "main.h"
@@ -226,7 +227,7 @@ int main(int argc, char *argv[]) {
    // set probe name to host name if not set
    if( NULL == g_options.s_probe_name )
    {
-      g_options.s_probe_name = (char*) malloc(HOST_NAME_MAX);
+      g_options.s_probe_name = (char*) malloc(MAXHOSTNAMELEN);
       if( gethostname( g_options.s_probe_name
             , sizeof(g_options.s_probe_name)) ) {
          g_options.s_probe_name = "";

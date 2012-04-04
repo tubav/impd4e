@@ -97,7 +97,7 @@ struct netcon {
 
 /* === PROTOTYPES === */
 static void connection_close( EV_P_ struct connection * conn);
-static void connection_write( EV_P_ struct connection * conn, char * data );
+//static void connection_write( EV_P_ struct connection * conn, char * data );
 
 static int setnonblock(int fd) {
    int flags;
@@ -115,15 +115,16 @@ static void write_cb(EV_P_ struct ev_io *w, int revents) {
    static char motd[]="imp4e\n";
    LOGGER_debug("write CB");
    if (revents & EV_WRITE){
-      write(conn->fd,motd,strlen(motd));
+      int count = 0;
+      count = write(conn->fd,motd,strlen(motd));
       ev_io_stop(EV_A_ w);
    }
    close(conn->fd);
    free(conn);
 }
-static void connection_write( EV_P_ struct connection * conn, char *data ){
-   ev_io_start(EV_A_ &conn->ev_write);
-}
+//static void connection_write( EV_P_ struct connection * conn, char *data ){
+//   ev_io_start(EV_A_ &conn->ev_write);
+//}
 
 static void connection_close( EV_P_ struct connection * conn){
    LOGGER_debug("connection close: %s:%s sync:%d",conn->remote_host, conn->remote_port, conn->sync );

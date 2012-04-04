@@ -1,0 +1,203 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH IMPD4E 1 "February 15, 2012"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+impd4e \- a measuring probe which uses hash-based packet selection
+.SH SYNOPSIS
+.B impd4e
+.RI [ options ] " files" ...
+.br
+.SH DESCRIPTION
+This manual page documents briefly the
+.B impd4e
+command.
+.br
+It is a libpcap based measuring probe which uses hash-based packet
+selection and exports packetIDs via IPFIX to a collector.
+.PP
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics,
+.\" respectively.
+\fBimpd4e\fP is a program that...
+.SH OPTIONS
+These programs follow the usual GNU command line syntax, with long
+options starting with two dashes (`-').
+A summary of options is included below.
+For a complete description, see the Info files.
+.\" .TP
+.\" .B \-h, \-\-help
+.\" Show summary of options.
+.\" .TP
+.\" .B \-v, \-\-version
+.\" Show version of program.
+.TP
+.B \-c  <configfile>
+read parameters from config file (parameters have precedence by order
+of the same parameters (last comes last serves), or are supplemental, e.g. for -i)
+(config file at last will overwrite cmd line (vice versa))
+
+.TP
+.B \-i  <i,f,p,s,u>:<interface>
+interface(s) to listen on. It can be used multiple times.
+   i - ethernet adapter;             -i i:eth0
+   p - pcap file;                    -i p:traffic.pcap
+   f - plain text file;              -i f:data.txt
+   s - inet udp socket (AF_INET);    -i s:192.168.0.42:4711
+   u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX
+
+.TP
+.B \-4
+use IPv4 socket interfaces
+.TP
+.B \-6
+use IPv6 socket interfaces (default)
+
+.TP
+.B \-C  <Collector IP>
+an IPFIX collector address
+Default: localhost
+.TP
+.B \-d <probe name>
+a probe name
+Default: <hostname>
+.TP
+.B \-D <location name>
+a location name
+.TP
+.B \-e  <export packet count>
+size of export buffer after which packets are flushed (per device)
+.TP
+.B \-f  <bpf>
+Berkeley Packet Filter expression (e.g. tcp udp icmp)
+.TP
+.B \-F  <hash_function>
+hash function to use: "BOB", "OAAT", "TWMX", "HSIEH"
+.TP
+.B \-G  <interval>
+location export interval in seconds.
+Use -G 0 for exporting once at startup.
+Default: 60.0
+.TP
+.B \-I  <interval>
+pktid export interval in sec.
+Use -I 0 for disabling this export.
+Default: 3.0
+.TP
+.B \-J  <interval>
+probe stats export interval in sec.
+Use -J 0 for disabling this export.
+Default: 30.0
+.TP
+.B \-K  <interval>
+interface stats export interval in sec.
+Use -K 0 for disabling this export.
+Default: 10.0
+.TP
+.B \-l <latitude>
+geo location (double): latitude
+.TP
+.B \-l <lat>:<long>:<interval>
+short form
+.TP
+.B \-L <longitude>
+geo location (double): longitude
+.TP
+.B \-L <long>:<lat>:<interval>
+short form
+.TP
+.B \-m  <minimum selection range>
+integer - do not use in conjunction with -r
+.TP
+.B \-M  <maximum selection range>
+integer - do not use in conjunction with -r
+.TP
+.B \-N  <snaplength>
+max capturing size in bytes (Default: 80)
+.TP
+.B \-o  <observation domain id>
+unique identifier for probe
+Default: IP address of the interface
+.TP
+.B \-O <offset>
+offset in bytes pointing to the start of the packet
+used for tunneled or crooked packets
+!!! the offset is applied after the link layer (e.g. ethernet header)
+.TP
+.B \-p  <hash function>
+use different hash_function for packetID generation: "BOB", "OAAT", "TWMX", "HSIEH"
+.TP
+.B \-P  <Collector Port>
+an IPFIX Collector Port
+Default: 4739
+.TP
+.B \-r  <sampling ratio>
+in % (double)
+.TP
+.B \-s  <selection function>
+which parts of the packet used for hashing (presets)
+either: "IP+TP", "IP", "REC8", "PACKET"
+Default: "IP+TP"
+.TP
+.B \-S  <selection function>
+which parts of the packet used for hashing (byte selection)
+<keyword><offset list>
+keywords: "RAW", "LAST", "LINK", "NET", "TRANS", "PAYLOAD"
+offset list: comma seperated list with byte offsets and offset ranges, add another offset/offset range
+   - range modifier (include borders)
+   ^ range modifier (exclude borders)
+   < range modifier (exclude right border)
+   > range modifier (exclude left border)
+   + range modifier (offset length)
+   : range modifier (offset length)
+   < and > have to be escaped
+Example: RAW20,34-45,14+4,4
+.TP
+.B \-t  <template>
+either "min" or "lp" or "ts" or "ls"
+Default: "min"
+.TP
+.B \-u
+use only one oid from the first interface
+.TP
+.B \-v[expression]
+verbose-level; use multiple times to increase output
+filter by function names in comma-separated list at a certain log level
+   * matches anything; can be combined at start/end of expressions
+   - exclude expression
+Example: '-vv*,-main' matches anything but main-function (level 2)
+         Example: '-vvv*export*,-*flush
+                  matches all functions containing export, but not ending of flush
+
+.TP
+.B \-h
+print this help and exit.
+.TP
+.B \-V
+print version information and exit.
+
+
+.SH SEE ALSO
+.BR
+.br
+The programs are documented fully by
+.IR "The Rise and Fall of a Fooish Bar" ,
+available via the Info system.
+.SH AUTHOR
+impd4e was written by <upstream author>.
+.PP
+This manual page was written by Ramon Masek <ramon.masek@fokus.fraunhofer.de>,
+for the Debian project (and may be used by others).

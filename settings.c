@@ -42,6 +42,9 @@
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <stdlib.h>
 #include <errno.h>
@@ -51,17 +54,9 @@
 #include <unistd.h> // getopt()
 #include <netdb.h> // AF_INET
 
-//#include <sys/types.h>
-//#include <sys/socket.h>
-//#include <sys/ioctl.h>
-//#include <fcntl.h>
-//#include <linux/if.h>
-//#include <netinet/in.h>
-
 //#ifndef PFRING
 //#include <pcap.h>
 //#endif
-
 
 //#ifdef PFRING
 //#include <netinet/ip.h>
@@ -69,12 +64,12 @@
 //#include <pf_plugin_impd4e.h>
 //#endif
 
+#include "version.h"
 #include "logger.h"
 #include "settings.h"
 #include "hash.h"
 #include "helper.h"
 #include "ipfix_handler.h"
-//#include "constants.h"
 
 #ifdef PFRING
 #include "pfring_filter.h"
@@ -317,6 +312,21 @@ hashFunction parseFunction(char *arg_string) {
 }
 
 // =============================================================================
+/**
+ * Print out command usage
+ */
+void print_version_information() {
+#ifdef HAVE_CONFIG_H
+   printf( "version:       " PACKAGE_VERSION "\n");
+   printf( "build version: " BUILD_VERSION "\n");
+   printf( "build date:    " BUILD_DATE "\n");
+   if (strlen(GIT_BRANCH)>0)
+      printf( "git branch:    " GIT_BRANCH "\n");
+   if (strlen(GIT_HASH)>0)
+      printf( "git version:   " GIT_HASH "\n");
+#else
+#endif
+}
 
 /**
  * Print out command usage
@@ -439,10 +449,11 @@ void print_help() {
 			"                                           matches all functions containing export, but not ending of flush\n"
 			"\n"
 			"   -h                             print this help \n"
+			"   -V                             print version information \n"
 			"\n"
 			"EXAMPLES for usage: \n"
 			"sudo impd4e -i i:eth0 -C 172.20.0.1 -r 1 -t min \n"
-			"sudo impd4e -i i:lo   -C 172.20.0.1 -o <somethingyoulike> -S 20,34-45\n");
+			"sudo impd4e -i i:lo   -C 172.20.0.1 -o <id> -S 20,34-45\n");
 
 	#ifdef PFRING
 		printf("Possible PF_RING filter keywords include: ");
@@ -475,8 +486,8 @@ bool check_file_name( char* arg ) {
 }
 
 int opt_unknown_parameter( char* arg, options_t* options ) {
-   LOGGER_warn( "unkown parameter" );
-   return 0;
+//   LOGGER_warn( "unkown parameter" );
+   return -1;
 }
 
 #ifdef PFRING
@@ -705,6 +716,11 @@ int opt_v( char* arg, options_t* options ) {
    return 0;
 }
 
+int opt_V() {
+   print_version_information();
+   exit(0);
+}
+
 int opt_d( char* arg, options_t* options ) {
    options->s_probe_name = arg;
    return 0;
@@ -774,6 +790,7 @@ int opt_y( char* arg, options_t* options ) {
 // "c:hv::nyuJ:K:i:I:o:r:t:f:F:m:M:s:S:F:e:P:C:l:L:G:N:p:d:D:O:46";
 struct config_map_t cfg_opt_list[] = {
 	{ 'v',"::", &opt_v, "general.verbosity"              },
+	{ 'V',""  , &opt_V, ""},
 	{ 'h',""  , &opt_h, "general.help"                   },
 	{ 'i',":" , &opt_i, "capture.interface"              },
 	{ '4',""  , &opt_4, "capture.ipv4"                   },
@@ -803,10 +820,10 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'l',":" , &opt_l, "geotags.latitude"               },
 	{ 'L',":" , &opt_L, "geotags.longitude"              },
 	{ 'c',":" , &opt_c, "general.configfile" }, // TODO:something
-	{ 'n',""  , &opt_n, "empty" },
-	{ 'y',""  , &opt_y, "empty" },
+	{ 'n',""  , &opt_n, "" },
+	{ 'y',""  , &opt_y, "" },
 #ifdef PFRING
-	{ 'a',":" , &opt_a, "empty" },
+	{ 'a',":" , &opt_a, "" },
 #endif
 //	{ '\0', NULL, NULL }
 };
@@ -1254,7 +1271,9 @@ void parse_cmdline_v2(int argc, char **argv) {
    //fprintf(stderr, "%s\n", par);
 
    while (-1 != (c = getopt(argc, argv, par))) {
-      find_opt_function_char( c )(optarg, &g_options);
+      if( -1 == find_opt_function_char( c )(optarg, &g_options) ) {
+         exit(-1);
+      }
    }
 }
 

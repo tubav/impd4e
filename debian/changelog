@@ -1,3 +1,28 @@
+impd4e (1.0-1ubuntu6) lucid; urgency=low
+
+  [ Ramón Masek ]
+  * add total memory to probe stats export
+  * add a first draft of a manpage
+
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Tue, 13 Mar 2012 15:24:12 +0100
+
+impd4e (1.0-1ubuntu5) lucid; urgency=low
+
+  [ Ramón Masek ]
+  * remove epc stuff from master branch, used to be in the epc branch
+  * add version information using -V; set with configure
+  * allow call without interface; node stats only
+  * update lib check for libev4
+  * correction due to AC_CHECK_LIB in case of static lib only
+  * some configure.ac changes
+  * make build warning-free
+
+  [ Carsten Schmoll ]
+  * changed version output slightly
+  * copy command line parameters to save them from destruction by strtok
+
+ -- Ramon Masek <ramon.masek@fokus.fraunhofer.de>  Wed, 08 Feb 2012 15:29:29 +0100
+
 impd4e (1.0-1ubuntu4) lucid; urgency=low
 
   [ Carsten Schmoll ]

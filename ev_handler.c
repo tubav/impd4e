@@ -42,7 +42,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -834,7 +834,6 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
         uint16_t dst_port = 0;
         uint8_t *src_ipa = 0;
         uint8_t *dst_ipa = 0;
-        uint32_t rule_id = 0;
 
         switch (t_id) {
             case TS_ID:
@@ -1674,29 +1673,35 @@ void export_data_sync(device_dev_t *dev, int64_t observationTimeMilliseconds,
 
 }
 
-void export_data_probe_stats(device_dev_t *dev) {
-    static uint16_t lengths[] = {8, 4, 8, 4, 4, 8, 8};
+void export_data_probe_stats(int64_t observationTimeMilliseconds) {
+    static uint16_t lengths[] = {8, 4, 8, 4, 4, 8, 8, 8};
     struct probe_stat probeStat;
 
-    void *fields[] = {&probeStat.observationTimeMilliseconds,
-        &probeStat.systemCpuIdle, &probeStat.systemMemFree,
-        &probeStat.processCpuUser, &probeStat.processCpuSys,
-        &probeStat.processMemVzs, &probeStat.processMemRss};
+    void *fields[] = { &probeStat.observationTimeMilliseconds
+                     , &probeStat.systemCpuIdle
+                     , &probeStat.systemMemFree
+                     , &probeStat.processCpuUser
+                     , &probeStat.processCpuSys
+                     , &probeStat.processMemVzs
+                     , &probeStat.processMemRss
+                     , &probeStat.systemMemTotal
+                     };
 
-    probeStat.observationTimeMilliseconds = (uint64_t) ev_now(EV_DEFAULT)
-            * 1000;
+    ipfix_template_t* t = get_template(PROBE_STATS_ID);
+
+    probeStat.observationTimeMilliseconds = observationTimeMilliseconds;
     get_probe_stats(&probeStat);
 
-    if (ipfix_export_array(ipfix(), get_template(PROBE_STATS_ID), 7,
-            fields, lengths) < 0) {
+    if (ipfix_export_array(ipfix(), t, t->nfields, fields, lengths) < 0) {
         LOGGER_error("ipfix export failed: %s", strerror(errno));
         return;
     }
-
+    if (ipfix_export_flush(ipfix()) < 0) {
+        LOGGER_error("Could not export IPFIX (flush) ");
+    }
 }
 
-void export_data_location(device_dev_t *dev,
-        int64_t observationTimeMilliseconds) {
+void export_data_location(int64_t observationTimeMilliseconds) {
     static uint16_t lengths[] = {8, 4, 0, 0, 0, 0};
     lengths[2] = strlen(getOptions()->s_latitude);
     lengths[3] = strlen(getOptions()->s_longitude);
@@ -1705,6 +1710,7 @@ void export_data_location(device_dev_t *dev,
     void *fields[] = {&observationTimeMilliseconds, &getOptions()->ipAddress,
         getOptions()->s_latitude, getOptions()->s_longitude,
         getOptions()->s_probe_name, getOptions()->s_location_name};
+
     LOGGER_debug("export data location");
     //LOGGER_fatal("%s; %s",getOptions()->s_latitude, getOptions()->s_longitude );
     if (ipfix_export_array(ipfix(), get_template(LOCATION_ID),
@@ -1715,7 +1721,6 @@ void export_data_location(device_dev_t *dev,
     if (ipfix_export_flush(ipfix()) < 0) {
         LOGGER_error("Could not export IPFIX (flush) ");
     }
-
 }
 
 /**
@@ -1757,7 +1762,6 @@ void export_flush_device(device_dev_t* device) {
 
 /**
  * Periodically called each export time interval.
- *
  */
 void export_timer_pktid_cb(EV_P_ ev_timer *w, int revents) {
     LOGGER_trace("export timer tick");
@@ -1785,24 +1789,16 @@ void export_timer_sampling_cb(EV_P_ ev_timer *w, int revents) {
 }
 
 void export_timer_stats_cb(EV_P_ ev_timer *w, int revents) {
-    /* using ipfix handle from first interface */
-    export_data_probe_stats(&if_devices[0]);
-    export_flush();
+    LOGGER_trace("export timer probe stats call back");
+    export_data_probe_stats( (uint64_t) ev_now(EV_A) * 1000 );
 }
 
 /**
  * Peridically called
  */
 void export_timer_location_cb(EV_P_ ev_timer *w, int revents) {
-    int i;
-    uint64_t observationTimeMilliseconds;
     LOGGER_trace("export timer location call back");
-    observationTimeMilliseconds = (uint64_t) ev_now(EV_A) * 1000;
-    for (i = 0; i < g_options.number_interfaces; i++) {
-        device_dev_t *dev = &if_devices[i];
-        export_data_location(dev, observationTimeMilliseconds);
-    }
-    //export_flush();
+    export_data_location( (uint64_t) ev_now(EV_A) * 1000 );
 }
 
 /**
@@ -1810,13 +1806,10 @@ void export_timer_location_cb(EV_P_ ev_timer *w, int revents) {
  * to netcon
  */
 void resync_timer_cb(EV_P_ ev_timer *w, int revents) {
-    int i;
-    ipfix_collector_sync_t *col;
+   ipfix_collector_sync_t *col;
 
-    for (i = 0; i < (g_options.number_interfaces); i++) {
-        col = (ipfix_collector_sync_t*) (ipfix()->collectors);
-        LOGGER_debug("collector_fd: %d", col->fd);
-        netcon_resync(EV_A_ col->fd);
-    }
+   col = (ipfix_collector_sync_t*) (ipfix()->collectors);
+   LOGGER_debug("collector_fd: %d", col->fd);
+   netcon_resync(EV_A_ col->fd);
 }
 

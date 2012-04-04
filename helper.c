@@ -42,7 +42,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <netinet/in.h>
 
 #ifndef PFRING

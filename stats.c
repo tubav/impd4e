@@ -347,6 +347,7 @@ int get_probe_stats(struct probe_stat *stat ){
 	stat->processCpuSys  = (process.stime - process_stime_prev) / cpu_total_delta ;
 	stat->processCpuUser = (process.utime - process_utime_prev) / cpu_total_delta ;
 	stat->systemMemFree  = memFree;
+	stat->systemMemTotal = memTotal;
 	stat->processMemVzs  = process.vsize;
 	stat->processMemRss  = process.rss * pagesize;
 

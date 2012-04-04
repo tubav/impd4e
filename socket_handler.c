@@ -34,6 +34,7 @@
 
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -45,12 +46,11 @@
 
 #include <sys/un.h>
 #include <sys/ioctl.h>
-#include <sys/sysinfo.h> /* TODO review: sysinfo is Linux only */
 #include <sys/times.h>
 
 #include <netinet/in.h>
 #include <netinet/in.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <arpa/inet.h>
 
 // Custom logger
@@ -74,7 +74,7 @@ ip_port_t;
 ip_port_t parse_ip_port( char* s ) {
    ip_port_t rValue = {"",""};
 
-   char* tmp;
+   char* tmp = NULL;
 
    // get ip address
    char*  tok = strtok_r(s, ":", &tmp);
@@ -281,7 +281,7 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
    // connect the socket to the destination
    // FIXME: this won't build on OpenWrt
 #ifndef OPENWRT_BUILD
-   if (0 > connect(s, (__CONST_SOCKADDR_ARG) &socket_address, socket_addressLength)) {
+   if (0 > connect(s, (const struct sockaddr *) &socket_address, socket_addressLength)) {
       perror("socket: connect");
       exit(2);
    }

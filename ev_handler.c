@@ -834,6 +834,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
         uint16_t dst_port = 0;
         uint8_t *src_ipa = 0;
         uint8_t *dst_ipa = 0;
+        uint32_t rule_id = 0;
 
         switch (t_id) {
             case TS_ID:

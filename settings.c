@@ -305,7 +305,7 @@ hashFunction parseFunction(char *arg_string) {
             , strlen(hashfunctions[k].hstring)) == 0)
       {
          j = k;
-         LOGGER_info("using %s as hashFunction \n", hashfunctions[k].hstring);
+         LOGGER_info("using %s as hashFunction", hashfunctions[k].hstring);
       }
    }
    return hashfunctions[j].function;
@@ -354,7 +354,7 @@ void print_help() {
 			"\t s - inet udp socket (AF_INET);    -i s:192.168.0.42:4711\n"
 			"\t u - unix domain socket (AF_UNIX); -i u:/tmp/socket.AF_UNIX\n"
 			#else
-            "   -i  <r>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
+			"   -i  <r>:<interface>    interface(s) to listen on. It can be used multiple times.\n"
 			"\t r - ethernet adapter using pfring;-i r:eth0\n"
 			#endif
 			"\n"
@@ -363,10 +363,10 @@ void print_help() {
 			"\n"
 			"options: \n"
             #ifdef PFRING
-            "   -a <filter keyword>:<value>    Filtering if using PF_RING\n"
-				"\t\t\t\t  Specify an packet filter and/or the default\n"
-                "\t\t\t\t  filtering policy (valid for all filters).\n"
-                "\t\t\t\t  It can be used multiple times.\n"
+			"   -a <filter keyword>:<value>    Filtering if using PF_RING\n"
+			"\t\t\t\t  Specify an packet filter and/or the default\n"
+			"\t\t\t\t  filtering policy (valid for all filters).\n"
+			"\t\t\t\t  It can be used multiple times.\n"
             #endif // PFRING
 			"   -C  <Collector IP>             an IPFIX collector address\n"
 			"                                  Default: localhost\n"
@@ -410,7 +410,7 @@ void print_help() {
 			"\n"
 			"   -O <offset>                    offset in bytes pointing to the start of the packet \n"
 			"                                  used for tunneled or crooked packets\n"
-         "                                  !!! the offset is applied after the link layer (e.g. ethernet header)\n"
+			"                                  !!! the offset is applied after the link layer (e.g. ethernet header)\n"
 			"   -p  <hash function>            use different hash_function for packetID generation:\n"
 			"                                  \"BOB\", \"OAAT\", \"TWMX\", \"HSIEH\" \n"
 			"\n"
@@ -447,6 +447,7 @@ void print_help() {
 			"                                  Example: '-vv*,-main' matches anything but main-function (level 2)\n"
 			"                                  Example: '-vvv*export*,-*flush, \n"
 			"                                           matches all functions containing export, but not ending of flush\n"
+			"                                  (PS: for all verbosity output this parameter must be the first)\n"
 			"\n"
 			"   -h                             print this help \n"
 			"   -V                             print version information \n"
@@ -487,6 +488,7 @@ bool check_file_name( char* arg ) {
 
 int opt_unknown_parameter( char* arg, options_t* options ) {
 //   LOGGER_warn( "unkown parameter" );
+   LOGGER_info("[CONF] unknown parameter");
    return -1;
 }
 
@@ -513,6 +515,7 @@ int opt_c( char* arg, options_t* options ) {
             perror(err_string);
             exit(1);
          }
+         LOGGER_info("[CONF] read configuration file: %s ", arg);
          read_options_file_v2(cfile, options);
          fclose(cfile);
       //}
@@ -713,6 +716,11 @@ int opt_v( char* arg, options_t* options ) {
       }
       //fprintf( stderr, "filter string: '%s'\n", options->verbosity_filter_string);
    }
+
+   // set log level directly during evaluation
+   logger_set_level(options->verbosity);
+   logger_set_filter(options->verbosity_filter_string);
+
    return 0;
 }
 
@@ -922,7 +930,12 @@ char ** read_options_file_v2( FILE *file, options_t* options ) {
 
             sprintf( fullkey, "%s.%s", heading, key );
             // TODO: is strdup nessesary here
-            find_opt_function_key(fullkey)( strdup(value), options);
+            if( 0 > find_opt_function_key(fullkey)( strdup(value), options) ) {
+                LOGGER_info("[CONF] %s: %s (failed)", fullkey, value);
+            }
+            else  {
+                LOGGER_info("[CONF] %s: %s (succeed)", fullkey, value);
+            }
          }
       }
    }
@@ -1271,6 +1284,7 @@ void parse_cmdline_v2(int argc, char **argv) {
    //fprintf(stderr, "%s\n", par);
 
    while (-1 != (c = getopt(argc, argv, par))) {
+      LOGGER_info("[CONF] set %c: %s", c, optarg);
       if( -1 == find_opt_function_char( c )(optarg, &g_options) ) {
          exit(-1);
       }

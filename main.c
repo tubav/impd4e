@@ -218,10 +218,7 @@ int main(int argc, char *argv[]) {
    // see settings.c
    parse_cmdline_v2(argc, argv);
    //parse_cmdline(argc, argv);
-   LOGGER_info( "parse_cmdline() okay");
-
-   logger_set_level(g_options.verbosity);
-   logger_set_filter(g_options.verbosity_filter_string);
+   LOGGER_info( "[CONF] parse_cmdline() okay");
 
    // set probe name to host name if not set
    if( NULL == g_options.s_probe_name )

@@ -171,6 +171,7 @@ set_cfg_fct_t getFunction(char cmd) {
  * It breaks all loops and leads to shutdown.
  */
 void sigint_cb(EV_P_ ev_signal *w, int revents) {
+    fprintf(stderr, "\n");
     LOGGER_info("Signal INT received");
     ev_unloop(EV_A_ EVUNLOOP_ALL);
 }

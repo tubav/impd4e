@@ -766,7 +766,7 @@ inline void apply_offset(packet_t *pkt, uint32_t offset) {
 }
 
 void handle_default_packet(packet_t *packet, packet_info_t *packet_info) {
-    LOGGER_warn("packet type: 0x%04X (not supported)", packet_info->nettype);
+    LOGGER_info("packet type: 0x%04X (not supported)", packet_info->nettype);
 }
 
 void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
@@ -799,7 +799,19 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
 
     // hash the chosen packet data
     hash_id = g_options.hash_function(&packet_info->device->hash_buffer);
-    LOGGER_trace("hash id: 0x%08X", hash_id);
+    if( LOGGER_LEVEL_DEBUG == logger_get_level() ) {
+        uint8_t*  b = packet_info->device->hash_buffer.ptr;
+        uint32_t bl = packet_info->device->hash_buffer.len;
+        // create null terminated string
+        char str_buffer[3*bl];
+        char* p = str_buffer;
+        int i = 0;
+        for( i = 0; i < bl; ++i, p+=3 ) {
+            sprintf(p, "%02x ", b[i]);
+        }
+        *(p-1)='\0';
+        LOGGER_debug("hash id: 0x%08X (%u) (%s)", hash_id, hash_id, str_buffer);
+    }
 
     // hash id must be in the chosen selection range to count
     if ((g_options.sel_range_min <= hash_id) &&

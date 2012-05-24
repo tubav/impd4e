@@ -786,6 +786,19 @@ int opt_n( char* arg, options_t* options ) {
    return 0;
 }
 
+int opt_X( char* arg, options_t* options ) {
+   // hash the given value with the selectet hash-function
+
+   buffer_t b;
+   b.ptr = (uint8_t*) arg;
+   b.len = strlen(arg);
+   b.size = b.len;
+   int hash = options->hash_function(&b);
+   printf( "hash=%04x for '%s'\n", hash, b.ptr);
+
+   exit(0);
+}
+
 int opt_y( char* arg, options_t* options ) {
    // TODO
    //			options->export_sysinfo = true;
@@ -829,6 +842,7 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'L',":" , &opt_L, "geotags.longitude"              },
 	{ 'c',":" , &opt_c, "general.configfile" }, // TODO:something
 	{ 'n',""  , &opt_n, "" },
+	{ 'X',":" , &opt_X, "" },
 	{ 'y',""  , &opt_y, "" },
 #ifdef PFRING
 	{ 'a',":" , &opt_a, "" },

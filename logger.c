@@ -196,7 +196,6 @@ void logger ( int level, const char *file, int line, const char *function,  char
    }
 
    if( is_logging(function) ) {
-      static char tmpbuf[4001];
       static const char strlevel [][6] = {
          "FATAL",
          "ERROR",
@@ -215,18 +214,27 @@ void logger ( int level, const char *file, int line, const char *function,  char
 
       gettimeofday(&tv, NULL);
       curtime=tv.tv_sec;
-      // varargs
-      va_list args;
-
-      // processing varargs
-      va_start(args, fmt);
-      (void) vsnprintf( tmpbuf, sizeof(tmpbuf), fmt, args );
-      va_end(args);
 
       // creating log string
       strftime(timeBuffer,30,logger_model.time_fmt, localtime(&curtime));
-      fprintf( logger_model.fp, "%s%ld %s %s (%s(), %s:%d)\n",
-            timeBuffer, tv.tv_usec, strlevel[level],  tmpbuf,function, file, line );
+
+      // TODO: syncronisation may be needed
+      // print start of line
+      fprintf( logger_model.fp, "%s%ld %s ", timeBuffer, tv.tv_usec, strlevel[level]);
+
+      // varargs
+      va_list args;
+      // processing varargs
+      va_start(args, fmt);
+
+      // print user data
+      vfprintf( logger_model.fp, fmt, args );
+
+      va_end(args);
+
+      // print end of line
+      fprintf( logger_model.fp, " (%s(), %s:%d)\n", function, file, line );
+
       fflush( logger_model.fp );
    }
 }

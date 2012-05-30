@@ -113,7 +113,8 @@ void export_data_location(int64_t observationTimeMilliseconds);
 
 
 /* -- event loop -- */
-void event_loop( EV_P );
+void event_loop_init( EV_P );
+void event_loop_start( EV_P );
 ev_timer* event_register_timer(EV_P_ ev_tstamp tstamp, timer_cb_t* cb );
 void event_setup_pcapdev(EV_P);
 void event_setup_netcon(EV_P);

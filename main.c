@@ -261,7 +261,8 @@ int main(int argc, char *argv[]) {
    LOGGER_info( "Setup IPFIX Exporter" );
 
    /* ---- main event loop  ---- */
-   event_loop( EV_DEFAULT ); // TODO: refactoring?
+   event_loop_init( EV_DEFAULT ); // TODO: refactoring?
+   event_loop_start( EV_DEFAULT ); // TODO: refactoring?
 
    // init event-loop
    // todo: loop = init_event_loop();

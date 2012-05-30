@@ -240,8 +240,8 @@ void user_input_cb(EV_P_ ev_io *w, int revents) {
 /**
  * Setups and starts main event loop.
  */
-void event_loop(EV_P) {
-    LOGGER_info("event_loop()");
+void event_loop_init(EV_P) {
+    LOGGER_info("event_loop_init()");
 
     /*=== Setting up event loop ==*/
 
@@ -301,12 +301,18 @@ void event_loop(EV_P) {
     /* setup network console */
     event_setup_netcon(EV_A);
 
+    return;
+}
+
+void event_loop_start( EV_P ) {
+    LOGGER_info("event_loop_start()");
     /* Enter main event loop; call unloop to exit.
      *
      * Everything is going to be handled within this call
      * accordingly to callbacks defined above.
      * */
     ev_loop(EV_A_ 0);
+    return;
 }
 
 /**
@@ -317,8 +323,7 @@ void event_setup_netcon(EV_P) {
     int port = 5000;
 
     if (netcon_init(EV_A_ host, port) < 0) {
-        LOGGER_error("could not initialize netcon: host: %s, port: %d ", host,
-                port);
+        LOGGER_error("could not initialize netcon: host: %s, port: %d ", host, port);
     }
 
     // register runtime configuration callback to netcon
@@ -934,8 +939,15 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
             export_flush();
         }
 
+        // reset dropped packet, if a packet was processed
+        packet_info->device->packets_dropped = 0;
 
     } // if (hash in selection range)
+    else {
+        // count dropped packets
+        packet_info->device->packets_dropped++;
+        LOGGER_debug("packets dropped: %u\n", packet_info->device->packets_dropped);
+    }
 }
 
 void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_char * packet) {

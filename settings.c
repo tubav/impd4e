@@ -1598,7 +1598,8 @@ void set_defaults_options(options_t *options) {
 
 void set_defaults_device(device_dev_t* dev) {
 
-   // set initial export packe count
+   // set initial export packet count
+   dev->packets_dropped = 0;
    dev->export_packet_count = 0;
 
    // allocate memory for outbuffer; depend on cmd line options

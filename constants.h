@@ -253,6 +253,7 @@ typedef struct device_dev {
    buffer_t          hash_buffer;
    uint32_t          export_packet_count;
    uint64_t          totalpacketcount;
+   uint32_t          packets_dropped; // packet drop due to sampling
    struct timeval    last_export_time;
    uint32_t          sampling_size;
    uint64_t          sampling_delta_count;

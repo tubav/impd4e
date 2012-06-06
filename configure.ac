@@ -3,7 +3,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([impd4e],[1.0])
-AC_CONFIG_SRCDIR([./main.c])
+AC_CONFIG_SRCDIR([./src/main.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config.h])
 AC_CANONICAL_TARGET

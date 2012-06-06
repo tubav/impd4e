@@ -36,7 +36,7 @@ OPENSSL = @OPENSSL@
 DEFS = @DEFS@
 # no strict aliasing becauses it produce  many warnings due to libev
 CFLAGS = @CFLAGS@ -Wall -Wno-strict-aliasing
-CPPFLAGS  = -I.
+CPPFLAGS  = -I. -I./include
 CPPFLAGS += @CPPFLAGS@
 CPPFLAGS += @EV_CFLAGS@
 
@@ -51,7 +51,8 @@ OBJDIR = .object
 
 TARGETS = impd4e
 # get all source files
-SRCS = $(wildcard *.c) 
+SOURCE_DIR = src
+SRCS = $(notdir $(wildcard $(SOURCE_DIR)/*.c))
 # build all object files in a separate dir
 OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
 CLEANFILES = $(TARGETS) $(DEPDIR) $(OBJDIR) *.o *.d version.h
@@ -105,7 +106,7 @@ impd4e_pf: $(OBJS)
 #	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(OBJS) $(PFLIBS) -o $@
 
 # generate rules file with all dependencies for each object file
-$(DEPDIR)/%.d: %.c | $(DEPDIR)
+$(DEPDIR)/%.d: $(SOURCE_DIR)/%.c | $(DEPDIR)
 	@set -e; rm -f $@; \
 	$(CC) -MM -MG $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -MF $@.$$$$; \
 	sed 's,\($*\)\.o[ :]*,$(OBJDIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
@@ -115,7 +116,7 @@ $(DEPDIR):
 	@mkdir -p $@
 
 # generate each object file
-$(OBJDIR)/%.o: %.c | $(OBJDIR)
+$(OBJDIR)/%.o: $(SOURCE_DIR)/%.c | $(OBJDIR)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(DEFS) $< -o $@
 
 $(OBJDIR):

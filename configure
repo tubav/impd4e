@@ -554,7 +554,7 @@ PACKAGE_STRING='impd4e 1.0'
 PACKAGE_BUGREPORT=''
 PACKAGE_URL=''
 
-ac_unique_file="./main.c"
+ac_unique_file="./src/main.c"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>

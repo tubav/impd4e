@@ -86,6 +86,7 @@
 
 /**
  * Event and Signal handling via libev
+ * TODO: deprecated
  */
 struct {
     ev_signal sigint_watcher;
@@ -98,6 +99,19 @@ struct {
     ev_timer resync_timer;
     ev_io packet_watchers[MAX_INTERFACES];
 } events;
+
+/**
+ * Event and Signal handling via libev
+ */
+ev_signal sigint_watcher;
+ev_signal sigalrm_watcher;
+ev_signal sigpipe_watcher;
+ev_watcher* export_timer_pkid;
+ev_watcher* export_timer_sampling;
+ev_watcher* export_timer_stats;
+ev_watcher* export_timer_location;
+ev_watcher* resync_timer;
+ev_watcher* packet_watchers[MAX_INTERFACES];
 
 //typedef struct {
 //  char cmd;
@@ -190,7 +204,7 @@ void sigalrm_cb(EV_P_ ev_signal *w, int revents) {
     LOGGER_info("Signal ALRM received");
 }
 
-void user_input_cb(EV_P_ ev_io *w, int revents) {
+void user_input_cb(EV_P_ ev_watcher *w, int revents) {
     char buffer[129];
     //int   i = 0;
     //char  c = EOF;
@@ -239,6 +253,83 @@ void user_input_cb(EV_P_ ev_io *w, int revents) {
 
 /**
  * Setups and starts main event loop.
+ *  @Depreciated in favor for event_loop_init(EV_P)
+ */
+void event_loop(EV_P) {
+    LOGGER_info("event_loop_init()");
+
+    /*=== Setting up event loop ==*/
+
+    /* signals */
+    ev_signal_init(&events.sigint_watcher, sigint_cb, SIGINT);
+    ev_signal_start(EV_A_ & events.sigint_watcher);
+    ev_signal_init(&events.sigalrm_watcher, sigalrm_cb, SIGALRM);
+    ev_signal_start(EV_A_ & events.sigalrm_watcher);
+    ev_signal_init(&events.sigpipe_watcher, sigpipe_cb, SIGPIPE);
+    ev_signal_start(EV_A_ & events.sigpipe_watcher);
+
+    /* resync   */
+    ev_timer_init(&events.resync_timer, (timer_cb_t)resync_timer_cb, 0, RESYNC_PERIOD);
+    ev_timer_again(EV_A_ & events.resync_timer);
+
+    /* export timers */
+    /* export device measurements */
+    ev_timer_init(&events.export_timer_pkid
+    		, (timer_cb_t)export_timer_pktid_cb //callback
+            , 0 // after
+            , g_options.export_pktid_interval // repeat
+            );
+    // trigger first after 'repeat'
+    ev_timer_again(EV_A_ & events.export_timer_pkid);
+
+    /* export device sampling stats */
+    ev_timer_init(&events.export_timer_sampling
+    		, (timer_cb_t)export_timer_sampling_cb // callback
+            , 0 // after, not used for ev_timer_again
+            , g_options.export_sampling_interval // repeat
+            );
+    // trigger first after 'repeat'
+    ev_timer_again(EV_A_ & events.export_timer_sampling);
+
+    /* export system stats - with at least one export*/
+    ev_timer_init(&events.export_timer_stats
+    		, (timer_cb_t)export_timer_stats_cb // callback
+            , 0 // after
+            , g_options.export_stats_interval // repeat
+            );
+    // trigger first after 'after' then after 'repeat'
+    ev_timer_start(EV_A_ & events.export_timer_stats);
+
+    /* export system location - with at least one export*/
+    ev_timer_init(&events.export_timer_location
+    		, (timer_cb_t)export_timer_location_cb // callback
+            , 0 // after
+            , g_options.export_location_interval // repeat
+            );
+    // trigger first after 'after' then after 'repeat'
+    ev_timer_start(EV_A_ & events.export_timer_location);
+
+    // listen to standart input
+    ev_io event_io;
+    ev_io_init(&event_io, (io_cb_t)user_input_cb, STDIN_FILENO, EV_READ);
+    ev_io_start(EV_A_ & event_io);
+
+    /*   packet watchers */
+    event_setup_pcapdev(EV_A);
+
+    /* setup network console */
+    event_setup_netcon(EV_A);
+
+    /* Enter main event loop; call unloop to exit.
+     *
+     * Everything is going to be handled within this call
+     * accordingly to callbacks defined above.
+     * */
+    ev_loop(EV_A_ 0);
+}
+
+/**
+ * Setups and starts main event loop.
  */
 void event_loop_init(EV_P) {
     LOGGER_info("event_loop_init()");
@@ -253,47 +344,43 @@ void event_loop_init(EV_P) {
     ev_signal_init(&events.sigpipe_watcher, sigpipe_cb, SIGPIPE);
     ev_signal_start(EV_A_ & events.sigpipe_watcher);
 
-    /* resync   */
-    ev_timer_init(&events.resync_timer, resync_timer_cb, 0, RESYNC_PERIOD);
-    ev_timer_again(EV_A_ & events.resync_timer);
+    /* re-sync   */
+    resync_timer = event_register_timer_w(
+    		EV_A_
+    		resync_timer_cb,
+    		RESYNC_PERIOD);
 
     /* export timers */
     /* export device measurements */
-    ev_timer_init(&events.export_timer_pkid, export_timer_pktid_cb //callback
-            , 0 // after
-            , g_options.export_pktid_interval // repeat
-            );
-    // trigger first after 'repeat'
-    ev_timer_again(EV_A_ & events.export_timer_pkid);
+    export_timer_pkid = event_register_timer_w(
+    		EV_A_
+    		export_timer_pktid_cb,
+    		g_options.export_pktid_interval
+    		);
 
     /* export device sampling stats */
-    ev_timer_init(&events.export_timer_sampling, export_timer_sampling_cb // callback
-            , 0 // after, not used for ev_timer_again
-            , g_options.export_sampling_interval // repeat
-            );
-    // trigger first after 'repeat'
-    ev_timer_again(EV_A_ & events.export_timer_sampling);
+    export_timer_sampling = event_register_timer_w(
+    		EV_A_
+    		export_timer_sampling_cb,
+    		g_options.export_sampling_interval
+    		);
 
     /* export system stats - with at least one export*/
-    ev_timer_init(&events.export_timer_stats, export_timer_stats_cb // callback
-            , 0 // after
-            , g_options.export_stats_interval // repeat
-            );
-    // trigger first after 'after' then after 'repeat'
-    ev_timer_start(EV_A_ & events.export_timer_stats);
+    export_timer_stats = event_register_timer(
+    		EV_A_
+    		export_timer_stats_cb,
+    		g_options.export_stats_interval
+    		);
 
     /* export system location - with at least one export*/
-    ev_timer_init(&events.export_timer_location, export_timer_location_cb // callback
-            , 0 // after
-            , g_options.export_location_interval // repeat
-            );
-    // trigger first after 'after' then after 'repeat'
-    ev_timer_start(EV_A_ & events.export_timer_location);
+    export_timer_location = event_register_timer(
+    		EV_A_
+    		export_timer_location_cb,
+    		g_options.export_location_interval
+    		);
 
     // listen to standart input
-    ev_io event_io;
-    ev_io_init(&event_io, user_input_cb, STDIN_FILENO, EV_READ);
-    ev_io_start(EV_A_ & event_io);
+    event_register_io_r(EV_A_ user_input_cb, STDIN_FILENO);
 
     /*   packet watchers */
     event_setup_pcapdev(EV_A);
@@ -355,7 +442,8 @@ void event_setup_pcapdev(EV_P) {
          we know which device to read the packet from */
         // todo: review; where is the memory allocated
         events.packet_watchers[i].data = (device_dev_t *) pcap_dev_ptr;
-        ev_io_init(&events.packet_watchers[i], packet_watcher_cb
+        ev_io_init(&events.packet_watchers[i]
+                , (io_cb_t)packet_watcher_cb
                 , fd
                 , EV_READ);
         ev_io_start(EV_A_ & events.packet_watchers[i]);
@@ -363,10 +451,82 @@ void event_setup_pcapdev(EV_P) {
 }
 
 /**
+ * register io call-backs for reading
+ */
+ev_watcher* event_register_io_r(EV_P_ watcher_cb_t cb, int fd) {
+	ev_io* ev_handle = (ev_io*) malloc(sizeof(ev_io));
+
+	// ev_init does not case to ev_watcher, while setting callback
+	ev_init( ev_handle, (io_cb_t)cb);
+	ev_io_set(ev_handle, fd, EV_READ);
+    ev_io_start(EV_A_ ev_handle);
+
+	return (ev_watcher*) ev_handle;
+}
+
+/**
+ * register io call-backs for writing
+ */
+ev_watcher* event_register_io_w(EV_P_ watcher_cb_t cb, int fd) {
+	ev_io* ev_handle = (ev_io*) malloc(sizeof(ev_io));
+
+	// ev_init does not case to ev_watcher, while setting callback
+	ev_init( ev_handle, (io_cb_t)cb);
+	ev_io_set(ev_handle, fd, EV_WRITE);
+    ev_io_start(EV_A_ ev_handle);
+
+	return (ev_watcher*) ev_handle;
+}
+
+/**
+ * register io call-backs for reading and writing
+ */
+ev_watcher* event_register_io(EV_P_ watcher_cb_t cb, int fd) {
+	ev_io* ev_handle = (ev_io*) malloc(sizeof(ev_io));
+
+	// ev_init does not case to ev_watcher, while setting callback
+	ev_init( ev_handle, (io_cb_t)cb);
+	ev_io_set(ev_handle, fd, EV_READ|EV_WRITE);
+    ev_io_start(EV_A_ ev_handle);
+
+	return (ev_watcher*) ev_handle;
+}
+
+/**
+ * register timer callbacks
+ * first execution of the callback immediately
+ */
+ev_watcher* event_register_timer(EV_P_ watcher_cb_t cb, double to) {
+	ev_timer* ev_handle = (ev_timer*) malloc(sizeof(ev_timer));
+
+	// ev_init does not case to ev_watcher, while setting callback
+	ev_init( ev_handle, (timer_cb_t)cb);
+	ev_timer_set(ev_handle, 0, to);
+    ev_timer_start(EV_A_ ev_handle);
+
+	return (ev_watcher*) ev_handle;
+}
+
+/**
+ * register timer callbacks
+ * first execution of the callback after timeout
+ */
+ev_watcher* event_register_timer_w(EV_P_ watcher_cb_t cb, double to) {
+	ev_timer* ev_handle = (ev_timer*) malloc(sizeof(ev_timer));
+
+	// ev_init does not case to ev_watcher, while setting callback
+	ev_init( ev_handle, (timer_cb_t)cb);
+	ev_timer_set(ev_handle, 0, to);
+    ev_timer_again(EV_A_ ev_handle);
+
+	return (ev_watcher*) ev_handle;
+}
+
+/**
  * Called whenever a new packet is available. Note that packet_pcap_cb is
  * responsible for reading the packet.
  */
-void packet_watcher_cb(EV_P_ ev_io *w, int revents) {
+void packet_watcher_cb(EV_P_ ev_watcher *w, int revents) {
     int error_number = 0;
 
     LOGGER_trace("Enter");
@@ -570,7 +730,7 @@ static void print_array(const u_char *p, int l) {
     int i = 0;
     for (i = 0; i < l; ++i) {
         if( 0 != i && 0 == i%4 ) {
-           if( 0 == i%20 ) 
+           if( 0 == i%20 )
               fprintf(stderr, "\n");
            else
               fprintf(stderr, "| ");
@@ -731,7 +891,7 @@ inline packet_t decode_array(packet_t* p) {
 // [length][data]
 inline packet_t decode_raw(packet_t *p, uint32_t len) {
     packet_t data = {NULL, 0};
-    
+
     data.len = len;
     data.ptr = p->ptr;
     p->len -= len;
@@ -837,7 +997,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
         }
 
         uint32_t          t_id = packet_info->device->template_id;
-        
+
         t_id = (-1 == t_id) ? g_options.templateID : t_id;
 
         ipfix_template_t  *template = get_template( t_id );
@@ -915,7 +1075,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
                 index += set_value(&fields[index], &lengths[index], &dst_port, 2);
                 break;
             }
-     
+
             default:
                 LOGGER_info("!!!no template specified!!!");
                 return;
@@ -927,7 +1087,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
         //   LOGGER_debug( "%p: %d: %d", fields[i], lengths[i], *( (int*)fields[i]));
         //}
 
-        // send ipfix packet 
+        // send ipfix packet
         if (0 > ipfix_export_array(ipfix(), template, size, fields, lengths)) {
             LOGGER_fatal("ipfix_export() failed: %s", strerror(errno));
         }
@@ -1008,9 +1168,9 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
 //   uint8_t  layers[4] = { 0 };
 //   uint32_t hash_result;
 //   int packet_len = header->caplen;
-//   
+//
 //   LOGGER_trace("handle packet");
-//   
+//
 //   if_device->sampling_delta_count++;
 //   if_device->totalpacketcount++;
 //
@@ -1097,7 +1257,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
 ////      set_ip_version();
 ////      set_ip_length();
 ////      set_ip_id();
-//      
+//
 //      switch (g_options.templateID) {
 //      case TS_ID: {
 //         int index = 0;
@@ -1134,16 +1294,16 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
 //         break;
 //      }
 //
-//      case TS_TTL_PROTO_IP_ID: {          
+//      case TS_TTL_PROTO_IP_ID: {
 //          if (layers[L_NET] == N_IP) {
-//              length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 2])));  
+//              length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 2])));
 //          } else if (layers[L_NET] == N_IP6) {
 //              length = ntohs(*((uint16_t*) (&packet[if_device->offset[L_NET] + 4])));
 //          } else {
 //              LOGGER_fatal( "cannot parse packet length" );
 //              length = 0;
 //          }
-//          
+//
 //          int index = 0;
 //          index += set_value( &fields[index], &lengths[index], &timestamp, 8);
 //          index += set_value( &fields[index], &lengths[index], &hash_result, 4);
@@ -1155,7 +1315,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
 //          // TODO: switch template members
 //          uint32_t ipa = 0;
 //          if( N_IP == layers[L_NET] ) {
-//             index += set_value( &fields[index], &lengths[index], 
+//             index += set_value( &fields[index], &lengths[index],
 //                   (uint32_t*) &packet[if_device->offset[L_NET] + 12], 4);
 //          }
 //          else {
@@ -1173,7 +1333,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
 //          }
 //          index += set_value( &fields[index], &lengths[index], &port, 2);
 //          if( N_IP == layers[L_NET] ) {
-//             index += set_value( &fields[index], &lengths[index], 
+//             index += set_value( &fields[index], &lengths[index],
 //                   (uint32_t*) &packet[if_device->offset[L_NET] + 16], 4);
 //          }
 //          else {
@@ -1203,7 +1363,7 @@ void handle_packet(u_char *user_args, const struct pcap_pkthdr *header, const u_
 //      //   LOGGER_debug( "%p: %d: %d", fields[i], lengths[i], *( (int*)fields[i]));
 //      //}
 //
-//      // send ipfix packet 
+//      // send ipfix packet
 //      if (0 > ipfix_export_array(ipfix(), template, size, fields, lengths)) {
 //         LOGGER_fatal( "ipfix_export() failed: %s", strerror(errno));
 //         exit(1);
@@ -1624,7 +1784,7 @@ void export_flush_device(device_dev_t* device) {
 /**
  * Periodically called each export time interval.
  */
-void export_timer_pktid_cb(EV_P_ ev_timer *w, int revents) {
+void export_timer_pktid_cb(EV_P_ ev_watcher *w, int revents) {
     LOGGER_trace("export timer tick");
     export_flush();
 }
@@ -1632,7 +1792,7 @@ void export_timer_pktid_cb(EV_P_ ev_timer *w, int revents) {
 /**
  * Peridically called each export/sampling time interval
  */
-void export_timer_sampling_cb(EV_P_ ev_timer *w, int revents) {
+void export_timer_sampling_cb(EV_P_ ev_watcher *w, int revents) {
     int i;
     uint64_t observationTimeMilliseconds;
     LOGGER_trace("export timer sampling call back");
@@ -1649,7 +1809,7 @@ void export_timer_sampling_cb(EV_P_ ev_timer *w, int revents) {
     export_flush();
 }
 
-void export_timer_stats_cb(EV_P_ ev_timer *w, int revents) {
+void export_timer_stats_cb(EV_P_ ev_watcher *w, int revents) {
     LOGGER_trace("export timer probe stats call back");
     export_data_probe_stats( (uint64_t) ev_now(EV_A) * 1000 );
 }
@@ -1657,7 +1817,7 @@ void export_timer_stats_cb(EV_P_ ev_timer *w, int revents) {
 /**
  * Peridically called
  */
-void export_timer_location_cb(EV_P_ ev_timer *w, int revents) {
+void export_timer_location_cb(EV_P_ ev_watcher *w, int revents) {
     LOGGER_trace("export timer location call back");
     export_data_location( (uint64_t) ev_now(EV_A) * 1000 );
 }
@@ -1666,7 +1826,7 @@ void export_timer_location_cb(EV_P_ ev_timer *w, int revents) {
  * Periodically checks ipfix export fd and reconnects it
  * to netcon
  */
-void resync_timer_cb(EV_P_ ev_timer *w, int revents) {
+void resync_timer_cb(EV_P_ ev_watcher *w, int revents) {
    ipfix_collector_sync_t *col;
 
    col = (ipfix_collector_sync_t*) (ipfix()->collectors);

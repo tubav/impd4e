@@ -32,31 +32,11 @@
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EVENTHANDLER_H_
-#define EVENTHANDLER_H_
+#include "ev_handler.h"
 
-#include <ev.h>
+#ifndef _CONFIG_HANDLER_H_
+#define _CONFIG_HANDLER_H_
 
-// -----------------------------------------------------------------------------
-// Type definitions
-// -----------------------------------------------------------------------------
+void config_handler_init(EV_P);
 
-typedef void (*timer_cb_t)(EV_P_ ev_timer *w, int revents);
-typedef void (*io_cb_t)(EV_P_ ev_io *w, int revents);
-typedef void (*watcher_cb_t)(EV_P_ ev_watcher *w, int revents);
-
-/* -- event loop -- */
-void event_loop( EV_P );
-void event_loop_init( EV_P );
-void event_loop_start( EV_P );
-ev_watcher* event_register_io(EV_P_ watcher_cb_t cb, int fd);
-ev_watcher* event_register_io_r(EV_P_ watcher_cb_t cb, int fd);
-ev_watcher* event_register_io_w(EV_P_ watcher_cb_t cb, int fd);
-ev_watcher* event_register_timer(EV_P_ watcher_cb_t cb, double timeout);
-ev_watcher* event_register_timer_w(EV_P_ watcher_cb_t cb, double timeout);
-
-void event_deregister_timer( EV_P_ ev_timer *w );
-void event_deregister_io( EV_P_ ev_io *w );
-
-
-#endif /* EVENTHANDLER_H_ */
+#endif // _CONFIG_HANDLER_H_

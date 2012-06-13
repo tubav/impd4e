@@ -90,5 +90,7 @@ void libipfix_reconnect();
 
 ipfix_template_t* get_template( int template_id );
 
+void export_flush();
+
 #endif /* _IPFIX_HANDLER_H_*/
 

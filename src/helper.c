@@ -188,7 +188,7 @@ int get_file_desc( device_dev_t* pDevice ) {
       return 0;
       break;
    }
-
+   return 0;
 }
 
 #ifdef PFRING

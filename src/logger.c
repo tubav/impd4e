@@ -48,10 +48,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "logger.h"
 #include <stdarg.h>
 #include <sys/time.h>
 #include <time.h>
+
+#include "logger.h"
 
 /**
  * Logger model

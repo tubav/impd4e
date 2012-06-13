@@ -48,7 +48,7 @@
 #include "ipfix_fields_fokus.h"
 
 #include "ipfix_handler.h"
-#include "templates.h" // TODO: rename to ipfix_template.h
+#include "ipfix_templates.h"
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -90,7 +90,7 @@ ipfix_template_t  **templates[] = {
                     &ipfixtmpl_ts,
                     &ipfixtmpl_ts_ttl,
                     &ipfixtmpl_ts_ttl_ip,
-                                 }; 
+                                 };
 
 // -----------------------------------------------------------------------------
 // Structures, Typedefs
@@ -160,7 +160,7 @@ void libipfix_register_templates() {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
       exit(EXIT_FAILURE);
    }
-   
+
    if (IPFIX_MAKE_TEMPLATE( ipfix(),
             ipfixtmpl_interface_stats, export_fields_interface_stats) < 0) {
       LOGGER_fatal("template initialization failed: %s", strerror(errno));
@@ -307,4 +307,21 @@ ipfix_template_t* get_template( int template_id ) {
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
+
+/**
+ * This causes libipfix to send cached messages to
+ * the registered collectors.
+ */
+void export_flush() {
+    LOGGER_trace("ipfix flush export");
+	if (ipfix_export_flush(ipfix()) < 0) {
+		LOGGER_error("could not export ipfix-cache");
+		//         ipfix_reconnect();
+	}
+	return;
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+
 

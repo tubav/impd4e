@@ -33,18 +33,24 @@
  */
 
 
+// system header files
 #include <stdlib.h>
-
-// Custom logger
-#include "logger.h"
-
-#include "pcap_handler.h"
-#include "settings.h"
-#include "helper.h"
 
 #ifndef PFRING
 #include <pcap.h>
 #endif
+
+// local header files
+#include "pcap_handler.h"
+
+#include "ev_handler.h"
+#include "packet_handler.h"
+
+#include "settings.h"
+#include "helper.h"
+
+#include "logger.h"
+
 
 #ifndef PFRING
 void determineLinkType(device_dev_t* pcap_device) {
@@ -80,6 +86,7 @@ int pcap_dispatch_wrapper(dh_t dh, int cnt, pcap_handler ph, u_char* ua) {
    LOGGER_trace("Enter");
    return pcap_dispatch( dh.pcap, cnt, ph, ua );
    LOGGER_trace("Return");
+   return 0;
 }
 
 void open_pcap_file(device_dev_t* if_dev, options_t *options) {
@@ -96,6 +103,22 @@ void open_pcap_file(device_dev_t* if_dev, options_t *options) {
 
    determineLinkType(if_dev);
    setFilter(if_dev);
+
+   // TODO: some rework is still needed
+   // register timer handling for files to be read to ev_handler
+   LOGGER_debug("Register io handling for interface: %s", if_dev->device_name);
+
+   setNONBlocking(if_dev);
+
+   int fd = get_file_desc(if_dev);
+   LOGGER_debug("File Descriptor: %d", fd);
+
+   /* storing a reference of packet device to
+    be passed via watcher on a packet event so
+    we know which device to read the packet from */
+   LOGGER_info("register event timer: read pcap file (%s)", if_dev->device_name);
+   ev_watcher* watcher = event_register_timer(EV_DEFAULT_ packet_watcher_cb, 1);
+   watcher->data = (device_dev_t *) if_dev;
 
    return;
 }
@@ -132,30 +155,24 @@ void open_pcap(device_dev_t* if_dev, options_t *options) {
    determineLinkType(if_dev);
    setFilter(if_dev);
 
-   // dirty IP read hack - but socket problem with embedded interfaces
+   // TODO: some rework is still needed
+   // register read handling to ev_handler
+   LOGGER_debug("Register io handling for interface: %s", if_dev->device_name);
 
-   //			FILE *fp;
-   //			char *script = "getIPAddress.sh ";
-   //			char *cmdLine;
-   //			cmdLine = (char *) malloc((strlen(script) + strlen(
-   //					options->if_names[i]) + 1) * sizeof(char));
-   //			strcpy(cmdLine, script);
-   //			strcat(cmdLine, options->if_names[i]);
-   //			fp = popen(cmdLine, "r");
-   //
-   //			char IPAddress[LINE_LENGTH];
-   //			fgets(IPAddress, LINE_LENGTH, fp);
-   //			struct in_addr inp;
-   //			if (inet_aton(IPAddress, &inp) < 0) {
-   //				LOGGER_fatal( "read wrong IP format of Interface %s ",
-   //						options->if_names[i]);
-   //				exit(1);
-   //			}
-   //			if_devices[i].IPv4address = ntohl((uint32_t) inp.s_addr);
-   //			LOGGER_info( "Device %s has IP %s", options->if_names[i], htoa(
-   //					if_devices[i].IPv4address));
-   //			pclose(fp);
+   setNONBlocking(if_dev);
 
+   int fd = get_file_desc(if_dev);
+   LOGGER_debug("File Descriptor: %d", fd);
+
+   /* storing a reference of packet device to
+    be passed via watcher on a packet event so
+    we know which device to read the packet from */
+   // TODO: implement an own packet watcher callback
+   LOGGER_info("register event io: read pcap interface (%s)", if_dev->device_name);
+   ev_watcher* watcher = event_register_io_r(EV_DEFAULT_ packet_watcher_cb, fd);
+   watcher->data = (device_dev_t *) if_dev;
+
+   return;
 }
 #endif // #ifndef PFRING
 

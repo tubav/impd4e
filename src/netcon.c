@@ -1,10 +1,10 @@
 /*
- * impd4e - a small network probe which allows to monitor and sample datagrams 
- * from the network based on hash-based packet selection. 
- * 
+ * impd4e - a small network probe which allows to monitor and sample datagrams
+ * from the network based on hash-based packet selection.
+ *
  * Copyright (c) 2011
  *
- * Fraunhofer FOKUS  
+ * Fraunhofer FOKUS
  * www.fokus.fraunhofer.de
  *
  * in cooperation with
@@ -19,16 +19,16 @@
  *
  * For questions/comments contact packettracking@fokus.fraunhofer.de
  *
- * This program is free software; you can redistribute it and/or modify it under the 
+ * This program is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation;
  * either version 3 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT 
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -37,6 +37,8 @@
  * Network console
  *
  */
+
+// system header files
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -53,13 +55,20 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "logger.h"
+// local header files
 #include "netcon.h"
+
+#include "ev_handler.h"
+#include "ipfix_handler.h"
+
+#include "logger.h"
 
 
 #define SERVICE_NAME_LENGTH 64 /* service  = port no */
 #define MAX_CLIENTS 5  /* max number of simultaneous clients */
 #define BUFFER_SIZE 1024
+#define RESYNC_PERIOD 1.5 /* seconds */
+
 
 /* === MODEL === */
 /* used to store command callbacks */
@@ -67,11 +76,13 @@ struct registry {
    int(*cmd)(char *msg );
    struct registry *next;
 };
+
 /* read and write positions used for buffer manipulation*/
 typedef struct {
    uint16_t rd;
    uint16_t wr;
 }pos_t;
+
  /* Connection handling */
 struct connection {
    u_char sync;
@@ -86,6 +97,7 @@ struct connection {
    char  out_buf[BUFFER_SIZE];
    struct connection  *next;
 };
+
 struct netcon {
    int listen_fd;
    struct sockaddr_in listen_addr;
@@ -94,10 +106,28 @@ struct netcon {
    struct connection *conn; /* store active connections */
 } netcon;
 
+/* sync extension, depends on ipfix_collector_t defined in libipfix */
+/* do not change order !!! */
+/* TODO: this structure should come from libipfix */
+typedef struct collector_node_sync {
+   struct collector_node_sync *next;
+   int   usecount;
+   char* chost; /* collector hostname */
+   int   cport; /* collector port */
+   ipfix_proto_t protocol; /* used protocol (e.g. tcp) */
+   int   fd;    /* open socket */
+} ipfix_collector_sync_t;
+
+
 
 /* === PROTOTYPES === */
 static void connection_close( EV_P_ struct connection * conn);
 //static void connection_write( EV_P_ struct connection * conn, char * data );
+
+/* -- netcon / resync  -- */
+void resync_timer_cb (EV_P_ ev_watcher *w, int revents);
+int  netcon_resync( EV_P_ int fd );
+
 
 static int setnonblock(int fd) {
    int flags;
@@ -150,8 +180,8 @@ static void connection_read( struct connection * conn ){
    strncpy(msg,conn->in_buf, len );
 
    // exchange trailing control charater from string with \0 (mainly \r and \n)
-   do{ 
-     msg[len]='\0'; 
+   do{
+     msg[len]='\0';
    }while(iscntrl(msg[--len]));
 
    LOGGER_debug("cmd: %s",msg);
@@ -251,9 +281,8 @@ static void accept_cb(EV_P_ struct ev_io *w, int revents) {
 void netcon_register(int(*cmd)(char *msg )){
    struct registry **reg;
    if(cmd==NULL){
-      // TODO: change log level to debug
       // null commands should just be ignored
-      LOGGER_warn("command must not be null, ignored.");
+      LOGGER_debug("command must not be null, ignored.");
       return;
    }
    for( reg=&netcon.reg;(*reg)!=NULL;reg=&(*reg)->next);
@@ -277,15 +306,23 @@ void netcon_register(int(*cmd)(char *msg )){
 int netcon_init( EV_P_ char *host, int port ){
    struct addrinfo hints;
    struct addrinfo *rp,*serverAddrList;    /* list of server addresses */
-   int res; /* result */
-   char  service[SERVICE_NAME_LENGTH];
-   int reuseaddr_on = 1;
 
-   netcon.reg=NULL;
+   int   res; /* result */
+   int   reuseaddr_on = 1;
+   char  service[SERVICE_NAME_LENGTH];
+
+   netcon.reg  = NULL;
    netcon.conn = NULL;
 
    LOGGER_info("netcom sync only");
+
+   /* re-sync   */
+   LOGGER_info("register event timer: netcon resync");
+   event_register_timer_w( EV_A_ resync_timer_cb, RESYNC_PERIOD);
+
    return 0;
+
+// TODO: unsed code
 
    LOGGER_debug("netcon init: %s:%d",host, port);
    /* -- checking if we can use host port for binding address  */
@@ -359,6 +396,17 @@ int netcon_init( EV_P_ char *host, int port ){
 }
 void netcon_sync_cleanup(){
    LOGGER_debug("cleaning up sync connection");
+}
+
+/**
+ * Periodically checks ipfix export fd and reconnects it to netcon
+ */
+void resync_timer_cb(EV_P_ ev_watcher *w, int revents) {
+   ipfix_collector_sync_t *col;
+
+   col = (ipfix_collector_sync_t*) (ipfix()->collectors);
+   LOGGER_debug("collector_fd: %d", col->fd);
+   netcon_resync(EV_A_ col->fd);
 }
 
 int netcon_resync( EV_P_ int fd ){

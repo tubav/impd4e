@@ -106,20 +106,6 @@ struct netcon {
    struct connection *conn; /* store active connections */
 } netcon;
 
-/* sync extension, depends on ipfix_collector_t defined in libipfix */
-/* do not change order !!! */
-/* TODO: this structure should come from libipfix */
-typedef struct collector_node_sync {
-   struct collector_node_sync *next;
-   int   usecount;
-   char* chost; /* collector hostname */
-   int   cport; /* collector port */
-   ipfix_proto_t protocol; /* used protocol (e.g. tcp) */
-   int   fd;    /* open socket */
-} ipfix_collector_sync_t;
-
-
-
 /* === PROTOTYPES === */
 static void connection_close( EV_P_ struct connection * conn);
 //static void connection_write( EV_P_ struct connection * conn, char * data );
@@ -402,9 +388,9 @@ void netcon_sync_cleanup(){
  * Periodically checks ipfix export fd and reconnects it to netcon
  */
 void resync_timer_cb(EV_P_ ev_watcher *w, int revents) {
-   ipfix_collector_sync_t *col;
+   ipfix_collector_t *col;
 
-   col = (ipfix_collector_sync_t*) (ipfix()->collectors);
+   col = ipfix()->collectors;
    LOGGER_debug("collector_fd: %d", col->fd);
    netcon_resync(EV_A_ col->fd);
 }

@@ -733,6 +733,18 @@ inline packet_t decode_raw(packet_t *p, uint32_t len) {
     return data;
 }
 
+inline uint64_t decode_uint64(packet_t *p) {
+    uint64_t value = 0;
+    int i = 0;
+    for( i = 0; i < 8; ++i ) {
+        value <<= 8;
+        value += *((uint8_t*) p->ptr);
+        --(p->len);
+        ++(p->ptr);
+    }
+    return value;
+}
+
 inline uint32_t decode_uint32(packet_t *p) {
     uint32_t value = ntohl(*((uint32_t*) p->ptr));
     p->len -= 4;
@@ -901,13 +913,25 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
      
             case TS_ID_EPC_ID:
             {
+                // an epc packet has 80 bytes of packet information
+                // and 4 bytes for a rule id
+                // and 8 bytes for a timestamp
+                // the packet must have a least 84 bytes for packet and rule id
+                // the packet must have a least 92 bytes for packet, rule id and timestamp
+
                 timestamp = get_timestamp(packet_info->ts);
                 src_ipa = get_ipa(packet, offsets[L_NET], layers[L_NET]);
                 src_port = get_port(packet, offsets[L_TRANS], layers[L_TRANS]);
                 dst_ipa = get_ipa(packet, offsets[L_NET] + 4, layers[L_NET]);
                 dst_port = get_port(packet, offsets[L_TRANS] + 2, layers[L_TRANS]);
                 
-                decode_raw(packet, packet->len-4);
+                if( 92 == packet->len ) {
+                    decode_raw(packet, packet->len-12);
+                    timestamp = decode_uint64(packet);
+                }
+                else {
+                    decode_raw(packet, packet->len-4);
+                }
                 rule_id = decode_uint32(packet);
                 
                 int index = 0;

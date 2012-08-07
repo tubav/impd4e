@@ -33,6 +33,8 @@
  */
 
 
+// system header files
+#include <stddef.h> // size_t
 #include <stdlib.h>
 #include <string.h>
 
@@ -43,7 +45,6 @@
 
 #include <errno.h>
 
-
 #include <sys/un.h>
 #include <sys/ioctl.h>
 #include <sys/times.h>
@@ -53,11 +54,18 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 
-// Custom logger
-#include "logger.h"
+
+// local header files
+#include "socket_handler.h"
+
+#include "ev_handler.h"
+#include "packet_handler.h"
 
 #include "settings.h"
-#include "socket_handler.h"
+#include "helper.h"
+
+// Custom logger
+#include "logger.h"
 
 
 #ifndef PFRING
@@ -85,11 +93,11 @@ ip_port_t parse_ip_port( char* s ) {
       tok = strtok_r(NULL, ":", &tmp);
       if (tok != NULL) {
          rValue.port = tok;
-      } 
+      }
       else {
          LOGGER_fatal("Please specify Port to listen on!\n");
       }
-   } else 
+   } else
    {
       LOGGER_fatal("Please specify IP to listen on!\n");
    }
@@ -110,7 +118,7 @@ void print_array( int log_level, char* fmt, const char* s, int l) {
          t += 3;
       }
       a[len] = '\0';
-      LOGGER_info( fmt, a ); 
+      LOGGER_info( fmt, a );
    }
 }
 
@@ -250,6 +258,23 @@ void open_socket_inet(device_dev_t* if_device, options_t *options) {
       // send 'hello' TODO: for test only
       //write( if_device->device_handle.socket, "HELLO!", 6 );
       //write( if_device->device_handle.socket, "", 1 );
+
+      // TODO: some rework is still needed
+      // register read handling to ev_handler
+      LOGGER_debug("Register io handling for interface: %s", if_device->device_name);
+
+      setNONBlocking(if_device);
+
+      int fd = get_file_desc(if_device);
+      LOGGER_debug("File Descriptor: %d", fd);
+
+      /* storing a reference of packet device to
+       be passed via watcher on a packet event so
+       we know which device to read the packet from */
+      // TODO: implement an own packet watcher callback
+      LOGGER_info("register event io: read inet socket interface (%s)", if_device->device_name);
+      ev_watcher* watcher = event_register_io_r(EV_DEFAULT_ packet_watcher_cb, fd);
+      watcher->data = (device_dev_t *) if_device;
    }
 
    // TODO: for UDP send initial message ?
@@ -267,7 +292,8 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
    int s = -1;
 
    // create a socket to work with
-   s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+   //s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+   s = socket(AF_UNIX, SOCK_STREAM, 0);
    if (0 > s) {
       perror("socket: create");
       exit(1);
@@ -289,6 +315,23 @@ void open_socket_unix(device_dev_t* if_device, options_t *options) {
    if_device->device_handle.socket = s;
    if_device->dh.fd = s;
    if_device->dispatch = socket_dispatch_unix;
+
+   // TODO: some rework is still needed
+   // register read handling to ev_handler
+   LOGGER_debug("Register io handling for interface: %s", if_device->device_name);
+
+   setNONBlocking(if_device);
+
+   int fd = get_file_desc(if_device);
+   LOGGER_debug("File Descriptor: %d", fd);
+
+   /* storing a reference of packet device to
+    be passed via watcher on a packet event so
+    we know which device to read the packet from */
+   // TODO: implement an own packet watcher callback
+   LOGGER_info("register event io: read unix socket interface (%s)", if_device->device_name);
+   ev_watcher* watcher = event_register_io_r(EV_DEFAULT_ packet_watcher_cb, fd);
+   watcher->data = (device_dev_t *) if_device;
 
 #endif
 }
@@ -321,7 +364,7 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
          case -1: {
                      if (EAGAIN == errno || EWOULDBLOCK == errno) {
                         return nPackets;
-                     } 
+                     }
                      else {
                         perror("socket: recv()");
                         return -1;
@@ -338,7 +381,7 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
       // recv is enough here, because we are just interested of the packet
       // we will not send anything back
       switch(hdr.caplen = recv(socket, buffer, sizeof(buffer), 0)) {
-         case 0: 
+         case 0:
          {
             perror("socket: recv(); connection shutdown");
             return -1;
@@ -348,19 +391,19 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
          {
             if (EAGAIN == errno || EWOULDBLOCK == errno) {
                 return nPackets;
-            } 
+            }
             else {
                perror("socket: recv()");
                return -1;
             }
          }
 
-         //default: 
+         //default:
          // everything is all right
          // futher processing
       }
 
-      
+
       LOGGER_info("bytes received: (%d)", hdr.len);
       LOGGER_info("bytes captured: (%d)", hdr.caplen);
       if( LOGGER_LEVEL_DEBUG <= logger_get_level() ){
@@ -394,7 +437,7 @@ int socket_dispatch_unix(dh_t dh, int max_packets, pcap_handler packet_handler, 
    int      socket = dh.fd;
    int32_t  i;
    int32_t  nPackets = 0;
-   uint8_t  buffer[BUFFER_SIZE];
+   uint8_t  buffer[g_options.snapLength];
 
    struct pcap_pkthdr hdr;
 
@@ -402,20 +445,8 @@ int socket_dispatch_unix(dh_t dh, int max_packets, pcap_handler packet_handler, 
          ; i < max_packets || 0 == max_packets || -1 == max_packets
          ; ++i)
    {
-      // ensure buffer will fit
-      uint32_t caplen = BUFFER_SIZE;
-      if( BUFFER_SIZE > g_options.snapLength )
-      {
-         caplen = g_options.snapLength;
-      }
-      else
-      {
-         LOGGER_warn( "socket_dispatch: snaplan exceed Buffer size (%d); "
-               "use Buffersize instead.\n", BUFFER_SIZE );
-      }
-
       // recv is blocking; until connection is closed
-      switch(hdr.caplen = recv(socket, buffer, caplen, 0)) {
+      switch(hdr.caplen = recv(socket, buffer, sizeof(buffer), 0)) {
          case 0: {
                     perror("socket: recv(); connection shutdown");
                     return -1;
@@ -424,25 +455,27 @@ int socket_dispatch_unix(dh_t dh, int max_packets, pcap_handler packet_handler, 
          case -1: {
                      if (EAGAIN == errno || EWOULDBLOCK == errno) {
                         return nPackets;
-                     } 
+                     }
                      else {
                         perror("socket: recv()");
                         return -1;
                      }
                   }
 
-         default: {
-                     // get timestamp
-                     gettimeofday(&hdr.ts, NULL);
-
-                     hdr.len = hdr.caplen;
-
-                     // print received data
-                     // be aware of the type casts need
-                     packet_handler(user_args, &hdr, buffer);
-                     ++nPackets;
-                  }
+         //default:
+         // everything is all right
+         // futher processing
       } // switch(recv())
+
+      // get timestamp
+      gettimeofday(&hdr.ts, NULL);
+
+      hdr.len = hdr.caplen;
+
+      // print received data
+      // be aware of the type casts need
+      packet_handler(user_args, &hdr, buffer);
+      ++nPackets;
    }
 
    LOGGER_trace("Return");
@@ -488,7 +521,7 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
          case -1: {
                      if (EAGAIN == errno || EWOULDBLOCK == errno) {
                         return nPackets;
-                     } 
+                     }
                      else {
                         perror("socket: recv()");
                         return -1;
@@ -505,6 +538,7 @@ int socket_dispatch(int socket, int max_packets, pcap_handler packet_handler, u_
                      // be aware of the type casts need
                      packet_handler(user_args, &hdr, buffer);
                      ++nPackets;
+                     break;
                   }
       } // switch(recv())
    }

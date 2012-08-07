@@ -64,7 +64,7 @@ clean:
 	rm -rf $(CLEANFILES)
 
 distclean:
-	rm -rf $(CLEANFILES) $(DHPARAMS) Makefile config.log config.status
+	rm -rf $(CLEANFILES) $(DHPARAMS) Makefile config.log config.status config.h
 
 install:
 	@[ -d $(DESTDIR)${bindir} ] || (mkdir -p $(DESTDIR)${bindir}; chmod 755 $(DESTDIR)${bindir})

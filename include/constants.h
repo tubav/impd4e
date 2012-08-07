@@ -49,8 +49,6 @@
 #include <pfring.h>
 #endif
 
-//#include "hash.h" // todo:
-
 
 #ifndef MAX_INTERFACES
 #define MAX_INTERFACES 10

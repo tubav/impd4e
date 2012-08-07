@@ -33,6 +33,7 @@
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+// system header files
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -56,26 +57,24 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 
+
+// local header files
 #include "main.h"
 
-//// event loop
+// event loop
 #include "ev_handler.h" // -> #include <ev.h>
 
 #include "ipfix_handler.h"
+//#include "packet_handler.h"
+#include "export_handler.h"
+#include "config_handler.h"
 #include "pcap_handler.h"
 #include "socket_handler.h"
+#include "netcon.h"
 
-//#include "constants.h"
-//#include "hash.h"
-
-//#include "stats.h"
-
-// Custom logger
-#include "logger.h"
 #include "helper.h"
-//#include "netcon.h"
-
 #include "settings.h"
+#include "logger.h"
 
 // Are we building impd4e for Openwrt
 #ifdef OPENWRT_BUILD
@@ -200,13 +199,13 @@ void open_device(device_dev_t* if_device, options_t *options) {
 int main(int argc, char *argv[]) {
    int i;
 
-   /* 
+   /*
       copy command line parameters in order not to destroy the
       original parameters during later use of strtok on them
    */
    for( i=0; i<argc; i++ )
       argv[i] = strdup(argv[i]);
- 
+
    // initializing custom logger
    logger_init(LOGGER_LEVEL_WARN);
 
@@ -255,13 +254,16 @@ int main(int argc, char *argv[]) {
    }
 
    // setup ipfix_exporter
+   LOGGER_info( "Setup IPFIX Exporter" );
    libipfix_init( g_options.observationDomainID );
    libipfix_register_templates();
    libipfix_connect( &g_options );
-   LOGGER_info( "Setup IPFIX Exporter" );
 
    /* ---- main event loop  ---- */
    event_loop_init( EV_DEFAULT ); // TODO: refactoring?
+   config_handler_init( EV_DEFAULT );
+   netcon_init( EV_DEFAULT_ "localhost", 5000 ); // TODO: ???
+   export_handler_init( EV_DEFAULT );
    event_loop_start( EV_DEFAULT ); // TODO: refactoring?
 
    // init event-loop

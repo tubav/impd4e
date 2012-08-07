@@ -32,31 +32,26 @@
  * this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EVENTHANDLER_H_
-#define EVENTHANDLER_H_
+#ifndef _EXPORT_HANDLER_H_
+#define _EXPORT_HANDLER_H_
 
+#include <inttypes.h>
 #include <ev.h>
 
-// -----------------------------------------------------------------------------
-// Type definitions
-// -----------------------------------------------------------------------------
+#include "constants.h"
 
-typedef void (*timer_cb_t)(EV_P_ ev_timer *w, int revents);
-typedef void (*io_cb_t)(EV_P_ ev_io *w, int revents);
-typedef void (*watcher_cb_t)(EV_P_ ev_watcher *w, int revents);
+extern ev_timer* export_timer_pkid;
+extern ev_timer* export_timer_sampling;
+extern ev_timer* export_timer_stats;
+extern ev_timer* export_timer_location;
 
-/* -- event loop -- */
-void event_loop( EV_P );
-void event_loop_init( EV_P );
-void event_loop_start( EV_P );
-ev_watcher* event_register_io(EV_P_ watcher_cb_t cb, int fd);
-ev_watcher* event_register_io_r(EV_P_ watcher_cb_t cb, int fd);
-ev_watcher* event_register_io_w(EV_P_ watcher_cb_t cb, int fd);
-ev_watcher* event_register_timer(EV_P_ watcher_cb_t cb, double timeout);
-ev_watcher* event_register_timer_w(EV_P_ watcher_cb_t cb, double timeout);
+void export_handler_init(EV_P);
 
-void event_deregister_timer( EV_P_ ev_timer *w );
-void event_deregister_io( EV_P_ ev_io *w );
+void export_data_sync(device_dev_t *dev
+      , int64_t observationTimeMilliseconds
+      , u_int32_t messageId
+      , u_int32_t messageValue
+      , char * message);
 
+#endif // _EXPORT_HANDLER_H_
 
-#endif /* EVENTHANDLER_H_ */

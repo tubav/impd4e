@@ -48,7 +48,7 @@
 #include "ipfix_fields_fokus.h"
 
 #include "ipfix_handler.h"
-#include "templates.h" // TODO: rename to ipfix_template.h
+#include "ipfix_templates.h"
 
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -323,4 +323,21 @@ ipfix_template_t* get_template( int template_id ) {
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
+
+/**
+ * This causes libipfix to send cached messages to
+ * the registered collectors.
+ */
+void export_flush() {
+    LOGGER_trace("ipfix flush export");
+	if (ipfix_export_flush(ipfix()) < 0) {
+		LOGGER_error("could not export ipfix-cache");
+		//         ipfix_reconnect();
+	}
+	return;
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+
 

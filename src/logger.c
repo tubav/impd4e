@@ -48,10 +48,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "logger.h"
 #include <stdarg.h>
 #include <sys/time.h>
 #include <time.h>
+
+#include "logger.h"
 
 /**
  * Logger model
@@ -220,7 +221,7 @@ void logger ( int level, const char *file, int line, const char *function,  char
 
       // TODO: syncronisation may be needed
       // print start of line
-      fprintf( logger_model.fp, "%s%ld %s ", timeBuffer, tv.tv_usec, strlevel[level]);
+      fprintf( logger_model.fp, "%s%06ld %s ", timeBuffer, tv.tv_usec, strlevel[level]);
 
       // varargs
       va_list args;

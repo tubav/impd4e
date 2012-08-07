@@ -37,11 +37,11 @@
 #include <string.h>    // strerror
 #include <arpa/inet.h> // ntohs
 #include <pcap.h>
+#include <time.h>
 //#include <ipfix.h>
 
 #ifdef PFRING
 #include <sys/time.h>
-#include <time.h>
 #endif
 
 // local header files

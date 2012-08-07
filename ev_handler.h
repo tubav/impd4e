@@ -62,6 +62,8 @@ typedef struct collector_node_sync {
 } ipfix_collector_sync_t;
 
 typedef void (*timer_cb_t)(EV_P_ ev_timer *w, int revents);
+typedef void (*io_cb_t)(EV_P_ ev_io *w, int revents);
+typedef void (*watcher_cb_t)(EV_P_ ev_watcher *w, int revents);
 
 
 typedef char* (*set_cfg_fct_t)(unsigned long mid, char* cmd_msg);
@@ -87,13 +89,13 @@ void sigpipe_cb (EV_P_ ev_signal *w, int revents);
 
 
 /* -- capture --*/
-void packet_watcher_cb(EV_P_ ev_io *w, int revents);
+void packet_watcher_cb(EV_P_ ev_watcher *w, int revents);
 
 /* -- export -- */
-void export_timer_pktid_cb    (EV_P_ ev_timer *w, int revents);
-void export_timer_sampling_cb (EV_P_ ev_timer *w, int revents);
-void export_timer_stats_cb    (EV_P_ ev_timer *w, int revents);
-void export_timer_location_cb (EV_P_ ev_timer *w, int revents);
+void export_timer_pktid_cb    (EV_P_ ev_watcher *w, int revents);
+void export_timer_sampling_cb (EV_P_ ev_watcher *w, int revents);
+void export_timer_stats_cb    (EV_P_ ev_watcher *w, int revents);
+void export_timer_location_cb (EV_P_ ev_watcher *w, int revents);
 
 
 // TODO: not here
@@ -114,7 +116,13 @@ void export_data_location(int64_t observationTimeMilliseconds);
 
 /* -- event loop -- */
 void event_loop( EV_P );
-ev_timer* event_register_timer(EV_P_ ev_tstamp tstamp, timer_cb_t* cb );
+void event_loop_init( EV_P );
+void event_loop_start( EV_P );
+ev_watcher* event_register_io(EV_P_ watcher_cb_t cb, int fd);
+ev_watcher* event_register_io_r(EV_P_ watcher_cb_t cb, int fd);
+ev_watcher* event_register_io_w(EV_P_ watcher_cb_t cb, int fd);
+ev_watcher* event_register_timer(EV_P_ watcher_cb_t cb, double timeout);
+ev_watcher* event_register_timer_w(EV_P_ watcher_cb_t cb, double timeout);
 void event_setup_pcapdev(EV_P);
 void event_setup_netcon(EV_P);
 
@@ -131,7 +139,7 @@ char* configuration_set_max_selection(unsigned long mid, char *msg);
 char* configuration_set_ratio(unsigned long mid, char *msg);
 
 /* -- netcon / resync  -- */
-void resync_timer_cb (EV_P_ ev_timer *w, int revents);
+void resync_timer_cb (EV_P_ ev_watcher *w, int revents);
 
 
 

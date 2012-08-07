@@ -218,10 +218,7 @@ int main(int argc, char *argv[]) {
    // see settings.c
    parse_cmdline_v2(argc, argv);
    //parse_cmdline(argc, argv);
-   LOGGER_info( "parse_cmdline() okay");
-
-   logger_set_level(g_options.verbosity);
-   logger_set_filter(g_options.verbosity_filter_string);
+   LOGGER_info( "[CONF] parse_cmdline() okay");
 
    // set probe name to host name if not set
    if( NULL == g_options.s_probe_name )
@@ -264,7 +261,8 @@ int main(int argc, char *argv[]) {
    LOGGER_info( "Setup IPFIX Exporter" );
 
    /* ---- main event loop  ---- */
-   event_loop( EV_DEFAULT ); // TODO: refactoring?
+   event_loop_init( EV_DEFAULT ); // TODO: refactoring?
+   event_loop_start( EV_DEFAULT ); // TODO: refactoring?
 
    // init event-loop
    // todo: loop = init_event_loop();

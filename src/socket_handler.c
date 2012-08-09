@@ -350,6 +350,9 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
 
    struct pcap_pkthdr hdr;
 
+   // get timestamp
+   gettimeofday(&hdr.ts, NULL);
+
    for ( i = 0
          ; i < max_packets || 0 == max_packets || -1 == max_packets
          ; ++i)
@@ -412,9 +415,6 @@ int socket_dispatch_inet(dh_t dh, int max_packets, pcap_handler packet_handler, 
             LOGGER_debug( "%02x ", buffer[i]);
          }
       }
-
-      // get timestamp
-      gettimeofday(&hdr.ts, NULL);
 
       // print received data
       // be aware of the type casts need

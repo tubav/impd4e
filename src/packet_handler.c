@@ -447,13 +447,16 @@ inline packet_t decode_raw(packet_t *p, uint32_t len) {
 
 inline uint64_t decode_uint64(packet_t *p) {
     uint64_t value = 0;
-    int i = 0;
-    for( i = 0; i < 8; ++i ) {
-        value <<= 8;
-        value += *((uint8_t*) p->ptr);
-        --(p->len);
-        ++(p->ptr);
-    }
+    memcpy( &value, p->ptr, 8 );
+    p->ptr += 8;
+    p->len -= 8;
+//    int i = 0;
+//    for( i = 0; i < 8; ++i ) {
+//        value <<= 8;
+//        value += *((uint8_t*) p->ptr);
+//        --(p->len);
+//        ++(p->ptr);
+//    }
     return value;
 }
 
@@ -649,15 +652,18 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
                 dst_ipa = get_ipa(packet, offsets[L_NET] + 4, layers[L_NET]);
                 dst_port = get_port(packet, offsets[L_TRANS] + 2, layers[L_TRANS]);
                 
-                LOGGER_debug("receive timestamp: 0x%08lx", timestamp);
-                if( 92 == packet->len ) {
+                LOGGER_debug("receive timestamp: 0x%llx us", timestamp);
+                LOGGER_debug("receive timestamp: 0x%llx ms", timestamp/1000);
+                LOGGER_debug("receive timestamp: 0x%llx  s", timestamp/1000/1000);
+                // if( 92 == packet->len ) {
+                if( 1 ) {
                     decode_raw(packet, packet->len-12);
                     timestamp = decode_uint64(packet);
                 }
                 else {
                     decode_raw(packet, packet->len-4);
                 }
-                LOGGER_debug("message timestamp: 0x%08lx", timestamp);
+                LOGGER_debug("message timestamp: 0x%0llx", timestamp);
                 rule_id = decode_uint32(packet);
                 
                 int index = 0;
@@ -765,8 +771,8 @@ void handle_open_epc_packet(packet_t *packet, packet_info_t *packet_info) {
                  *       geliefert werden, wir aber Milliseconds fuer unser
                  *       Template brauchen
                  */
-                //timestamp = get_timestamp(packet_info->ts); 
-                timestamp = time(NULL);
+                timestamp = get_timestamp(packet_info->ts); 
+                timestamp /= 1000;
 
                 int index = 0;
                 index += set_value(&fields[index],

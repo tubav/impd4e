@@ -649,6 +649,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
                 dst_ipa = get_ipa(packet, offsets[L_NET] + 4, layers[L_NET]);
                 dst_port = get_port(packet, offsets[L_TRANS] + 2, layers[L_TRANS]);
                 
+                LOGGER_debug("receive timestamp: 0x%08lx", timestamp);
                 if( 92 == packet->len ) {
                     decode_raw(packet, packet->len-12);
                     timestamp = decode_uint64(packet);
@@ -656,6 +657,7 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
                 else {
                     decode_raw(packet, packet->len-4);
                 }
+                LOGGER_debug("message timestamp: 0x%08lx", timestamp);
                 rule_id = decode_uint32(packet);
                 
                 int index = 0;

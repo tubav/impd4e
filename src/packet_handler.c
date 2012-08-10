@@ -657,8 +657,11 @@ void handle_ip_packet(packet_t *packet, packet_info_t *packet_info) {
                 LOGGER_debug("receive timestamp: 0x%" PRIx64 " s", timestamp/1000/1000);
                 // if( 92 == packet->len ) {
                 if( false == g_options.force_timestamp ) {
+                    struct timeval ts;
                     decode_raw(packet, packet->len-12);
-                    timestamp = decode_uint64(packet);
+                    ts.tv_sec  = htonl(decode_uint32(packet));
+                    ts.tv_usec = htonl(decode_uint32(packet));
+                    timestamp  = get_timestamp(ts);
                 }
                 else {
                     decode_raw(packet, packet->len-4);

@@ -1,0 +1,42 @@
+This are the key-value pairs to use with a config file.
+The first descriptor ist the section, to be used with []-brackets.
+The second descriptor is the key, to be used under the section with 'key = value' (without quotes)
+See Help for value type.
+
+Example: 
+[ipfix]
+collector_port = 4739
+collector_ip_address = 192.168.0.1
+
+You even see the corralated command line parameter.
+
+'v', "general.verbosity"              
+'h', "general.help"                   
+'i', "capture.interface"              
+'4', "capture.ipv4"                   
+'6', "capture.ipv6"                   
+'O', "capture.offset"                 
+'f', "filter.bpfilter"                
+'N', "filter.snaplength"              
+'I', "interval.data_export"           
+'J', "interval.probe_stats"           
+'K', "interval.interface_stats"       
+'G', "interval.location"              
+'m', "selection.min_hash_range"       
+'M', "selection.max_hash_range"       
+'r', "selection.hash_selection_ratio" 
+'s', "selection.selection_preset"     
+'S', "selection.selection_parts"      
+'F', "selection.hash_function"        
+'p', "selection.pktid_function"       
+'o', "ipfix.observation_domain_id"    
+'u', "ipfix.one_odid"                 
+'C', "ipfix.collector_ip_address"     
+'P', "ipfix.collector_port"           
+'e', "ipfix.export_flush_count"       
+'t', "template.used_template"         
+'d', "geotags.probe_name"             
+'D', "geotags.location_name"          
+'l', "geotags.latitude"               
+'L', "geotags.longitude"              
+'c', "general.configfile"             

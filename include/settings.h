@@ -82,6 +82,7 @@ typedef struct options
 	double export_location_interval;
 	int hashAsPacketID;
 	int use_oid_first_interface;
+	bool   force_timestamp;
 } options_t;
 
 

@@ -435,8 +435,11 @@ void print_help() {
 			"                                    < and > have to be escaped \n"
 			"                                  Example: RAW20,34-45,14+4,4\n"
 			"\n"
-			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\" or \"ls\"\n"
+			"   -t  <template>                 either \"min\" or \"lp\" or \"ts\" or \"ls\" or \"tsip\" or \"tsep\"\n"
 			"                                  Default: \"min\"\n"
+			"\n"
+			"   -T                             force received timestamp to be used (affect epc template only)\n"
+			"\n"
 			"   -u                             use only one oid from the first interface \n"
 			"\n"
 			"   -v[expression]                 verbose-level; use multiple times to increase output \n"
@@ -626,6 +629,11 @@ int opt_o( char* arg, options_t* options ) {
 
 int opt_O( char* arg, options_t* options ) {
    options->offset = atoi(arg);
+   return 0;
+}
+
+int opt_T( char* arg, options_t* options ) {
+   options->force_timestamp = true;
    return 0;
 }
 
@@ -836,6 +844,7 @@ struct config_map_t cfg_opt_list[] = {
 	{ 'P',":" , &opt_P, "ipfix.collector_port"           },
 	{ 'e',":" , &opt_e, "ipfix.export_flush_count"       },
 	{ 't',":" , &opt_t, "template.used_template"         },
+	{ 'T',""  , &opt_T, "general.force_timestamp"        },
 	{ 'd',":" , &opt_d, "geotags.probe_name"             },
 	{ 'D',":" , &opt_D, "geotags.location_name"          },
 	{ 'l',":" , &opt_l, "geotags.latitude"               },
@@ -1575,6 +1584,7 @@ void set_defaults_options(options_t *options) {
 	options->sel_range_min       = 0x19999999; // (2^32 / 10)
 	options->sel_range_max       = 0x33333333; // (2^32 / 5)
 	options->snapLength          = 80;
+	options->force_timestamp     = false;
 
 	options->s_probe_name     = NULL; // will be set to host name if not given by cmd line
 	options->s_location_name  = "unknown";
